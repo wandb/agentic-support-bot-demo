@@ -10,17 +10,21 @@
 
 ## 1. Summary
 
-We are building a foundational Tyler agent implementation that serves as the starting point for the agentic support bot. The script will initialize a Tyler agent with two custom stub tools (`create_issue` and `get_issue`), integrate Weights & Biases Weave for observability, and use OpenAI's gpt-4.1 model for LLM capabilities.
+We are building a foundational Tyler agent implementation that serves as the starting point for the agentic support bot. The script initializes a Tyler agent with two custom stub tools (`create_issue` and `get_issue`), integrates Weights & Biases Weave for observability with a StringPrompt-based purpose, and uses OpenAI's gpt-4.1 model for LLM capabilities. The implementation includes streaming execution for real-time feedback and comprehensive automated testing with GitHub Actions CI.
 
-This establishes the core agent architecture, tool registration patterns, and observability infrastructure that will be extended in future iterations with real issue management integrations and more sophisticated agent behaviors.
+This establishes the core agent architecture, tool registration patterns, streaming execution, test infrastructure, and observability that will be extended in future iterations with real issue management integrations and more sophisticated agent behaviors.
 
 ## 2. Decision Drivers & Non‑Goals
 
 **Drivers**:
 - Quick iteration on agent behavior requires observability (Weave tracing)
+- Streaming execution provides better UX and debugging visibility
 - Stub tools enable agent development without external system dependencies
 - Tyler framework provides production-ready agent orchestration
+- Weave StringPrompt enables prompt versioning and optimization
 - .env file approach simplifies local development setup
+- Automated testing with CI ensures code quality and prevents regressions
+- Only WANDB_API_KEY required reduces setup friction
 
 **Non‑Goals**:
 - No actual issue system integration (GitHub, Jira, Linear, etc.)
@@ -28,21 +32,25 @@ This establishes the core agent architecture, tool registration patterns, and ob
 - No web interface or API endpoints
 - No production deployment concerns (feature flags, rollback, etc.)
 - No multi-agent coordination or delegation
+- No complex retry logic or error recovery
+- No multiple LLM provider switching (OpenAI only for MVP)
 
 ## 3. Current State — Codebase Map (concise)
 
 **Key modules**:
-- `main.py` — Simple "Hello World" print statement (will be replaced)
+- `main.py` — Simple "Hello World" print statement (replaced with Tyler agent)
 - `pyproject.toml` — Basic project metadata with `directive>=0.0.9` dependency
 - `directive/` — Contains Directive workflow templates and rules
+- `tests/` — Created with 8 test cases and conftest.py for mocking
+- `.github/workflows/` — GitHub Actions CI workflow added
 
 **Existing data models**: None
 
 **External contracts**: None
 
-**Observability**: None currently in place
+**Observability**: Weave integration added with automatic tracing
 
-**Test infrastructure**: Not yet established (will be added as part of TDD)
+**Test infrastructure**: Comprehensive test suite with pytest, all API calls mocked
 
 ## 4. Proposed Design (high level, implementation‑agnostic)
 
@@ -53,23 +61,30 @@ This establishes the core agent architecture, tool registration patterns, and ob
 │           main.py                       │
 │                                         │
 │  1. Load .env (python-dotenv)          │
-│  2. Initialize Weave                    │
-│  3. Define custom tools                 │
-│  4. Create Tyler Agent                  │
-│  5. Execute agent with sample prompt    │
+│  2. Validate environment                │
+│  3. Initialize Weave                    │
+│  4. Import tools from tools.py          │
+│  5. Create Tyler Agent w/ StringPrompt  │
+│  6. Execute agent with streaming        │
 └─────────────────────────────────────────┘
          │
          ├──> Tyler Agent
          │    ├─ Model: gpt-4.1 (via LiteLLM)
-         │    ├─ Tools: [create_issue, get_issue]
-         │    └─ Purpose: Support bot assistant
+         │    ├─ Purpose: weave.StringPrompt (versioned)
+         │    └─ Tools: from tools.get_tools()
          │
          ├──> Weave (Observability)
          │    └─ Project: "agentic-support-bot-demo"
          │
-         └──> Custom Tools (Stubs)
-              ├─ create_issue(title, description, priority?)
-              └─ get_issue(issue_id)
+         ├──> tools.py (Stubs)
+         │    ├─ create_issue(title, description, priority?)
+         │    ├─ get_issue(issue_id)
+         │    └─ get_tools() -> Tyler format
+         │
+         └──> Streaming Execution
+              ├─ Real-time LLM chunks
+              ├─ Tool usage indicators
+              └─ Tool completion feedback
 ```
 
 ### Component Responsibilities
@@ -129,13 +144,17 @@ Output:
 **4. Tyler Agent Configuration**
 - `name`: "support-bot"
 - `model_name`: "gpt-4.1"
-- `purpose`: Clear purpose statement about helping users with support issues
-- `tools`: List of registered custom tools
+- `purpose`: `weave.StringPrompt` object for versioned prompt management
+- `tools`: List from `get_tools()` in Tyler's custom tool format
 
-**5. Agent Execution**
-- Simple synchronous execution for MVP (no async required yet)
+**5. Agent Execution with Streaming**
+- Async execution using `agent.go(thread, stream=True)`
+- Real-time event handling:
+  - `EventType.LLM_STREAM_CHUNK` - Display response as it's generated
+  - `EventType.TOOL_SELECTED` - Show when tools are being invoked
+  - `EventType.TOOL_RESULT` - Confirm tool completion
 - Test prompt demonstrates agent can understand and use both tools
-- Print/log agent response and any tool calls made
+- Enhanced UX with visual indicators for tool usage
 
 ### Error Handling
 
@@ -172,18 +191,19 @@ Output:
 
 **Decision**: Use Lye — it provides utilities specifically designed for Tyler tool integration and reduces boilerplate.
 
-### Alternative B: Async Agent Execution
-**Approach**: Use async/await pattern for agent execution
+### Alternative B: Async Agent Execution with Streaming
+**Approach**: Use async/await pattern for agent execution with streaming
 
 **Pros**:
 - Better for future scalability
 - Non-blocking I/O
+- Enables streaming for real-time feedback
+- Better debugging and UX
 
 **Cons**:
-- More complexity for a simple script
-- Overkill for MVP
+- Slightly more complex than synchronous
 
-**Decision**: Start with synchronous execution for simplicity. Async can be added when needed for multi-agent or streaming scenarios.
+**Decision**: Use async with streaming - the benefits for debugging and UX outweigh the minimal complexity increase. Streaming is essential for good agent development experience.
 
 ### Alternative C: Store Tool Responses
 **Approach**: Persist tool responses in SQLite or file for agent memory
@@ -212,6 +232,11 @@ Output:
 
 **Backward compatibility**: N/A (greenfield implementation)
 
+**File organization**:
+- Tools separated into `tools.py` for modularity
+- Main execution logic in `main.py`
+- Tests in `tests/` directory with pytest fixtures
+
 ## 7. Security, Privacy, Compliance
 
 ### Authentication & Authorization
@@ -220,10 +245,12 @@ Output:
 - Agent runs with developer's API credentials
 
 ### Secrets Management
-- **OPENAI_API_KEY** and **WANDB_API_KEY** stored in `.env` file
+- **WANDB_API_KEY** (required) and **OPENAI_API_KEY** (optional) stored in `.env` file
 - `.env` file is already in `.gitignore` ✓
-- Create `.env.example` with placeholder values as template
-- Document required environment variables in README
+- `.env.example` created with placeholder values as template
+- Documented required environment variables in README
+- CI uses environment variables with test values
+- Test fixtures automatically mock API keys to prevent leakage
 
 ### PII Handling
 - No real user data in stub tools
@@ -335,9 +362,11 @@ From spec acceptance criteria:
 
 ### CI Requirements
 - All tests must pass before merge
-- Run tests with `pytest` in GitHub Actions or similar
-- Test coverage target: >80% for new code
-- Linting: `ruff` or `black` + `isort` for code formatting
+- GitHub Actions workflow runs on all PRs
+- Tests run on Python 3.12 and 3.13
+- No real API calls allowed (enforced by conftest.py and WANDB_MODE=disabled)
+- Uses uv for fast, reproducible dependency management
+- Code quality checks with ruff (format and lint)
 
 ### Performance Tests
 Not required for MVP (local development script).
@@ -378,13 +407,13 @@ Not required for MVP (local development script).
 
 ## 12. Milestones / Plan (post‑approval)
 
-### Task 1: Environment & Dependencies Setup
+### Task 1: Environment & Dependencies Setup ✅ COMPLETED
 **DoD**:
-- [ ] Add dependencies to pyproject.toml: slide-tyler, slide-lye, weave, python-dotenv
-- [ ] Create .env.example with placeholder keys
-- [ ] Update README with setup instructions
-- [ ] Verify .env is in .gitignore
-- [ ] Tests: None (configuration task)
+- [x] Add dependencies to pyproject.toml: slide-tyler, slide-lye, weave, python-dotenv, pytest
+- [x] Update Python version requirement to 3.12+
+- [x] Create .env.example with placeholder keys (WANDB_API_KEY required, OPENAI_API_KEY optional)
+- [x] Update README with setup instructions
+- [x] Verify .env is in .gitignore
 
 **Commits**:
 - `chore: add slide-tyler, slide-lye, weave dependencies`
@@ -392,13 +421,12 @@ Not required for MVP (local development script).
 
 ---
 
-### Task 2: Environment Validation Module
+### Task 2: Environment Validation Module ✅ COMPLETED
 **DoD**:
-- [ ] Write failing test: `test_missing_openai_key_raises_error`
-- [ ] Write failing test: `test_missing_wandb_key_raises_error`
-- [ ] Write failing test: `test_all_keys_present_succeeds`
-- [ ] Implement environment validation function
-- [ ] Tests pass
+- [x] Write failing test: `test_missing_wandb_key_raises_error`
+- [x] Write failing test: `test_all_keys_present_succeeds`
+- [x] Implement environment validation function (WANDB_API_KEY only)
+- [x] Tests pass
 
 **Commits**:
 - `test: add failing tests for environment validation`
@@ -406,26 +434,26 @@ Not required for MVP (local development script).
 
 ---
 
-### Task 3: Weave Integration
+### Task 3: Weave Integration ✅ COMPLETED
 **DoD**:
-- [ ] Write failing test: `test_weave_initialized_with_correct_project`
-- [ ] Implement Weave initialization in main.py
-- [ ] Verify test passes with mock
-- [ ] Manual verification: script creates Weave project
+- [x] Write failing test: `test_weave_initialized_with_correct_project`
+- [x] Implement Weave initialization with `weave.init()` (positional arg)
+- [x] Tests pass with mock
+- [x] Use Weave StringPrompt for agent purpose
 
 **Commits**:
 - `test: add failing test for weave initialization`
-- `feat: initialize weave with project name`
+- `feat: initialize weave with project name and StringPrompt purpose`
 
 ---
 
-### Task 4: Create Issue Tool (Stub)
+### Task 4: Create Issue Tool (Stub) ✅ COMPLETED
 **DoD**:
-- [ ] Write failing test: `test_create_issue_returns_required_fields`
-- [ ] Write failing test: `test_create_issue_with_priority_parameter`
-- [ ] Implement create_issue tool function using Lye utilities
-- [ ] Tool returns proper schema with mock data
-- [ ] Tests pass
+- [x] Write failing test: `test_create_issue_returns_required_fields`
+- [x] Write failing test: `test_create_issue_with_priority_parameter`
+- [x] Implement create_issue tool function in tools.py
+- [x] Tool returns proper schema with mock data
+- [x] Tests pass
 
 **Commits**:
 - `test: add failing tests for create_issue tool`
@@ -433,13 +461,13 @@ Not required for MVP (local development script).
 
 ---
 
-### Task 5: Get Issue Tool (Stub)
+### Task 5: Get Issue Tool (Stub) ✅ COMPLETED
 **DoD**:
-- [ ] Write failing test: `test_get_issue_returns_required_fields`
-- [ ] Write failing test: `test_get_issue_with_valid_id`
-- [ ] Implement get_issue tool function using Lye utilities
-- [ ] Tool returns proper schema with mock data
-- [ ] Tests pass
+- [x] Write failing test: `test_get_issue_returns_required_fields`
+- [x] Write failing test: `test_get_issue_with_valid_id`
+- [x] Implement get_issue tool function in tools.py
+- [x] Tool returns proper schema with mock data
+- [x] Tests pass
 
 **Commits**:
 - `test: add failing tests for get_issue tool`
@@ -447,53 +475,70 @@ Not required for MVP (local development script).
 
 ---
 
-### Task 6: Tyler Agent Initialization
+### Task 6: Tools Organization & Integration ✅ COMPLETED
 **DoD**:
-- [ ] Write failing test: `test_agent_created_with_correct_model`
-- [ ] Write failing test: `test_agent_has_both_tools_registered`
-- [ ] Implement Tyler agent creation with tools
-- [ ] Configure model as gpt-4.1
-- [ ] Tests pass with mocked LLM
+- [x] Move tool implementations to tools.py
+- [x] Create get_tools() function returning Tyler format
+- [x] Add tests for tool structure validation
+- [x] Implement Tyler agent with tools from get_tools()
+- [x] Configure model as gpt-4.1 with StringPrompt purpose
+- [x] Tests pass
 
 **Commits**:
-- `test: add failing tests for agent initialization`
+- `feat: separate tools into tools.py module`
 - `feat: create tyler agent with custom tools and gpt-4.1`
 
 ---
 
-### Task 7: Agent Execution & Integration
+### Task 7: Streaming Execution & Integration ✅ COMPLETED
 **DoD**:
-- [ ] Write failing test: `test_agent_executes_with_sample_prompt`
-- [ ] Write failing test: `test_agent_can_invoke_create_issue_tool`
-- [ ] Implement agent execution flow in main.py
-- [ ] Add logging for execution steps
-- [ ] End-to-end manual test succeeds with real API
-- [ ] All tests pass
+- [x] Implement agent execution with streaming (agent.go(stream=True))
+- [x] Handle EventType.LLM_STREAM_CHUNK for real-time text
+- [x] Handle EventType.TOOL_SELECTED for tool usage indicators
+- [x] Handle EventType.TOOL_RESULT for tool completion
+- [x] Add visual feedback with emojis and formatting
+- [x] All tests pass
 
 **Commits**:
-- `test: add failing integration tests for agent execution`
-- `feat: implement agent execution flow`
-- `refactor: add logging and improve error messages`
+- `feat: implement streaming agent execution with real-time feedback`
 
 ---
 
-### Task 8: Documentation & Polish
+### Task 8: Testing Infrastructure & CI ✅ COMPLETED
 **DoD**:
-- [ ] Update README with usage instructions
-- [ ] Add docstrings to all functions
-- [ ] Verify all acceptance criteria from spec are met
-- [ ] Run linter and fix any issues
-- [ ] Final manual test of complete workflow
+- [x] Move tests to tests/ directory
+- [x] Create conftest.py with auto-mocking fixtures
+- [x] Ensure no real API calls in tests
+- [x] Create GitHub Actions workflow (.github/workflows/test.yml)
+- [x] Test on Python 3.12 and 3.13
+- [x] Include code quality checks
+- [x] All tests pass in CI
 
 **Commits**:
-- `docs: update README with usage examples`
-- `refactor: add docstrings and improve code clarity`
+- `test: move tests to tests/ directory and add GitHub Actions CI`
 
 ---
 
-**Total Estimated Tasks**: 8  
-**Estimated Complexity**: Medium (2-3 hours for experienced developer)  
-**Dependencies**: Sequential execution recommended (especially env → tools → agent)
+### Task 9: Documentation & Polish ✅ COMPLETED
+**DoD**:
+- [x] Update README with uv-only instructions
+- [x] Add cp command for .env setup
+- [x] Simplify README (remove test instructions)
+- [x] Add docstrings to all functions
+- [x] Verify all acceptance criteria from spec are met
+- [x] Update spec, impact, and TDR documents
+- [x] Run linter - no issues
+
+**Commits**:
+- `docs: update README and specification documents`
+
+---
+
+**Total Tasks Completed**: 9  
+**Actual Complexity**: Medium (completed with TDD approach)  
+**Final Test Count**: 8 tests, all passing
+**Files Created**: 5 new files (tools.py, tests/, .env.example, .github/workflows/test.yml)
+**Dependencies**: Sequential execution (env → tools → agent → streaming → CI)
 
 ---
 

@@ -35,18 +35,23 @@ As a developer working on the support bot, I want a basic Tyler agent with stub 
 - N/A (script/CLI only)
 
 ## Requirements
-- Must use Tyler agent framework
+- Must use Tyler agent framework with gpt-4.1 model
+- Must use Weave StringPrompt for agent purpose
 - Must register two custom tools: `create_issue` and `get_issue`
 - Must initialize Weave with project name "agentic-support-bot-demo"
 - Must stub out tool implementations (no actual issue system integration yet)
 - Tools should return placeholder responses that demonstrate structure
-- Should use gpt-4.1 as the default model
+- Must use streaming execution for real-time feedback
+- Tools must be separated into dedicated tools.py file
+- Only WANDB_API_KEY required (LLM provider keys optional)
 
 ## Acceptance Criteria
 - Given the script is executed, when the agent initializes, then Weave tracking is enabled with the correct project name
 - Given the agent receives a prompt about creating an issue, when it attempts to use `create_issue`, then the stub returns a mock issue ID
 - Given the agent receives a prompt about retrieving an issue, when it attempts to use `get_issue`, then the stub returns mock issue data
 - Given Weave credentials are missing, when the script runs, then it fails with a clear error message before attempting agent operations
+- Given the agent executes, when tool calls are made, then real-time streaming feedback is displayed
+- Given tests are run, when executed in CI, then no real API calls are made
 
 ## Non-Goals
 - Actual issue system integration (GitHub, Jira, etc.)
@@ -54,4 +59,5 @@ As a developer working on the support bot, I want a basic Tyler agent with stub 
 - User interface or web service
 - Authentication/authorization for the agent
 - Production-ready error handling
+- Multiple LLM provider support (focused on OpenAI for MVP)
 

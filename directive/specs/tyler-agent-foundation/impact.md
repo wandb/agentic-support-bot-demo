@@ -1,14 +1,21 @@
 # Impact Analysis — Tyler Agent Foundation
 
 ## Modules/packages likely touched
-- `main.py` — Will be completely refactored from hello world to Tyler agent initialization and execution
-- `.env` — New file for API key management (not committed to git)
+- `main.py` — Completely refactored from hello world to Tyler agent with streaming execution
+- `tools.py` — New file containing custom tool implementations and definitions
+- `tests/` — New directory with comprehensive test suite
+  - `tests/test_main.py` — 8 test cases covering all acceptance criteria
+  - `tests/conftest.py` — Pytest fixtures to prevent real API calls
+- `.env.example` — New template file for environment variables
+- `.github/workflows/test.yml` — New CI workflow for automated testing
 - `pyproject.toml` — New dependencies:
   - `slide-tyler` (Tyler agent core - includes LiteLLM for model access)
   - `slide-lye` (tool utilities for custom tool implementations)
   - `weave` (Weights & Biases Weave for observability)
   - `python-dotenv` (for loading environment variables from .env file)
-  - Tyler includes LiteLLM which supports 100+ LLM providers including OpenAI
+  - `pytest` + `pytest-mock` (dev dependencies for testing)
+- `.python-version` — Updated to Python 3.12+
+- `README.md` — Comprehensive documentation with setup and usage instructions
 
 ## Contracts to update (APIs, events, schemas, migrations)
 
@@ -26,23 +33,29 @@ Two new tool definitions that will be registered with the Tyler agent:
 ### External API Dependencies
 - **LLM Provider (via Tyler/LiteLLM)**: Tyler uses LiteLLM for model access
   - Supporting 100+ providers (OpenAI, Anthropic, etc.)
-  - For OpenAI's gpt-4.1: Requires `OPENAI_API_KEY` environment variable
+  - For OpenAI's gpt-4.1: Requires `OPENAI_API_KEY` environment variable (optional - can be configured per provider)
   - Rate limits apply based on provider and organization tier
 
 - **Weights & Biases Weave API**: New dependency for observability
-  - Requires `WANDB_API_KEY` environment variable
+  - Requires `WANDB_API_KEY` environment variable (REQUIRED)
   - Project will be created/accessed: "agentic-support-bot-demo"
+  - Can be disabled in CI/tests with `WANDB_MODE=disabled`
 
 ## Risks
 
 ### Security
-- **API Key Exposure**: Two new secrets must be managed (`OPENAI_API_KEY`, `WANDB_API_KEY`)
-  - Using `.env` file for local development (must be in `.gitignore`)
-  - Mitigation: Fail fast with clear error if keys are missing; document in README
-  - Create `.env.example` template for developers (without actual keys)
+- **API Key Exposure**: API keys must be managed securely
+  - `WANDB_API_KEY` (required), `OPENAI_API_KEY` (optional)
+  - Using `.env` file for local development (already in `.gitignore`)
+  - `.env.example` template provided (without actual keys)
+  - CI uses environment variables with test values
+  - Mitigation: Fail fast with clear error if WANDB_API_KEY missing
 - **Prompt Injection**: Agent will execute based on LLM output with tool access
   - Mitigation: Tools are stubbed with no real system access (for now)
   - Future: Need input validation when tools are implemented
+- **Test Isolation**: Tests must not make real API calls
+  - Mitigation: `conftest.py` auto-mocks all API calls
+  - CI sets `WANDB_MODE=disabled` as additional safeguard
 
 ### Performance/Availability
 - **OpenAI API Dependency**: Script depends on OpenAI API availability
@@ -84,5 +97,6 @@ Two new tool definitions that will be registered with the Tyler agent:
 
 ### Alerts
 - **Not Required for Initial Implementation**: This is a development script, not production
+- **CI/CD**: GitHub Actions workflow will alert on test failures via PR checks
 - **Future Consideration**: Add alerts for production deployment (error rates, latency, costs)
 
