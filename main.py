@@ -4,7 +4,6 @@ import os
 from dotenv import load_dotenv
 import weave
 from tyler import Agent, Thread, Message
-from tools import get_tools
 
 
 def validate_environment() -> None:
@@ -36,8 +35,60 @@ def main():
     weave.init("agentic-support-bot-demo")
     
     # Create Tyler agent with custom tools
-    # Get custom tools
-    tools = get_tools()
+    # Get custom tools (for backward compatibility with programmatic API)
+    from tools import create_issue, get_issue
+    tools = [
+        {
+            "definition": {
+                "type": "function",
+                "function": {
+                    "name": "create_issue",
+                    "description": "Create a new support issue with a title, description, and optional priority level",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "title": {
+                                "type": "string",
+                                "description": "The title of the issue"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "A detailed description of the issue"
+                            },
+                            "priority": {
+                                "type": "string",
+                                "description": "Priority level: low, medium, or high",
+                                "enum": ["low", "medium", "high"],
+                                "default": "medium"
+                            }
+                        },
+                        "required": ["title", "description"]
+                    }
+                }
+            },
+            "implementation": create_issue
+        },
+        {
+            "definition": {
+                "type": "function",
+                "function": {
+                    "name": "get_issue",
+                    "description": "Retrieve an existing issue by its unique identifier",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "issue_id": {
+                                "type": "string",
+                                "description": "The unique identifier of the issue to retrieve"
+                            }
+                        },
+                        "required": ["issue_id"]
+                    }
+                }
+            },
+            "implementation": get_issue
+        }
+    ]
     
     # Create Weave Prompt for agent purpose
     purpose_prompt = weave.StringPrompt(

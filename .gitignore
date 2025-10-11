@@ -61,6 +61,11 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# Tyler chat conversation databases
+tyler_chat.db
+chat.db
+*.db-journal
+
 # Flask stuff:
 instance/
 .webassets-cache

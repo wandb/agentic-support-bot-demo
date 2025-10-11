@@ -1,12 +1,26 @@
 """Custom tools for the support bot agent."""
 
+import os
 from datetime import datetime, timezone
 from uuid import uuid4
+from dotenv import load_dotenv
+import weave
+
+# Load environment variables
+load_dotenv()
+
+# Initialize Weave for observability if API key is present
+if os.getenv("WANDB_API_KEY"):
+    try:
+        weave.init("agentic-support-bot-demo")
+    except Exception as e:
+        # Log warning but continue - observability shouldn't block tool usage
+        print(f"Warning: Failed to initialize Weave: {e}")
 
 
 def create_issue(title: str, description: str, priority: str = "medium") -> dict:
     """
-    Create a new support issue (stub implementation).
+    Create a new support issue with a title, description, and optional priority level.
     
     Args:
         title: The title of the issue
@@ -32,7 +46,7 @@ def create_issue(title: str, description: str, priority: str = "medium") -> dict
 
 def get_issue(issue_id: str) -> dict:
     """
-    Retrieve an issue by ID (stub implementation).
+    Retrieve an existing issue by its unique identifier.
     
     Args:
         issue_id: The unique identifier of the issue to retrieve
@@ -55,63 +69,6 @@ def get_issue(issue_id: str) -> dict:
     }
 
 
-def get_tools() -> list:
-    """
-    Get the list of custom tools for the agent.
-    
-    Returns:
-        List of tool definitions in Tyler format.
-    """
-    return [
-        {
-            "definition": {
-                "type": "function",
-                "function": {
-                    "name": "create_issue",
-                    "description": "Create a new support issue with a title, description, and optional priority level",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "title": {
-                                "type": "string",
-                                "description": "The title of the issue"
-                            },
-                            "description": {
-                                "type": "string",
-                                "description": "A detailed description of the issue"
-                            },
-                            "priority": {
-                                "type": "string",
-                                "description": "Priority level: low, medium, or high",
-                                "enum": ["low", "medium", "high"],
-                                "default": "medium"
-                            }
-                        },
-                        "required": ["title", "description"]
-                    }
-                }
-            },
-            "implementation": create_issue
-        },
-        {
-            "definition": {
-                "type": "function",
-                "function": {
-                    "name": "get_issue",
-                    "description": "Retrieve an existing issue by its unique identifier",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "issue_id": {
-                                "type": "string",
-                                "description": "The unique identifier of the issue to retrieve"
-                            }
-                        },
-                        "required": ["issue_id"]
-                    }
-                }
-            },
-            "implementation": get_issue
-        }
-    ]
+# Export tools for tyler chat CLI
+TOOLS = [create_issue, get_issue]
 
