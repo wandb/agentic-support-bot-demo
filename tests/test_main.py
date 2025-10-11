@@ -2,6 +2,8 @@
 
 import os
 import pytest
+import yaml
+from pathlib import Path
 from unittest.mock import patch
 
 
@@ -107,31 +109,116 @@ class TestGetIssueTool:
 
 
 class TestToolsIntegration:
-    """Test that tools are properly structured for Tyler."""
+    """Test that tools are properly structured for Tyler CLI."""
 
-    def test_get_tools_returns_list(self):
-        """Test that get_tools returns a list of tool definitions."""
-        from tools import get_tools
+    def test_tools_module_exports_tools_list(self):
+        """Test that tools.py exports a TOOLS list for tyler chat."""
+        from tools import TOOLS
         
-        tools = get_tools()
-        
-        assert isinstance(tools, list)
-        assert len(tools) == 2
+        assert isinstance(TOOLS, list)
+        assert len(TOOLS) == 2
 
-    def test_tools_have_correct_structure(self):
-        """Test that tools follow Tyler format."""
-        from tools import get_tools
+    def test_tools_are_callable_functions(self):
+        """Test that TOOLS contains callable functions."""
+        from tools import TOOLS
         
-        tools = get_tools()
+        for tool in TOOLS:
+            assert callable(tool)
+            # Functions decorated with @tool should have metadata
+            assert hasattr(tool, '__name__')
+            assert hasattr(tool, '__doc__')
+
+
+class TestConfigurationFile:
+    """Test that tyler chat configuration file is valid."""
+
+    @pytest.fixture
+    def config_path(self):
+        """Get path to configuration file (checks both possible names)."""
+        base_path = Path(__file__).parent.parent
+        # Check for tyler-chat-config.yaml first, then support-bot.yaml
+        for filename in ["tyler-chat-config.yaml", "support-bot.yaml"]:
+            config_file = base_path / filename
+            if config_file.exists():
+                return config_file
+        # Default to tyler-chat-config.yaml for the assertion error
+        return base_path / "tyler-chat-config.yaml"
+
+    def test_config_file_exists(self, config_path):
+        """Test that support-bot.yaml exists."""
+        assert config_path.exists(), f"Configuration file not found at {config_path}"
+
+    def test_config_valid_yaml(self, config_path):
+        """Test that configuration file is valid YAML."""
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
         
-        for tool in tools:
-            assert "definition" in tool
-            assert "implementation" in tool
-            assert "type" in tool["definition"]
-            assert "function" in tool["definition"]
-            assert tool["definition"]["type"] == "function"
-            
-            func_def = tool["definition"]["function"]
-            assert "name" in func_def
-            assert "description" in func_def
-            assert "parameters" in func_def
+        assert config is not None
+        assert isinstance(config, dict)
+
+    def test_config_has_required_fields(self, config_path):
+        """Test that configuration has all required fields."""
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        
+        # Required fields for tyler chat
+        required_fields = ["name", "model_name", "purpose", "tools"]
+        
+        for field in required_fields:
+            assert field in config, f"Missing required field: {field}"
+            assert config[field], f"Field {field} is empty"
+
+    def test_config_name_is_valid(self, config_path):
+        """Test that agent name is configured correctly."""
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        
+        # Agent name should be a non-empty string
+        assert isinstance(config["name"], str)
+        assert len(config["name"]) > 0
+
+    def test_config_model_is_valid(self, config_path):
+        """Test that model name is configured correctly."""
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        
+        # Model name should be a non-empty string
+        assert isinstance(config["model_name"], str)
+        assert len(config["model_name"]) > 0
+
+    def test_config_purpose_is_string(self, config_path):
+        """Test that purpose is a non-empty string."""
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        
+        assert isinstance(config["purpose"], str)
+        assert len(config["purpose"]) > 0
+        # Should mention support bot functionality
+        assert "support" in config["purpose"].lower()
+
+    def test_config_tools_references_tools_file(self, config_path):
+        """Test that tools configuration references tools.py."""
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        
+        assert isinstance(config["tools"], list)
+        assert len(config["tools"]) > 0
+        # Should reference tools.py
+        assert any("tools.py" in str(tool) for tool in config["tools"])
+
+    def test_config_optional_fields_have_valid_types(self, config_path):
+        """Test that optional fields have correct types if present."""
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        
+        # Optional fields and their expected types
+        optional_fields = {
+            "temperature": (int, float),
+            "max_tool_iterations": int,
+            "notes": str,
+        }
+        
+        for field, expected_type in optional_fields.items():
+            if field in config:
+                assert isinstance(config[field], expected_type), \
+                    f"Field {field} should be {expected_type}, got {type(config[field])}"

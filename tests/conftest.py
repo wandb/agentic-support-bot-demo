@@ -22,6 +22,6 @@ def mock_environment():
 @pytest.fixture(autouse=True)
 def mock_weave():
     """Mock weave.init to prevent real Weave API calls."""
-    with patch("weave.init"):
+    with patch("weave.init"), patch("tools.weave.init"):
         yield
 
