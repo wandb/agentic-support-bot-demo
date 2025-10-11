@@ -50,7 +50,7 @@ Edit `.env` and add your API keys:
 Start an interactive chat session with the support bot using the Tyler CLI:
 
 ```bash
-uv run tyler chat --config tyler-chat-config.yaml
+uv run tyler chat
 ```
 
 This launches an interactive terminal session where you can:
