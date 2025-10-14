@@ -1,0 +1,366 @@
+"""
+OpenAI-compatible API server for Tyler agent.
+
+Exposes the Tyler support bot through a /v1/chat/completions endpoint
+that works with Weave Playground and other OpenAI-compatible clients.
+"""
+
+import asyncio
+import json
+import logging
+import os
+import time
+import uuid
+from typing import List, Literal, Optional, AsyncGenerator
+
+import yaml
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+import weave
+from tyler import Agent, Thread, Message
+
+# Configure logging
+logging.basicConfig(
+    level=os.getenv("PLAYGROUND_LOG_LEVEL", "INFO"),
+    format="[%(asctime)s] %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+
+# ============================================================================
+# Pydantic Models
+# ============================================================================
+
+class ChatMessage(BaseModel):
+    """A single message in a conversation."""
+    role: Literal["system", "user", "assistant", "tool"]
+    content: str
+    name: Optional[str] = None  # For tool messages
+
+
+class ChatCompletionRequest(BaseModel):
+    """Request format for /v1/chat/completions endpoint."""
+    model: str  # Required by OpenAI spec (not used by our server)
+    messages: List[ChatMessage]
+    stream: bool = False
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+
+
+class HealthResponse(BaseModel):
+    """Response format for health check endpoint."""
+    status: str
+    agent_name: str
+    model: str
+
+
+# ============================================================================
+# Agent Initialization
+# ============================================================================
+
+def load_agent() -> tuple[Agent, dict]:
+    """
+    Load Tyler agent from configuration file.
+    
+    Returns:
+        Tuple of (agent instance, config dict)
+    
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        ValueError: If config is invalid or tools can't be loaded
+    """
+    config_path = "tyler-chat-config.yaml"
+    
+    # Load config file
+    try:
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+        logger.info(f"Loaded configuration from {config_path}")
+    except FileNotFoundError:
+        logger.error(f"Config file not found: {config_path}")
+        raise FileNotFoundError(
+            f"Configuration file '{config_path}' not found. "
+            "Please run the server from the project root directory."
+        )
+    except yaml.YAMLError as e:
+        logger.error(f"Invalid YAML in config file: {e}")
+        raise ValueError(f"Failed to parse config file: {e}")
+    
+    # Validate required fields
+    required_fields = ["name", "model_name", "purpose"]
+    missing_fields = [f for f in required_fields if f not in config]
+    if missing_fields:
+        raise ValueError(f"Missing required config fields: {', '.join(missing_fields)}")
+    
+    # Load tools dynamically
+    tools = []
+    if "tools" in config and config["tools"]:
+        tool_path = config["tools"][0]  # Get first tool path
+        logger.info(f"Loading tools from {tool_path}")
+        
+        try:
+            # Import tools module
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("custom_tools", tool_path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Failed to load module from {tool_path}")
+            
+            tools_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(tools_module)
+            
+            # Get TOOLS list
+            if hasattr(tools_module, 'TOOLS'):
+                tools = tools_module.TOOLS
+                logger.info(f"Loaded {len(tools)} tools: {[t.__name__ for t in tools]}")
+            else:
+                logger.warning(f"No TOOLS list found in {tool_path}")
+        except Exception as e:
+            logger.error(f"Failed to load tools from {tool_path}: {e}")
+            raise ValueError(f"Failed to load tools: {e}")
+    
+    # Initialize Weave
+    try:
+        weave.init("agentic-support-bot-demo")
+        logger.info("Weave initialized: project=agentic-support-bot-demo")
+    except Exception as e:
+        logger.warning(f"Weave initialization failed: {e} (observability degraded)")
+    
+    # Create agent
+    agent = Agent(
+        name=config["name"],
+        model_name=config["model_name"],
+        purpose=config["purpose"],
+        tools=tools,
+        temperature=config.get("temperature", 0.7),
+        max_tool_iterations=config.get("max_tool_iterations", 10)
+    )
+    
+    logger.info(f"Agent initialized: {config['name']} ({config['model_name']})")
+    return agent, config
+
+
+# Initialize agent at startup
+try:
+    AGENT, CONFIG = load_agent()
+except Exception as e:
+    logger.error(f"Failed to initialize agent: {e}")
+    raise
+
+
+# ============================================================================
+# SSE Serialization
+# ============================================================================
+
+def serialize_chunk_to_sse(chunk) -> str:
+    """
+    Convert LiteLLM chunk to Server-Sent Events format.
+    
+    Args:
+        chunk: LiteLLM ModelResponseStream object
+        
+    Returns:
+        SSE-formatted string: "data: {json}\\n\\n"
+    """
+    chunk_dict = {
+        "id": getattr(chunk, 'id', f'chatcmpl-{uuid.uuid4()}'),
+        "object": getattr(chunk, 'object', 'chat.completion.chunk'),
+        "created": getattr(chunk, 'created', int(time.time())),
+        "model": getattr(chunk, 'model', CONFIG["model_name"]),
+        "choices": []
+    }
+    
+    # Extract choices
+    if hasattr(chunk, 'choices') and chunk.choices:
+        for choice in chunk.choices:
+            choice_dict = {
+                "index": getattr(choice, 'index', 0),
+                "delta": {},
+                "finish_reason": getattr(choice, 'finish_reason', None)
+            }
+            
+            # Extract delta (it's an object, not a dict)
+            if hasattr(choice, 'delta'):
+                delta = choice.delta
+                
+                # Handle content
+                if hasattr(delta, 'content') and delta.content:
+                    choice_dict["delta"]["content"] = delta.content
+                
+                # Handle role
+                if hasattr(delta, 'role') and delta.role:
+                    choice_dict["delta"]["role"] = delta.role
+            
+            chunk_dict["choices"].append(choice_dict)
+    
+    # Include usage in final chunk
+    if hasattr(chunk, 'usage') and chunk.usage:
+        chunk_dict["usage"] = {
+            "prompt_tokens": getattr(chunk.usage, 'prompt_tokens', 0),
+            "completion_tokens": getattr(chunk.usage, 'completion_tokens', 0),
+            "total_tokens": getattr(chunk.usage, 'total_tokens', 0)
+        }
+    
+    return f"data: {json.dumps(chunk_dict)}\n\n"
+
+
+# ============================================================================
+# Message Conversion
+# ============================================================================
+
+def convert_to_tyler_thread(messages: List[ChatMessage]) -> Thread:
+    """
+    Convert OpenAI messages to Tyler Thread with Message objects.
+    
+    Args:
+        messages: List of ChatMessage objects from request
+        
+    Returns:
+        Tyler Thread instance with messages added
+    """
+    thread = Thread()
+    for msg in messages:
+        thread.add_message(Message(role=msg.role, content=msg.content))
+    return thread
+
+
+# ============================================================================
+# FastAPI Application
+# ============================================================================
+
+app = FastAPI(
+    title="Tyler Playground API",
+    description="OpenAI-compatible API for Tyler support bot agent",
+    version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for local dev
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ============================================================================
+# Endpoints
+# ============================================================================
+
+@app.get("/health", response_model=HealthResponse)
+async def health_check():
+    """Health check endpoint."""
+    return HealthResponse(
+        status="ok",
+        agent_name=CONFIG["name"],
+        model=CONFIG["model_name"]
+    )
+
+
+@app.get("/")
+async def root():
+    """Root endpoint - redirects to health check."""
+    return {
+        "message": "Tyler Playground API",
+        "endpoints": {
+            "health": "/health",
+            "chat_completions": "/v1/chat/completions"
+        }
+    }
+
+
+@app.post("/v1/chat/completions")
+async def chat_completions(request: ChatCompletionRequest):
+    """
+    OpenAI-compatible chat completions endpoint.
+    
+    Always streams responses for optimal UX.
+    """
+    # Validate request
+    if not request.messages:
+        raise HTTPException(
+            status_code=400,
+            detail="messages array cannot be empty"
+        )
+    
+    # Log request
+    logger.info(
+        f"POST /v1/chat/completions (messages={len(request.messages)})"
+    )
+    
+    # Convert messages to Tyler thread
+    try:
+        thread = convert_to_tyler_thread(request.messages)
+    except Exception as e:
+        logger.error(f"Failed to convert messages: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid message format: {e}"
+        )
+    
+    # Stream response from Tyler agent
+    async def generate() -> AsyncGenerator[str, None]:
+        """Generate SSE stream from Tyler agent."""
+        try:
+            async for chunk in AGENT.go(thread, stream="raw"):
+                yield serialize_chunk_to_sse(chunk)
+            
+            # Send [DONE] message
+            yield "data: [DONE]\n\n"
+            
+            logger.info("Request completed")
+            
+        except Exception as e:
+            logger.error(f"Error during streaming: {e}")
+            # Send error as SSE
+            error_chunk = {
+                "error": {
+                    "message": str(e),
+                    "type": "server_error"
+                }
+            }
+            yield f"data: {json.dumps(error_chunk)}\n\n"
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
+
+
+# ============================================================================
+# Server Startup
+# ============================================================================
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    host = os.getenv("PLAYGROUND_SERVER_HOST", "0.0.0.0")
+    port = int(os.getenv("PLAYGROUND_SERVER_PORT", "8000"))
+    
+    logger.info("="*60)
+    logger.info("Tyler Playground API Server")
+    logger.info("="*60)
+    logger.info(f"Agent: {CONFIG['name']} ({CONFIG['model_name']})")
+    logger.info(f"Server: http://{host}:{port}")
+    logger.info(f"Health check: http://{host}:{port}/health")
+    logger.info("="*60)
+    
+    uvicorn.run(
+        "playground_server:app",
+        host=host,
+        port=port,
+        log_level="info",
+        reload=False  # Disable reload to prevent double initialization
+    )
+
