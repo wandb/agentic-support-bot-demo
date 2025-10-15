@@ -126,20 +126,45 @@ def load_agent() -> tuple[Agent, dict]:
     
     # Initialize Weave
     try:
-        weave.init("agentic-support-bot-demo")
-        logger.info("Weave initialized: project=agentic-support-bot-demo")
+        project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+        weave.init(project)
+        logger.info(f"Weave initialized: project={project}")
     except Exception as e:
         logger.warning(f"Weave initialization failed: {e} (observability degraded)")
     
-    # Create agent
-    agent = Agent(
-        name=config["name"],
-        model_name=config["model_name"],
-        purpose=config["purpose"],
-        tools=tools,
-        temperature=config.get("temperature", 0.7),
-        max_tool_iterations=config.get("max_tool_iterations", 10)
-    )
+    # Create agent with all config fields
+    agent_kwargs = {
+        "name": config["name"],
+        "model_name": config["model_name"],
+        "purpose": config["purpose"],
+        "tools": tools,
+        "temperature": config.get("temperature", 0.7),
+        "max_tool_iterations": config.get("max_tool_iterations", 10)
+    }
+    
+    # Add optional fields if present
+    if "base_url" in config:
+        agent_kwargs["base_url"] = config["base_url"]
+        logger.info(f"Using base_url: {config['base_url']}")
+    
+    if "api_key" in config:
+        # Support environment variable expansion (e.g., ${WANDB_API_KEY})
+        api_key = config["api_key"]
+        if api_key.startswith("${") and api_key.endswith("}"):
+            env_var = api_key[2:-1]
+            api_key = os.getenv(env_var)
+            if not api_key:
+                logger.warning(f"Environment variable {env_var} not set")
+        agent_kwargs["api_key"] = api_key
+    
+    if "reasoning" in config:
+        agent_kwargs["reasoning"] = config["reasoning"]
+        logger.info(f"Reasoning enabled: {config['reasoning']}")
+    
+    if "notes" in config:
+        agent_kwargs["notes"] = config["notes"]
+    
+    agent = Agent(**agent_kwargs)
     
     logger.info(f"Agent initialized: {config['name']} ({config['model_name']})")
     return agent, config
@@ -195,6 +220,41 @@ def serialize_chunk_to_sse(chunk) -> str:
                 # Handle role
                 if hasattr(delta, 'role') and delta.role:
                     choice_dict["delta"]["role"] = delta.role
+                
+                # Handle thinking tokens (reasoning content)
+                # Support both LiteLLM's 'thinking' and vLLM's 'reasoning_content' fields
+                thinking_text = None
+                if hasattr(delta, 'thinking') and delta.thinking:
+                    thinking_text = delta.thinking
+                elif hasattr(delta, 'reasoning_content') and delta.reasoning_content:
+                    thinking_text = delta.reasoning_content
+                
+                # Output both field names for maximum compatibility
+                if thinking_text:
+                    choice_dict["delta"]["thinking"] = thinking_text
+                    choice_dict["delta"]["reasoning_content"] = thinking_text
+                
+                # Handle tool calls
+                if hasattr(delta, 'tool_calls') and delta.tool_calls:
+                    tool_calls_list = []
+                    for tool_call in delta.tool_calls:
+                        tool_call_dict = {
+                            "index": getattr(tool_call, 'index', 0),
+                            "id": getattr(tool_call, 'id', None),
+                            "type": getattr(tool_call, 'type', 'function'),
+                        }
+                        
+                        # Handle function details
+                        if hasattr(tool_call, 'function'):
+                            func = tool_call.function
+                            tool_call_dict["function"] = {
+                                "name": getattr(func, 'name', None),
+                                "arguments": getattr(func, 'arguments', None)
+                            }
+                        
+                        tool_calls_list.append(tool_call_dict)
+                    
+                    choice_dict["delta"]["tool_calls"] = tool_calls_list
             
             chunk_dict["choices"].append(choice_dict)
     

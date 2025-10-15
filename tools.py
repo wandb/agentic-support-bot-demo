@@ -12,7 +12,8 @@ load_dotenv()
 # Initialize Weave for observability if API key is present
 if os.getenv("WANDB_API_KEY"):
     try:
-        weave.init("agentic-support-bot-demo")
+        project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+        weave.init(project)
     except Exception as e:
         # Log warning but continue - observability shouldn't block tool usage
         print(f"Warning: Failed to initialize Weave: {e}")
