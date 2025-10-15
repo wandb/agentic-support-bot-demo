@@ -5233,7 +5233,7 @@ wheels = [
 
 [[package]]
 name = "slide-lye"
-version = "2.2.3"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -5253,9 +5253,9 @@ dependencies = [
     { name = "wandb-workspaces" },
     { name = "weave" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f2/e4/c026dd7c5f091ef5cab245a9645f84786a46e650d914037fefc9b4eaddef/slide_lye-2.2.3.tar.gz", hash = "sha256:1725ac9504dc9f817c122d3acba87f94d7afa271419ba162799ceba91aac8ad4", size = 32927, upload-time = "2025-10-14T05:12:20.583Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7f/02/aa6e1847de1e1d2c23cd1b99aecaa7fd32b77ca5d0ad3ddfefe5e75c8c0b/slide_lye-3.0.0.tar.gz", hash = "sha256:06dbbb78b76b5c083574a5bccfbc3488217ce05fd8d8ff02df80d520d4de64f9", size = 32927, upload-time = "2025-10-15T00:28:33.774Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f3/9a/4d20a125a7a613752d950054bf4ad3627ba39ed3bce958982a26099748e7/slide_lye-2.2.3-py3-none-any.whl", hash = "sha256:2725fdf17f6c78b6d34a3515bed4c7862095e2e53ae3c2b21fd9de9bb476a650", size = 36935, upload-time = "2025-10-14T05:12:19.725Z" },
+    { url = "https://files.pythonhosted.org/packages/55/2b/1c30a22657bc280af14414cc8763494898f1dbd9cdb8627dc16fb465c0f5/slide_lye-3.0.0-py3-none-any.whl", hash = "sha256:0f8613cbcfebd9a0fe92e3b18e14432bff8a286b88251f4c194e81120f54caf7", size = 36940, upload-time = "2025-10-15T00:28:32.963Z" },
 ]
 
 [[package]]
@@ -5280,7 +5280,7 @@ wheels = [
 
 [[package]]
 name = "slide-tyler"
-version = "2.2.3"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohappyeyeballs" },
@@ -5385,9 +5385,9 @@ dependencies = [
     { name = "yarl" },
     { name = "zipp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/eb/65/2821396dabc0bb8c6da739157958403f6d92c6ef4933b0a9bf0f6de7227d/slide_tyler-2.2.3.tar.gz", hash = "sha256:0030007331c1a467ce4a8f71b882c21c526a9327fd9a89792dc94f516b08eeec", size = 66481, upload-time = "2025-10-14T05:12:14.225Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2d/8f/5f84e08655563254ed264a738c2b66be487fdb47731afb707feb6452a4b2/slide_tyler-3.0.0.tar.gz", hash = "sha256:b5bd1fc98cd7ec7e2f18052ad549abfe7e57e4750e663329b392afcf57e86036", size = 67687, upload-time = "2025-10-15T00:28:25.849Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/3b/4c0619429367156feb6d5df5636038afe76bacf94e2a1970e324db679fc3/slide_tyler-2.2.3-py3-none-any.whl", hash = "sha256:151db3c49c31689c6c57868cd51b2b576074b6bba33f6ceb90a356544e5edee2", size = 79569, upload-time = "2025-10-14T05:12:12.863Z" },
+    { url = "https://files.pythonhosted.org/packages/59/09/1c7f2e002ff2e243ea699069a86e8135df65553aa6230b27129dd5e8f415/slide_tyler-3.0.0-py3-none-any.whl", hash = "sha256:0edec66b53a3fb1aad15608b3dcc2112ae674d5e429ccadc48c395a7607118f9", size = 80841, upload-time = "2025-10-15T00:28:27.509Z" },
 ]
 
 [[package]]
