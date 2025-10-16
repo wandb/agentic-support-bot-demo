@@ -42,6 +42,30 @@ For each step we have attempted to include both **code-first** and **UI-first** 
 
 ## Step 1: Project Setup
 
+### What You're Really Accomplishing
+
+Setting up the foundation for an AI agent.
+
+### Questions a Real User Would Face
+
+Before writing a single line of code, you'd need to decide:
+- **Which framework?** Raw OpenAI SDK? LangChain? LlamaIndex? A newer framework like Slide/Tyler?
+- **Which LLM provider(s)?** OpenAI, Anthropic, local models? How to abstract this choice?
+- **Secret management?** `.env` files, cloud secrets, environment variables?
+- **Observability?** Which logging/tracing tool? How to instrument?
+
+Each decision requires research, reading docs, and potentially refactoring later.
+
+### What This Demo Decided For You
+
+✅ **Framework**: Slide (Because it is the best and open source;) - provides agent orchestration, streaming, and tool calling out of the box  
+✅ **LLM abstraction**: LiteLLM - switch between providers with just a config change  
+✅ **Observability**: Weave integration pre-configured  
+
+### Your Focus
+
+Experience how quickly you can go from zero to running agent when these decisions are made. Notice which choices feel right and which might need reconsideration for your use case.
+
 ### Code Approach
 
 1. **Clone the repository**
@@ -86,6 +110,35 @@ Edit `.env` and add your API keys:
 
 ## Step 2: Get a Basic Agent Running
 
+### What You're Really Accomplishing
+
+Building a functional conversational AI agent that can maintain context, call tools, and interact naturally with users.
+
+### Questions a Real User Would Face
+
+- **How do I structure the conversation loop?** Handle user input, maintain history, stream responses?
+- **How do I implement tool calling?** Function definitions, schema validation, execution, error handling?
+- **What's the right system prompt?** Tone, capabilities, limitations, when to use tools?
+- **How do I maintain conversation state?** In-memory? Database? Session management?
+- **How do I make it observable?** What to log? How to trace agent decisions?
+- **What's the right UX for chatting?** Command line? Web interface? What about special commands?
+
+Building even a "basic" agent involves dozens of decisions about architecture, error handling, and user experience.
+
+### What This Demo Decided For You
+
+✅ **Conversation orchestration**: Tyler CLI handles the message loop, history, and streaming  
+✅ **Tool calling pattern**: Built-in support with automatic schema generation  
+✅ **System prompt**: Pre-written support bot prompt (in `tyler-chat-config.yaml`)  
+✅ **State management**: In-memory conversation history with session support  
+✅ **CLI interface**: Rich terminal UI with commands like `/help`, `/new`, `/quit`  
+✅ **Observability**: Automatic trace logging to Weave on every interaction  
+✅ **Sample tools**: Pre-built `create_issue()` and `get_issue()` tools in `tools.py`
+
+### Your Focus
+
+Experience how the agent handles conversations. Does it feel natural? Are tool calls intuitive? Notice what makes a good agent interaction vs. a frustrating one.
+
 ### Code Approach
 
 Start the interactive chat CLI:
@@ -124,6 +177,33 @@ You: Can you get me the details for issue #123?
 
 ## Step 3: Vibe Check - Experiment in the Playground
 
+### What You're Really Accomplishing
+
+Qualitative evaluation of your agent - understanding its behavior, personality, and reliability before investing in formal testing infrastructure.
+
+### Questions a Real User Would Face
+
+- **How do I know if my agent is "good enough"?** What does "good" even mean for my use case?
+- **What scenarios should I test?** Happy paths? Edge cases? How many is enough?
+- **How do I debug when something goes wrong?** Where did the agent make a bad decision?
+- **What's taking so long?** Is it the LLM, tool execution, or network latency?
+- **How much is this costing me?** Per conversation? Per tool call?
+- **Did I configure it correctly?** Are my tools being used? Is the system prompt working?
+
+Early-stage testing is chaotic - you're simultaneously debugging, exploring, and forming intuitions about what "good" looks like.
+
+### What This Demo Decided For You
+
+✅ **Test scenarios**: Example prompts provided to cover key use cases  
+✅ **Debugging infrastructure**: Weave traces automatically capture full execution  
+✅ **Visibility tooling**: Pre-configured trace viewing in Weave dashboard  
+✅ **Cost tracking**: Token usage visible in traces  
+✅ **Latency monitoring**: Timing data captured at each step
+
+### Your Focus
+
+This is your first real "feel" for the agent. Is it delightful or frustrating? When you look at traces in Weave, can you understand what the agent did and why? This qualitative feedback is crucial before investing in quantitative metrics.
+
 ### Code Approach
 
 Continue chatting with the agent in the CLI and try various prompts:
@@ -153,7 +233,33 @@ Continue chatting with the agent in the CLI and try various prompts:
 
 <!-- ## Step 4: Create a Dataset
 
-Build a test dataset to systematically evaluate your agent.
+### What You're Really Accomplishing
+
+Transitioning from ad-hoc testing to systematic evaluation by building a curated set of test cases that represent your agent's expected usage.
+
+### Questions a Real User Would Face
+
+- **What scenarios should I cover?** Which are most important? Most common? Most risky?
+- **How do I structure test data?** What format? What fields are needed?
+- **How many test cases do I need?** 10? 100? 1000?
+- **Should I include edge cases or focus on common paths?** Balance between coverage and effort?
+- **Where do test cases come from?** Manual creation? Real user data? Synthetic generation?
+- **How do I version and maintain this dataset?** Git? Database? Manual files?
+- **What's the "expected output"?** Exact matches? Semantic similarity? Action taken?
+
+Creating good test datasets is harder than it looks - it requires domain knowledge, creativity, and careful thought about what "correct" means.
+
+### What This Demo Decided For You
+
+✅ **Dataset format**: Weave Dataset structure with rows and columns  
+✅ **Test coverage**: Example test cases covering main agent capabilities  
+✅ **Expected outputs**: Simple action-based expectations (create_ticket, provide_info, etc.)  
+✅ **Storage**: Versioned in Weave (or code) for reproducibility  
+✅ **Size**: Small but representative set (~10-20 cases) to start
+
+### Your Focus
+
+As you create or review test cases, think about whether they truly represent real-world usage. Are you testing the right things? Would failures on these cases matter in production?
 
 ### Code Approach
 
@@ -191,7 +297,32 @@ dataset = weave.Dataset(
 
 ## Step 5: Create Evaluation Scorers
 
-Define how you'll measure agent performance.
+### What You're Really Accomplishing
+
+Defining objective, automated metrics to measure agent quality - translating human judgment into code.
+
+### Questions a Real User Would Face
+
+- **What should I measure?** Accuracy? Helpfulness? Tone? Safety? All of the above?
+- **How do I measure subjective qualities?** Like "helpfulness" or "brand voice"?
+- **Should I use LLM-as-judge?** Which model? What prompt? How reliable is it?
+- **Exact match or semantic similarity?** When is each appropriate?
+- **How do I handle multiple valid responses?** Not all questions have one right answer
+- **What about edge cases?** Refusals, clarifications, multi-turn conversations?
+- **How do I validate my scorers are correct?** Who judges the judges?
+
+Building good evaluation metrics is one of the hardest parts of AI engineering - it requires domain expertise and careful thinking about what success means.
+
+### What This Demo Decided For You
+
+✅ **Scorer framework**: Weave's `@weave.op()` decorator for automatic tracking  
+✅ **Initial metrics**: Simple action accuracy and tool usage scoring  
+✅ **Evaluation patterns**: Example code showing scorer structure  
+✅ **Output format**: Dictionary-based results for flexibility
+
+### Your Focus
+
+Think critically about the scorers: Do they measure what matters? Would high scores actually mean a good agent? What important qualities are missing? This is where product sense meets engineering.
 
 ### Code Approach
 
@@ -222,7 +353,33 @@ def tool_usage_scorer(output: dict) -> dict:
 
 ## Step 6: Establish Baseline Performance
 
-Run evaluations to understand your starting point.
+### What You're Really Accomplishing
+
+Creating your first quantitative measurement of agent performance - establishing a benchmark to compare all future improvements against.
+
+### Questions a Real User Would Face
+
+- **How do I run evaluations at scale?** Sequentially? In parallel? Rate limits?
+- **What's a "good" score?** Is 80% accuracy good enough? 90%? Depends on the task?
+- **How long will this take?** Runtime and cost for N test cases?
+- **How do I handle flakiness?** LLM outputs are non-deterministic
+- **Should I use sampling/temperature 0?** Trade-offs between consistency and creativity?
+- **Where do I store results?** For comparison over time?
+- **How do I surface results to stakeholders?** Dashboards? Reports? Alerts?
+
+Running your first eval is exciting but raises questions about reliability, cost, and what the numbers actually mean.
+
+### What This Demo Decided For You
+
+✅ **Evaluation harness**: Weave's `Evaluation` class handles execution and tracking  
+✅ **Parallelization**: Automatically handles concurrent execution  
+✅ **Result storage**: Results automatically logged to Weave for comparison  
+✅ **Cost tracking**: Token usage tracked per evaluation run  
+✅ **Model config**: Sensible defaults (temperature, etc.) pre-set
+
+### Your Focus
+
+Look at the results critically. What does a 75% accuracy score actually tell you? Which failures matter most? This baseline is your north star for improvement - make sure you trust it.
 
 ### Code Approach
 
@@ -263,7 +420,34 @@ print(f"Baseline accuracy: {results['accuracy']}")
 
 ## Step 7: Test Different Models
 
-Compare performance across different LLM providers and models.
+### What You're Really Accomplishing
+
+Systematically comparing LLM providers and models to find the best balance of quality, cost, and latency for your specific use case.
+
+### Questions a Real User Would Face
+
+- **Which models should I test?** GPT-4? Claude? Gemini? Open source?
+- **How do I switch between providers?** Different APIs, auth patterns, response formats?
+- **What about cost differences?** Some models are 10-100x more expensive than others
+- **What about latency?** Faster models might sacrifice quality
+- **How do I handle provider-specific features?** Function calling implementation varies
+- **Should I test different model sizes?** GPT-4 vs GPT-3.5? Claude Opus vs Sonnet?
+- **How do I make comparisons fair?** Same prompts? Same temperature? Same test set?
+- **What if a model fails mid-eval?** Rate limits, timeouts, API errors?
+
+Model selection is crucial - it impacts your quality, cost, and reliability. But testing is time-consuming and expensive.
+
+### What This Demo Decided For You
+
+✅ **Provider abstraction**: LiteLLM handles different APIs uniformly  
+✅ **Easy switching**: Change one line in config file to test new models  
+✅ **Comparison framework**: Weave automatically tracks results for side-by-side comparison  
+✅ **Suggested models**: Pre-configured with sensible options to try  
+✅ **Cost visibility**: Token usage and estimated costs in traces
+
+### Your Focus
+
+As you compare models, think about the trade-offs. Is a 5% accuracy improvement worth 10x the cost? How much does latency matter for your users? This is where engineering meets business decisions.
 
 ### Code Approach
 
@@ -289,7 +473,35 @@ Run evaluations for each model and compare in Weave.
 
 ## Step 8: Iterate to Improve Accuracy
 
-Now that you have a baseline, start improving:
+### What You're Really Accomplishing
+
+The iterative improvement cycle - the core of AI engineering where you experiment, measure, and refine to boost performance.
+
+### Questions a Real User Would Face
+
+- **Where do I start?** Prompts? Tools? Examples? RAG? Fine-tuning?
+- **How do I know what to fix?** Which errors are most important?
+- **Should I use few-shot examples?** How many? Which ones? Where to put them?
+- **How do I improve tool calling?** Better descriptions? Better names? More/fewer tools?
+- **What about prompt engineering?** What techniques actually work?
+- **Should I add guardrails?** How to validate outputs without breaking creativity?
+- **How much testing between changes?** Full eval every time? Spot checks?
+- **How do I avoid overfitting to my test set?** Am I gaming my own metrics?
+- **When is "good enough" good enough?** Diminishing returns vs. perfectionism?
+
+This is the messy, creative phase where art meets science. Every change needs testing, and improvements aren't always obvious.
+
+### What This Demo Decided For You
+
+✅ **Iteration tools**: Easy config changes with immediate testing  
+✅ **Fast feedback loop**: CLI for quick spot checks, evals for validation  
+✅ **Common techniques**: Examples of prompt improvements, tool refinements  
+✅ **Measurement framework**: Automatic comparison of runs in Weave  
+✅ **Version control**: Git + Weave for tracking what changed and impact
+
+### Your Focus
+
+This is where you live for weeks in real projects. Notice what makes iteration fast vs. slow. Can you quickly test a hypothesis? Is it clear what improved and what regressed? This workflow quality determines your development velocity.
 
 ### Code Approach
 
@@ -320,7 +532,34 @@ python run_evaluation.py
 
 ## Step 9 (Bonus): Iterate on the Details
 
-Polish the agent's personality and behavior:
+### What You're Really Accomplishing
+
+Moving from "works" to "delightful" - the final polish that makes users love (or hate) your agent.
+
+### Questions a Real User Would Face
+
+- **What's the right personality?** Formal? Casual? Funny? It depends on brand and context
+- **How much context should the agent maintain?** Full conversation? Last N messages? Summarization?
+- **When should the agent ask clarifying questions?** Too many is annoying, too few causes errors
+- **How do I handle ambiguity gracefully?** Not every user request is clear
+- **What about error messages?** Technical details vs. user-friendly language?
+- **Should the agent apologize?** Set boundaries? How human-like should it feel?
+- **How do I measure "quality"?** NPS? User feedback? Custom scorers?
+
+These details are what separate good agents from great ones, but they're highly subjective and hard to measure objectively.
+
+### What This Demo Decided For You
+
+✅ **Base personality**: Friendly support bot tone pre-configured  
+✅ **Context handling**: Multi-turn conversation support built-in  
+✅ **Error patterns**: Basic error handling implemented  
+✅ **Evaluation framework**: Infrastructure to test subjective qualities with custom scorers
+
+### Your Focus
+
+This is where product intuition matters most. These details can't always be A/B tested or measured - you need to develop taste for what makes a good interaction. Pay attention to how the agent "feels" to use.
+
+### Details to Polish
 
 - **Tone of voice**: Make it friendly, professional, or quirky
 - **Follow-up questions**: Have the agent proactively ask clarifying questions
