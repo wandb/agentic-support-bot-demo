@@ -88,76 +88,152 @@ Edit `.env` and add your API keys:
 
 ## Step 2: Get a Basic Agent Running
 
-### What You're Really Accomplishing
+We'll build your agent incrementally, starting simple and adding complexity. You'll use **Weave traces at each stage** to understand what's happening.
 
-Building a functional conversational AI agent that can maintain context, call tools, and interact naturally with users.
+### Part A: Create Your First Agent
 
-### Questions a Real User Would Face
+**What You're Accomplishing:** Get a minimal agent running and see your first Weave trace.
 
-- **Should I use a framework?** Raw OpenAI SDK? LangChain? LlamaIndex? A newer framework like Slide?
-- **Which LLM provider(s)?** OpenAI, Anthropic, local models? How to abstract this choice for flexibility?
-- **How do I structure the conversation loop?** Handle user input, maintain history, stream responses?
-- **How do I implement tool calling?** Function definitions, schema validation, execution, error handling?
-- **What's the right system prompt?** Tone, capabilities, limitations, when to use tools?
-- **How do I maintain conversation state?** In-memory? Database? Session management?
-- **How do I make it observable?** Which logging/tracing tool? How to instrument? What to capture?
-- **What's the right UX for chatting?** Command line? Web interface? What about special commands?
+> **⏭️ Want to skip ahead?** 
+> ```bash
+> cp examples/step-2a-basic-agent/tyler-chat-config.yaml .
+> ```
 
-Building even a "basic" agent involves dozens of decisions about architecture, error handling, and user experience.
+**Instructions:**
 
-### What This Demo Decided For You
+Your `tyler-chat-config.yaml` should already be minimal (just agent name and model). If not, it should look like:
 
-✅ **Framework**: Slide (because it's the best and open source ;) - handles orchestration, streaming, and tool calling  
-✅ **LLM abstraction**: LiteLLM - switch between providers with just a config change  
-✅ **Conversation orchestration**: Message loop, history, and streaming built-in  
-✅ **Tool calling pattern**: Automatic schema generation and execution  
-✅ **System prompt**: Pre-written support bot prompt (in `tyler-chat-config.yaml`)  
-✅ **State management**: In-memory conversation history with session support  
-✅ **CLI interface**: Rich terminal UI with commands like `/help`, `/new`, `/quit`  
-✅ **Observability**: Automatic trace logging to Weave on every interaction  
-✅ **Sample tools**: Pre-built `create_issue()` and `get_issue()` tools in `tools.py`
+```yaml
+agent:
+  name: "agent"
+  model_name: "gpt-4o"
 
-### Your Focus
+temperature: 0.7
+```
 
-Experience how the agent handles conversation. Does it feel natural? Are tool calls intuitive? Notice what makes a good agent interaction vs. a frustrating one.
-
-### Code Approach
-
-Start the interactive chat CLI:
+**Test it:**
 
 ```bash
 uv run tyler chat
 ```
 
-This launches an interactive terminal session where you can:
-- 💬 Chat naturally with the support bot
-- 🔧 Create and retrieve support issues using natural language
-- 📊 See real-time streaming responses
-- 🔄 Maintain conversation context across multiple messages
-- 📈 Automatically log all interactions to Weave
-
-**Try these example prompts:**
+Try a simple message:
 ```
-You: I need to create a new issue for API timeouts
-
-You: Can you get me the details for issue #123?
+You: Hello!
 ```
+
+The agent should respond conversationally. Now **check Weave**:
+
+1. Navigate to [wandb.ai](https://wandb.ai) and find your project
+2. Click **Traces** - you should see your conversation!
+3. Click into the trace to see the full interaction captured
+
+**What to notice:**
+- ✅ Agent works and can converse
+- ✅ Weave automatically captured everything
+- ❌ Agent can't DO anything (no tools yet)
 
 **Chat Commands:**
-- `/help` - Show available commands
-- `/new` - Start a new conversation thread
 - `/quit` or `/exit` - Exit the chat
-- `/clear` - Clear the screen
-
-**View your traces**
-
-1. Navigate to your Weave project at [wandb.ai](https://wandb.ai)
-2. After running the agent locally (code approach above), you'll see traces appear automatically
-3. Click into a trace to explore the agent's behavior
+- `/help` - Show available commands
 
 ---
 
-## Step 3: Vibe Check - Experiment in the Playground
+### Part B: Add Tools and MCP Server
+
+**What You're Accomplishing:** Give your agent capabilities (local tools + documentation search) and test in Weave Playground.
+
+> **⏭️ Want to skip ahead?** 
+> ```bash
+> cp examples/step-2b-with-tools/* .
+> ```
+
+**Step 1: Add Tools to Your Config**
+
+Update your `tyler-chat-config.yaml` to include tools and MCP:
+
+```yaml
+agent:
+  name: "agent"
+  model_name: "gpt-4o"
+
+temperature: 0.7
+max_tool_iterations: 10
+
+# Tool Configuration
+tools:
+  - "./tools.py"
+
+# MCP Server Configuration for Weave documentation search
+mcp:
+  servers:
+    mintlify:
+      command: "npx"
+      args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
+```
+
+**Step 2: Check Your Tools**
+
+Your `tools.py` should have three basic functions:
+- `get_weather(city)` - Gets weather for a city
+- `create_issue(title, description, priority)` - Creates a support ticket  
+- `get_issue(issue_id)` - Retrieves a ticket
+
+**Notice:** These functions have NO or POOR docstrings. This is intentional - you'll improve them in Step 3!
+
+**Step 3: Test in Weave Playground**
+
+Start the playground server:
+
+```bash
+uv run playground_server.py
+```
+
+In a **new terminal**, expose via ngrok:
+
+```bash
+ngrok http 8000
+```
+
+Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
+
+**Connect Weave Playground:**
+
+1. Go to [Weave Playground](https://wandb.ai/playground)
+2. Click **Select a model** → **+ Add AI provider**
+3. Fill in:
+   - **Provider name**: `tyler-agent`
+   - **Base URL**: `https://abc123.ngrok-free.app/v1/` (your ngrok URL + `/v1/`)
+   - **API key**: `dummy`
+   - **Models**: Click "Add model" and enter `agent`
+4. Click **Add provider**
+5. Select `tyler-agent/agent` from the model dropdown
+
+**Try these prompts:**
+
+```
+How do I use Weave to log predictions?
+```
+
+```
+What's the weather in San Francisco?
+```
+
+```
+Create a support ticket for API timeout errors
+```
+
+**What to notice in Weave dashboard:**
+- Some traces show tool calls, others don't
+- Agent doesn't consistently use tools
+- Agent doesn't really "vibe" as a support bot
+- Why? **The agent doesn't know its purpose or when to use tools!**
+
+This is what we'll fix in Step 3.
+
+---
+
+## Step 3: Iterate to Make it Vibe as a Support Agent
 
 ### What You're Really Accomplishing
 

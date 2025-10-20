@@ -1,4 +1,4 @@
-"""Starter tools - You'll improve these through the tutorial."""
+"""Custom tools for the agent - Step 2b with good docstrings."""
 
 import os
 from datetime import datetime, timezone
@@ -19,7 +19,17 @@ if os.getenv("WANDB_API_KEY"):
 
 
 def get_weather(city: str) -> dict:
-    # TODO: Add a docstring explaining when to use this tool
+    """Get current weather for a city.
+    
+    Use this tool when the user asks about weather conditions.
+    
+    Args:
+        city: Name of the city to get weather for
+        
+    Returns:
+        Dictionary with temperature and weather condition
+    """
+    # Mock weather data for demo
     return {
         "city": city,
         "temperature": 72,
@@ -29,7 +39,18 @@ def get_weather(city: str) -> dict:
 
 
 def create_issue(title: str, description: str, priority: str = "medium") -> dict:
-    # TODO: Add a docstring explaining when to use this tool
+    """Create a new support ticket.
+    
+    Use this tool when the user reports a problem or requests help.
+    
+    Args:
+        title: Brief title of the issue
+        description: Detailed description of the problem
+        priority: Priority level (low, medium, high). Defaults to medium.
+        
+    Returns:
+        Dictionary containing the created issue details
+    """
     issue_id = str(uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
     
@@ -44,7 +65,16 @@ def create_issue(title: str, description: str, priority: str = "medium") -> dict
 
 
 def get_issue(issue_id: str) -> dict:
-    # TODO: Add a docstring explaining when to use this tool
+    """Retrieve an existing support ticket by ID.
+    
+    Use this tool when the user asks about the status of a specific issue.
+    
+    Args:
+        issue_id: The unique identifier of the issue
+        
+    Returns:
+        Dictionary containing the issue details
+    """
     created_at = datetime.now(timezone.utc).isoformat()
     updated_at = datetime.now(timezone.utc).isoformat()
     

@@ -1,0 +1,4 @@
+agent:
+  name: "agent"
+  model_name: "gpt-4o"
+

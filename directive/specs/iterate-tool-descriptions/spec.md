@@ -19,156 +19,215 @@ This misses the main value proposition of Weave - **using observability to itera
 
 ## Goal
 
-Users experience the iterative debugging workflow that Weave enables:
-1. **Step 2: Get a Basic Agent Running** - Tyler agent with tools (local Python functions + MCP server for docs) that have poor/missing descriptions
-2. **Step 3: Vibe Check** - Agent doesn't use tools properly (or at all)
-3. **NEW Step 4: Debug & Iterate with Weave** - Use traces to understand why, improve tool descriptions (including MCP tools), see improvements
-4. **Step 5+: Continue with datasets/evaluation** (existing steps, renumbered)
+Users experience building an agent step-by-step and using Weave to iterate:
+1. **Step 2a: Create Basic Agent** - Tyler agent with NO tools, test in CLI, see first Weave trace
+2. **Step 2b: Add Tools & MCP** - Add local tools + MCP server, test in Weave Playground
+3. **Step 3: Iterate to Make it Vibe** - Use Weave traces to iterate on Tyler's purpose and tool descriptions until it behaves like a proper support agent
+4. **Step 4+: Continue with datasets/evaluation** (existing steps, renumbered)
 
-By the end, users understand how to **use Weave to debug and iterate on agent behavior** and **integrate external data sources via MCP**, which demonstrates core Weave value prop.
+By the end, users understand how to **build an agent incrementally**, **use Weave to debug and iterate on agent behavior**, and **integrate external data sources via MCP**.
 
 ## Success Criteria
 
-- [ ] Users complete the iteration step within the 30-minute demo timeframe
-- [ ] Users successfully configure MCP server connection for documentation search
-- [ ] Users use Weave traces to identify why tools (both local and MCP) aren't being called
-- [ ] Users iterate on tool descriptions based on trace insights
-- [ ] Users observe improved agent behavior in subsequent traces
-- [ ] Users see agent successfully search docs via MCP and use local tools
-- [ ] Users can articulate how Weave enabled them to debug and improve the agent (qualitative feedback)
-- [ ] Tutorial demonstrates the core Weave debugging/iteration workflow with multiple tool types
+- [ ] Users complete all steps within the 30-minute demo timeframe
+- [ ] Users see their first Weave trace from a basic agent (Step 2a)
+- [ ] Users successfully add tools and configure MCP server connection (Step 2b)
+- [ ] Users test agent in Weave Playground and see traces (Step 2b)
+- [ ] Users use Weave traces to identify why agent doesn't behave as a support bot (Step 3)
+- [ ] Users iterate on Tyler's purpose and tool descriptions based on trace insights (Step 3)
+- [ ] Users observe improved agent behavior ("support bot vibe") in subsequent traces (Step 3)
+- [ ] Users see agent successfully search docs via MCP and use local tools (Step 3)
+- [ ] Users can articulate how Weave enabled them to iterate and improve the agent (qualitative feedback)
+- [ ] Tutorial demonstrates the core Weave workflow: build → test → observe → iterate
 
 ## User Story
 
-As a **developer evaluating Weave**, I want **to use traces to debug why my agent isn't calling tools (including external MCP services) and iterate on improvements**, so that **I understand how Weave helps me improve agent behavior through observability across different tool types**.
+As a **developer evaluating Weave**, I want **to build an agent incrementally and use traces to iterate on its purpose and tool usage**, so that **I understand how Weave helps me develop and improve agents through observability**.
 
 ## Flow / States
 
 ### Happy Path
 
-**Step 2: Get a Basic Agent Running** (updated - tools with poor descriptions)
-1. User configures Mintlify MCP server connection for docs search
-2. User runs Tyler agent with tools configured (local tools + MCP tools)
-3. Tools file has basic functions but missing/poor descriptions
-4. MCP tools are available but also lack clear descriptions
-5. User can chat naturally with the agent
-6. **Insight**: Agent is up and running with multiple types of tools available (local + MCP)
+**Step 2a: Create Basic Agent**
+1. User creates basic Tyler agent with NO tools, NO MCP
+2. User runs `uv run tyler chat` in CLI
+3. User sends a simple message like "Hello"
+4. Agent responds conversationally
+5. User navigates to Weave dashboard
+6. User sees their first trace appear - conversation captured!
+7. **Insight**: Agent works, Weave is capturing everything, ready to build on this foundation
 
-**Step 3: Vibe Check** (updated - tools not being called)
-1. User tries asking agent to do things that should use tools
-2. "How do I use Weave to log predictions?" (should search docs via MCP)
-3. "What's the weather in San Francisco?" (should use local weather tool)
-4. "Create a support ticket for my API timeout issue" (should use local create_issue tool)
-5. Agent responds conversationally but DOESN'T call tools (or calls them incorrectly)
-6. User is confused - why aren't ANY of the tools being used?
-7. **Insight**: Something's wrong - the agent has both local and MCP tools but isn't using them
+**Step 2b: Add Tools & MCP Server**
+1. User creates `tools.py` with basic tool functions (get_weather, create_issue, get_issue)
+2. Tools have NO or POOR docstrings initially
+3. User configures Mintlify MCP server connection for docs search
+4. User updates Tyler config to reference tools and MCP server
+5. User starts playground server (`uv run playground_server.py`)
+6. User connects Weave Playground to the agent via ngrok
+7. User tests in Weave Playground - agent responds but doesn't use tools well (if at all)
+8. User checks Weave dashboard - sees traces from Playground
+9. **Insight**: Infrastructure is in place (tools + MCP), but agent doesn't know how to use them properly yet
 
-**NEW Step 4: Debug & Iterate with Weave**
+**Step 3: Iterate to Make it Vibe as Support Agent**
 
-*Step 4a: Investigate with Weave Traces*
-1. User opens Weave dashboard and finds recent traces
-2. User examines traces to see what the agent is doing
-3. User notices: no tool calls in the trace (or wrong tool selection)
-4. User looks at the tools that were available to the agent (both local and MCP)
-5. User realizes: tool descriptions are missing/unclear for BOTH types
-6. **Insight**: Weave traces reveal WHY the agent isn't behaving correctly - the agent doesn't understand when to use any of the tools (local or MCP)
+*Part A: Identify the Problem*
+1. User tries support bot prompts in Playground:
+   - "How do I use Weave to log predictions?" (should search docs via MCP)
+   - "What's the weather in SF?" (should use local tool)
+   - "Create a support ticket for API timeouts" (should use local tool)
+2. Agent responds but doesn't use tools correctly - doesn't feel like a support bot
+3. User opens Weave dashboard and examines traces
+4. User notices: Few or no tool calls, or wrong tool selection
+5. User examines Tyler's purpose statement and tool descriptions in traces
+6. User realizes: The agent doesn't know it's a support bot, and doesn't know when to use each tool
+7. **Insight**: Weave traces reveal the gap - purpose is unclear, tool descriptions are missing
 
-*Step 4b: Improve Tool Descriptions*
-1. User opens `tools.py` (local tools)
-2. User adds/improves docstrings for local tools: "Use this tool to get current weather for any city"
-3. User reviews Tyler MCP configuration
-4. User improves MCP tool descriptions/prompts: "Use this tool to search Weave documentation when users ask how-to questions"
-5. User restarts agent with improved descriptions for both tool types
-6. **Insight**: Tool descriptions (whether local functions or MCP services) are how you teach the agent when to use each tool
+*Part B: Iterate on Purpose & Tool Descriptions*
+1. User updates Tyler's purpose in config: "You are a support bot for Weave. Help users with questions about Weave and manage support tickets."
+2. User improves tool docstrings in `tools.py`:
+   - `get_weather`: "Get current weather for a city. Use when user asks about weather."
+   - `create_issue`: "Create a support ticket. Use when user reports a problem or requests help."
+3. User improves MCP tool description: "Search Weave documentation when users ask how-to questions about Weave features."
+4. User restarts agent with improvements
+5. **Insight**: Purpose and tool descriptions guide the agent's behavior
 
-*Step 4c: Verify Improvements*
-1. User asks same questions from Step 3
-2. "How do I use Weave to log predictions?" → Agent now calls MCP docs search and provides accurate answer
-3. "What's the weather in SF?" → Agent calls local `get_weather()` and provides real data
-4. "Create a support ticket" → Agent calls local `create_issue()` and creates a ticket
-5. User opens Weave traces and sees tool calls (both MCP and local) with inputs/outputs
-6. User compares new trace to old trace - clear improvement across all tool types
-7. **Insight**: Weave enables the iterate/debug/verify workflow across different tool types - this is how you improve agents!
+*Part C: Verify with Weave*
+1. User tests same prompts in Playground
+2. "How do I use Weave to log predictions?" → Agent NOW searches MCP docs and gives accurate answer ✅
+3. "Create a support ticket for API timeouts" → Agent NOW calls create_issue ✅
+4. Agent feels like a support bot now - knows its role, uses tools appropriately
+5. User opens Weave traces and sees tool calls with proper context
+6. User compares old trace (bad) to new trace (good) - clear improvement
+7. User may iterate further based on trace insights if agent still doesn't vibe perfectly
+8. **Insight**: Weave enabled the full cycle: observe → diagnose → fix → verify. This is the core development workflow!
 
-**Step 5+: Continue** (existing steps, renumbered)
-- Create datasets to systematically test tool calling
+**Step 4+: Continue** (existing steps, renumbered)
+- Create datasets to systematically test support bot scenarios
 - Continue iterating based on trace insights
 - Measure improvements over time
 
 ### Edge Case
 
-**User's improved descriptions still don't work perfectly**: User uses Weave traces again to understand why, continues iterating. This demonstrates the real iterative workflow.
+**Agent still doesn't vibe perfectly after first iteration**: User uses Weave traces AGAIN to understand why, continues iterating on purpose and descriptions. This demonstrates the real iterative workflow that Weave enables.
+
+## Project Structure
+
+```
+.
+├── examples/                          # Completed files for skip-ahead
+│   ├── step-2a-basic-agent/
+│   │   └── tyler-chat-config.yaml    # Minimal config, no tools
+│   ├── step-2b-with-tools/
+│   │   ├── tyler-chat-config.yaml    # Config with tools & MCP
+│   │   └── tools.py                  # Well-documented tools
+│   └── step-3-complete/
+│       ├── tyler-chat-config.yaml    # Support bot purpose + tools
+│       └── tools.py                  # Final polished tools
+├── tyler-chat-config.yaml             # Starter (minimal/empty)
+├── tools.py                           # Starter (basic functions, no/poor docstrings)
+├── playground_server.py               # Existing
+├── main.py                            # Existing
+├── README.md                          # Updated with new steps + skip-ahead callouts
+└── ...
+```
 
 ## UX Links
 
+- Example files directory structure: See project structure above
+- Skip-ahead callout boxes: Will be added to README at each step
 - Example Weave traces: Screenshots showing before (no tool calls) and after (tool calls visible) in README
-- Tool descriptions comparison: Show bad vs. good docstrings side-by-side
+- Tool descriptions comparison: Show bad vs. good docstrings side-by-side (can reference example files)
 - Debugging workflow: Step-by-step guide on using Weave to diagnose issues
 
 ## Requirements
 
 ### Must
-- Configure Mintlify MCP server connection for Weave docs search in Step 2
-- Ensure MCP tools are available but have poor/missing descriptions initially
-- Create `tools.py` with 2-3 local functions (get_weather, create_issue, get_issue) that have NO or POOR docstrings initially
-- Configure Tyler agent to use both poorly-described local tools and MCP tools in Step 2
-- Ensure Step 3 (Vibe Check) prompts users to try actions requiring both local and MCP tools, observing failures
-- Add clear documentation in Step 4a on how to use Weave traces to debug both tool types
-- Show in README how to navigate Weave dashboard, find traces, and interpret tool-related data (including MCP tool calls)
-- Include before/after examples of tool descriptions for both local and MCP tools (poor → good)
-- Guide users to improve both local tool docstrings and MCP tool descriptions based on trace insights
-- Show side-by-side trace comparison highlighting both tool types (before improvement vs after improvement)
-- Ensure at least 2-3 local tools AND the MCP docs search work correctly after description improvements
-- Update README with clear debugging workflow using Weave for multiple tool types
-- Include specific prompts that should trigger each tool type (for consistent testing)
+- **Repo structure**: Create `examples/` directory with completed files for each step:
+  - `examples/step-2a-basic-agent/` (minimal config, no tools)
+  - `examples/step-2b-with-tools/` (config + tools.py with good docstrings + MCP)
+  - `examples/step-3-complete/` (support bot purpose + well-documented tools)
+- **Starter files**: Provide minimal starter files in repo root:
+  - `tyler-chat-config.yaml` (minimal/empty starter)
+  - `tools.py` (basic functions with NO/POOR docstrings)
+- **Skip-ahead instructions**: Add callout boxes in README at each step showing how to copy example files to skip ahead
+- **Step 2a**: Guide users to create basic Tyler agent with NO tools, test in CLI, see trace in Weave
+- **Step 2b**: Guide users to create `tools.py` with 2-3 functions (get_weather, create_issue, get_issue) with NO or POOR docstrings
+- **Step 2b**: Configure Mintlify MCP server connection for Weave docs search
+- **Step 2b**: Ensure MCP tools are available but have poor/missing descriptions initially
+- **Step 2b**: Include existing playground server setup instructions from README (ngrok, Weave Playground connection)
+- **Step 3**: Provide example support bot prompts that highlight poor behavior (not using tools, not acting like support bot)
+- **Step 3**: Show in README how to navigate Weave dashboard, find traces, and interpret purpose/tool-related data
+- **Step 3**: Include before/after examples of Tyler's purpose statement and tool descriptions (poor → good)
+- **Step 3**: Guide users to iterate on both Tyler's purpose AND tool descriptions based on trace insights
+- **Step 3**: Show side-by-side trace comparison highlighting improvements (before vs after iteration)
+- Ensure at least 2-3 local tools AND the MCP docs search work correctly after improvements
+- Include specific prompts that should trigger different tools (for consistent testing)
 - Renumber existing Steps 4-9 to become Steps 5-10
 
 ### Must not
+- Give users a clear purpose statement initially (they should iterate to "support bot")
 - Give users perfect tool descriptions initially (defeats the learning objective)
-- Skip the Weave debugging step (this is the core value prop)
-- Make it too easy (users should experience real debugging)
-- Require users to write tool functions from scratch (provide the functions, bad descriptions)
-- Make MCP setup overly complex (should be simple configuration in Step 2)
+- Skip the Weave iteration workflow (this is the core value prop)
+- Make it too easy (users should experience real iteration)
+- Make users write tool functions from scratch (provide basic functions, they improve descriptions)
+- Make MCP or playground setup overly complex (should be straightforward configuration)
 
 ## Acceptance Criteria
 
-### Step 2: Get a Basic Agent Running (updated)
-- Given a user configures Mintlify MCP server, when setup completes, then MCP connection is established
-- Given a user runs `uv run tyler chat`, when the agent starts, then it launches successfully WITH both local tools and MCP tools configured but poorly described
-- Given a user chats with the agent, when they ask general questions, then the agent responds conversationally
+### Step 2a: Create Basic Agent
+- Given a user creates basic Tyler agent config, when agent has NO tools and NO MCP configured, then config is minimal
+- Given a user runs `uv run tyler chat`, when the agent starts, then it launches successfully
+- Given a user sends "Hello", when the agent responds, then response is conversational
 - Given Weave is configured, when the chat runs, then traces appear in Weave dashboard
+- Given a user navigates to Weave dashboard, when they view their trace, then they see the conversation captured
+- Given this success, when user proceeds, then they understand the baseline: agent works, Weave is observing
 
-### Step 3: Vibe Check (updated)
-- Given a user tries "How do I use Weave to log predictions?", when the agent responds, then it does NOT call the MCP docs search tool (poor description)
-- Given a user tries "What's the weather in San Francisco?", when the agent responds, then it does NOT call the local weather tool (poor description)
-- Given a user tries "Create a support ticket for API timeouts", when the agent responds, then it does NOT call local create_issue tool (poor description)
-- Given a user is confused, when they wonder why ANY of the tools aren't working, then they understand there's a problem to debug
-- Given README guides them, when instructed, then they proceed to investigate with Weave
+### Step 2b: Add Tools & MCP Server
+- Given a user creates `tools.py` with basic functions, when functions have NO/POOR docstrings, then they're intentionally incomplete
+- Given a user configures Mintlify MCP server, when setup completes, then MCP connection is established
+- Given a user updates Tyler config to reference tools and MCP, when saved, then configuration includes both
+- Given a user starts playground server, when running, then server is accessible
+- Given a user sets up ngrok and Weave Playground connection, when connected, then Playground can communicate with agent
+- Given a user tests in Weave Playground, when agent responds, then responses appear but tool usage is poor/absent
+- Given a user checks Weave dashboard, when they view traces, then Playground interactions are captured
+- Given this setup, when user proceeds, then infrastructure is in place but agent doesn't "vibe" as support bot yet
 
-### NEW Step 4a: Investigate with Weave Traces
-- Given a user opens Weave dashboard, when they find their recent traces, then they can navigate successfully
-- Given a user examines a trace, when they look for tool calls, then they see NONE (or incorrect ones) for both local and MCP tools
-- Given a user views the tools available to the agent in the trace, when they see the descriptions (both local and MCP), then they realize they're missing or unclear
-- Given this insight, when the user understands the issue, then they proceed to fix tool descriptions for both types
+### Step 3: Iterate to Make it Vibe as Support Agent
 
-### NEW Step 4b: Improve Tool Descriptions  
-- Given a user opens `tools.py`, when they add/improve docstrings for local tools, then they make it clear what each tool does and when to use it
-- Given a user reviews MCP configuration, when they improve MCP tool descriptions, then they clarify when to use docs search
-- Given improved descriptions for both tool types, when user restarts agent, then all tools are now properly described to the LLM
-- Given example good descriptions in README, when user refers to them, then they understand what makes a good tool description for both local and MCP tools
+**Part A: Identify the Problem**
+- Given a user tries "How do I use Weave to log predictions?" in Playground, when the agent responds, then it does NOT effectively search docs via MCP
+- Given a user tries "Create a support ticket for API timeouts", when the agent responds, then it does NOT call create_issue properly
+- Given a user opens Weave dashboard, when they examine traces, then they can see what agent is (or isn't) doing
+- Given a user looks at Tyler's purpose in trace, when they read it, then they realize it's vague/generic (not "support bot")
+- Given a user looks at tool descriptions in trace, when they read them, then they realize they're missing or unclear
+- Given this insight, when user understands the gap, then they proceed to improve purpose and descriptions
 
-### NEW Step 4c: Verify Improvements
-- Given a user asks "How do I use Weave to log predictions?" again, when the agent responds, then it NOW calls the MCP docs search and provides accurate documentation-based answer
-- Given a user asks "What's the weather in San Francisco?" again, when the agent responds, then it NOW calls `get_weather()` tool and provides real data
-- Given a user asks to create an issue again, when the agent responds, then it NOW successfully calls `create_issue()` tool
-- Given a user opens Weave traces, when they examine the new trace, then they see tool calls (both MCP and local) with inputs and outputs
-- Given side-by-side comparison, when user compares old trace to new trace, then the improvement is obvious across all tool types
-- Given this experience, when user reflects, then they understand how Weave enables debugging and iteration across different tool types
+**Part B: Iterate on Purpose & Tool Descriptions**
+- Given a user updates Tyler's purpose, when they make it "support bot for Weave", then purpose is clear
+- Given a user improves tool docstrings in `tools.py`, when they add descriptions of what each tool does and when to use it, then tools are well-documented
+- Given a user improves MCP tool description, when they clarify it's for Weave docs search, then MCP tool purpose is clear
+- Given example improvements in README, when user refers to them, then they understand good vs. bad descriptions
+- Given a user restarts agent with improvements, when agent launches, then all improvements are active
+
+**Part C: Verify with Weave**
+- Given a user tests "How do I use Weave to log predictions?" again, when the agent responds, then it NOW searches MCP docs and provides accurate answer
+- Given a user tests "Create a support ticket", when the agent responds, then it NOW calls create_issue appropriately
+- Given agent behavior, when user interacts, then agent "vibes" as a support bot (knows its role, uses tools)
+- Given a user opens Weave traces, when they examine new traces, then they see proper tool calls with context
+- Given side-by-side comparison, when user compares old trace to new trace, then improvement is obvious
+- Given this experience, when user reflects, then they understand how Weave enabled the full cycle: observe → diagnose → fix → verify
+
+### Skip-Ahead Functionality
+- Given a user wants to skip to Step 2b, when they run `cp examples/step-2b-with-tools/* .`, then working files are copied
+- Given copied files, when user runs agent, then it works with tools and MCP configured
+- Given a user wants to skip to evaluations (Step 4+), when they use `examples/step-3-complete/`, then they have a working support bot to evaluate
+- Given README callout boxes, when user reads them, then skip-ahead options are clear at each step
 
 ### Negative Cases
-- Given improved descriptions still aren't perfect, when agent still doesn't call tools correctly, then user uses Weave traces AGAIN to iterate further (demonstrates real workflow)
+- Given agent still doesn't vibe perfectly after first iteration, when user checks traces again, then user uses Weave to iterate FURTHER (demonstrates real workflow)
 - Given a tool (local or MCP) fails during execution, when an error occurs, then the error is visible in Weave traces for debugging
 - Given MCP connection issues, when they occur, then they're visible in Weave traces
+- Given user gets stuck, when they reference example files, then they can compare and unstick themselves
 
 ## Non-Goals
 
