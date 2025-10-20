@@ -32,7 +32,8 @@ def main():
     print("✓ Environment validated")
     
     # Initialize Weave for observability
-    weave.init("agentic-support-bot-demo")
+    project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+    weave.init(project)
     
     # Create Tyler agent with custom tools
     # Get custom tools (for backward compatibility with programmatic API)

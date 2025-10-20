@@ -140,14 +140,75 @@ Continue chatting with the agent in the CLI and try various prompts:
 
 ### UI Approach
 
-1. Open your Weave project dashboard
-2. Navigate to the **Traces** tab
-3. Explore individual traces to see:
-   - 📊 Token usage and costs
-   - 🔍 Tool calls and responses
-   - ⏱️ Latency at each step
-   - 🧠 Model reasoning and decisions
-4. **Key question**: How easy is it to understand what the agent did and why?
+Now you can test the agent visually in Weave Playground!
+
+**1. Start the Playground Server**
+
+```bash
+uv run playground_server.py
+```
+
+The server will start on `http://0.0.0.0:8000`. You should see:
+```
+============================================================
+Tyler Playground API Server
+============================================================
+Agent: Buzz (gpt-4o)
+Server: http://0.0.0.0:8000
+Health check: http://0.0.0.0:8000/health
+============================================================
+```
+
+**2. Expose via ngrok (for Weave Playground access)**
+
+In a new terminal:
+```bash
+ngrok http 8000
+```
+
+Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
+
+**3. Configure Weave Playground**
+
+1. Go to [Weave Playground](https://wandb.ai/playground)
+2. Click **Select a model** dropdown → **+ Add AI provider**
+3. Fill in provider information:
+   - **Provider name**: `tyler-support-bot`
+   - **Base URL**: `https://abc123.ngrok-free.app/v1/` (your ngrok URL + `/v1/`)
+   - **API key**: `dummy` (not validated for local dev, but required field)
+   - **Models**: Click "Add model" and enter `support-bot`
+4. Click **Add provider**
+5. Select `tyler-support-bot/support-bot` from the model dropdown
+
+**4. Start Chatting!**
+
+Try these prompts in the Playground:
+- "Create a new support issue for API timeout problems with high priority"
+- "Show me issue #123"
+- "I need help with authentication errors"
+
+**What to look for:**
+- 📊 **Streaming responses**: Watch tokens appear in real-time
+- 🔧 **Tool usage**: See when create_issue/get_issue are called
+- 📈 **Weave traces**: Check your project dashboard for automatic trace logging
+- 💬 **Conversation flow**: Test multi-turn conversations
+- ⚡ **Response quality**: Is the agent helpful and accurate?
+
+**Troubleshooting:**
+
+- **Server won't start**: Make sure you're running from the project root where `tyler-chat-config.yaml` exists
+- **ngrok connection fails**: Check that ngrok is running and the URL is correct
+- **Playground shows errors**: Verify the Base URL ends with `/v1/` (trailing slash matters)
+- **No traces in Weave**: Check that `WANDB_API_KEY` is set in your `.env` file
+
+**Alternative: Test with curl**
+
+If you don't want to set up ngrok, test locally:
+```bash
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Create a support ticket for API timeouts"}],"stream":true}'
+```
 
 ---
 
