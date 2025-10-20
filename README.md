@@ -235,118 +235,164 @@ This is what we'll fix in Step 3.
 
 ## Step 3: Iterate to Make it Vibe as a Support Agent
 
-### What You're Really Accomplishing
+**What You're Learning:** The core Weave workflow - **observe → diagnose → fix → verify**. This is how you improve agents!
 
-Qualitative evaluation of your agent - understanding its behavior, personality, and reliability before investing in formal testing infrastructure.
+> **⏭️ Want to skip to the finished support bot?** 
+> ```bash
+> cp examples/step-3-complete/* .
+> ```
+> 
+> ⚠️ **But you'll miss the best part!** Iteration is where Weave shines.
 
-### Questions a Real User Would Face
+### Part A: Identify the Problem
 
-- **How do I know if my agent is "good enough"?** What does "good" even mean for my use case?
-- **What scenarios should I test?** Happy paths? Edge cases? How many is enough?
-- **How do I debug when something goes wrong?** Where did the agent make a bad decision?
-- **What's taking so long?** Is it the LLM, tool execution, or network latency?
-- **How much is this costing me?** Per conversation? Per tool call?
-- **Did I configure it correctly?** Are my tools being used? Is the system prompt working?
+**Test your agent** with these prompts in Weave Playground:
 
-Early-stage testing is chaotic - you're simultaneously debugging, exploring, and forming intuitions about what "good" looks like.
+```
+How do I use Weave to log predictions?
+```
+(Agent should search Weave docs via MCP)
 
-### What This Demo Decided For You
+```
+Create a support ticket for API timeout errors
+```
+(Agent should use create_issue tool)
 
-✅ **Test scenarios**: Example prompts provided to cover key use cases  
-✅ **Debugging infrastructure**: Weave traces automatically capture full execution  
-✅ **Visibility tooling**: Pre-configured trace viewing in Weave dashboard  
-✅ **Cost tracking**: Token usage visible in traces  
-✅ **Latency monitoring**: Timing data captured at each step
+**What you'll likely see:**
+- Agent responds but doesn't search docs effectively
+- Agent might not create tickets properly  
+- Agent doesn't feel like a "support bot"
 
-### Your Focus
+**Now use Weave to diagnose WHY:**
 
-This is your first real "feel" for the agent. Is it delightful or frustrating? When you look at traces in Weave, can you understand what the agent did and why? This qualitative feedback is crucial before investing in quantitative metrics.
+1. Open [wandb.ai](https://wandb.ai) and go to your project
+2. Click **Traces** and find your recent interactions
+3. Click into a trace and examine:
+   - **Messages**: What did the agent say?
+   - **Tool Calls**: Were tools called? Which ones? With what arguments?
+   - **Agent Config**: Look at the config sent to the model
 
-### Code Approach
+**What you should notice:**
+- ❌ Agent has no clear **purpose** (it doesn't know it's a support bot!)
+- ❌ Tools have no **descriptions** (agent doesn't know when to use them!)
 
-Continue chatting with the agent in the CLI and try various prompts:
+This is the problem. Weave helped you see it!
 
-- Ask it questions about your product
-- Request it to create support tickets
-- Test edge cases and unusual requests
-- See how it handles multi-turn conversations
+---
 
-**What to look for:**
-- Is the agent helpful and on-brand?
-- Does it call tools at the right time?
-- Are responses clear and accurate?
+### Part B: Improve Purpose & Tool Descriptions
 
-### UI Approach
+**Fix #1: Give your agent a clear purpose**
 
-Now you can test the agent visually in Weave Playground!
+Update `tyler-chat-config.yaml`:
 
-**1. Start the Playground Server**
+```yaml
+agent:
+  name: "Buzz"
+  model_name: "gpt-4o"
+  purpose: |
+    You are a support bot for Weave, W&B's LLM observability platform.
+    
+    Your role is to:
+    1. Help users with questions about Weave features and functionality
+    2. Search the Weave documentation when users ask how-to questions
+    3. Create and manage support tickets for issues users report
+    
+    Always be friendly, clear, and helpful in your responses.
+
+temperature: 0.7
+max_tool_iterations: 10
+
+tools:
+  - "./tools.py"
+
+mcp:
+  servers:
+    mintlify:
+      command: "npx"
+      args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
+```
+
+**Fix #2: Add tool docstrings**
+
+Update `tools.py` with clear docstrings. Here's an example for `get_weather`:
+
+```python
+def get_weather(city: str) -> dict:
+    """Get current weather conditions for any city.
+    
+    **When to use this tool:**
+    - User asks about weather, temperature, or conditions in a location
+    - User wants to know if it's sunny, rainy, etc. somewhere
+    
+    Args:
+        city: Name of the city (e.g., "San Francisco", "London")
+        
+    Returns:
+        Dictionary with temperature and weather condition
+    """
+    return {
+        "city": city,
+        "temperature": 72,
+        "condition": "sunny",
+        "humidity": 45
+    }
+```
+
+Do the same for `create_issue` and `get_issue`. See `examples/step-3-complete/tools.py` for full examples.
+
+**Restart your agent:**
 
 ```bash
+# Stop the current playground server (Ctrl+C)
 uv run playground_server.py
 ```
 
-The server will start on `http://0.0.0.0:8000`. You should see:
-```
-============================================================
-Tyler Playground API Server
-============================================================
-Agent: Buzz (gpt-4o)
-Server: http://0.0.0.0:8000
-Health check: http://0.0.0.0:8000/health
-============================================================
-```
+---
 
-**2. Expose via ngrok (for Weave Playground access)**
+### Part C: Verify Improvements with Weave
 
-In a new terminal:
-```bash
-ngrok http 8000
+**Test the same prompts again** in Weave Playground:
+
+```
+How do I use Weave to log predictions?
 ```
 
-Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
-
-**3. Configure Weave Playground**
-
-1. Go to [Weave Playground](https://wandb.ai/playground)
-2. Click **Select a model** dropdown → **+ Add AI provider**
-3. Fill in provider information:
-   - **Provider name**: `tyler-support-bot`
-   - **Base URL**: `https://abc123.ngrok-free.app/v1/` (your ngrok URL + `/v1/`)
-   - **API key**: `dummy` (not validated for local dev, but required field)
-   - **Models**: Click "Add model" and enter `support-bot`
-4. Click **Add provider**
-5. Select `tyler-support-bot/support-bot` from the model dropdown
-
-**4. Start Chatting!**
-
-Try these prompts in the Playground:
-- "Create a new support issue for API timeout problems with high priority"
-- "Show me issue #123"
-- "I need help with authentication errors"
-
-**What to look for:**
-- 📊 **Streaming responses**: Watch tokens appear in real-time
-- 🔧 **Tool usage**: See when create_issue/get_issue are called
-- 📈 **Weave traces**: Check your project dashboard for automatic trace logging
-- 💬 **Conversation flow**: Test multi-turn conversations
-- ⚡ **Response quality**: Is the agent helpful and accurate?
-
-**Troubleshooting:**
-
-- **Server won't start**: Make sure you're running from the project root where `tyler-chat-config.yaml` exists
-- **ngrok connection fails**: Check that ngrok is running and the URL is correct
-- **Playground shows errors**: Verify the Base URL ends with `/v1/` (trailing slash matters)
-- **No traces in Weave**: Check that `WANDB_API_KEY` is set in your `.env` file
-
-**Alternative: Test with curl**
-
-If you don't want to set up ngrok, test locally:
-```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Create a support ticket for API timeouts"}],"stream":true}'
 ```
+Create a support ticket for API timeout errors
+```
+
+**Now check Weave traces:**
+
+1. Find your new traces in the dashboard
+2. Compare to your old traces (side-by-side if possible)
+3. **Notice the difference:**
+   - ✅ Agent now searches docs appropriately
+   - ✅ Agent creates tickets properly
+   - ✅ Agent "vibes" as a support bot!
+
+**This is the Weave workflow:**
+1. 🔍 **Observe** behavior in traces
+2. 🩺 **Diagnose** what's wrong
+3. ✏️ **Fix** the issue (purpose + descriptions)
+4. ✅ **Verify** improvement in new traces
+
+**You just learned how to iterate on agents with observability!**
+
+---
+
+### Not Perfect? Iterate Again!
+
+If your agent still doesn't work perfectly, **use Weave traces to understand why** and keep iterating:
+
+- Check which tool calls are wrong
+- Read the agent's reasoning
+- Improve tool descriptions further
+- Refine the purpose statement
+
+This is real agent development!
+
+---
 
 ---
 
