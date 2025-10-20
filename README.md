@@ -44,27 +44,7 @@ For each step we have attempted to include both **code-first** and **UI-first** 
 
 ### What You're Really Accomplishing
 
-Setting up the foundation for an AI agent.
-
-### Questions a Real User Would Face
-
-Before writing a single line of code, you'd need to decide:
-- **Which framework?** Raw OpenAI SDK? LangChain? LlamaIndex? A newer framework like Slide/Tyler?
-- **Which LLM provider(s)?** OpenAI, Anthropic, local models? How to abstract this choice?
-- **Secret management?** `.env` files, cloud secrets, environment variables?
-- **Observability?** Which logging/tracing tool? How to instrument?
-
-Each decision requires research, reading docs, and potentially refactoring later.
-
-### What This Demo Decided For You
-
-✅ **Framework**: Slide (Because it is the best and open source;) - provides agent orchestration, streaming, and tool calling out of the box  
-✅ **LLM abstraction**: LiteLLM - switch between providers with just a config change  
-✅ **Observability**: Weave integration pre-configured  
-
-### Your Focus
-
-Experience how quickly you can go from zero to running agent when these decisions are made. Notice which choices feel right and which might need reconsideration for your use case.
+To save you time on boilerplate setup, we've created this repository with dependencies, configuration files, and example code already in place. This lets you focus on the agent-specific decisions (coming in Step 2) rather than wrestling with environment setup.
 
 ### Code Approach
 
@@ -104,8 +84,6 @@ Edit `.env` and add your API keys:
 
 ❌ **Can't be done currently.** 
 
-**Question for discussion**: Could we adopt an Agent Class that can be configured entirely through the Weave UI? This would make onboarding non-technical users much smoother.
-
 ---
 
 ## Step 2: Get a Basic Agent Running
@@ -116,19 +94,23 @@ Building a functional conversational AI agent that can maintain context, call to
 
 ### Questions a Real User Would Face
 
+- **Should I use a framework?** Raw OpenAI SDK? LangChain? LlamaIndex? A newer framework like Slide?
+- **Which LLM provider(s)?** OpenAI, Anthropic, local models? How to abstract this choice for flexibility?
 - **How do I structure the conversation loop?** Handle user input, maintain history, stream responses?
 - **How do I implement tool calling?** Function definitions, schema validation, execution, error handling?
 - **What's the right system prompt?** Tone, capabilities, limitations, when to use tools?
 - **How do I maintain conversation state?** In-memory? Database? Session management?
-- **How do I make it observable?** What to log? How to trace agent decisions?
+- **How do I make it observable?** Which logging/tracing tool? How to instrument? What to capture?
 - **What's the right UX for chatting?** Command line? Web interface? What about special commands?
 
 Building even a "basic" agent involves dozens of decisions about architecture, error handling, and user experience.
 
 ### What This Demo Decided For You
 
-✅ **Conversation orchestration**: Tyler CLI handles the message loop, history, and streaming  
-✅ **Tool calling pattern**: Built-in support with automatic schema generation  
+✅ **Framework**: Slide (because it's the best and open source ;) - handles orchestration, streaming, and tool calling  
+✅ **LLM abstraction**: LiteLLM - switch between providers with just a config change  
+✅ **Conversation orchestration**: Message loop, history, and streaming built-in  
+✅ **Tool calling pattern**: Automatic schema generation and execution  
 ✅ **System prompt**: Pre-written support bot prompt (in `tyler-chat-config.yaml`)  
 ✅ **State management**: In-memory conversation history with session support  
 ✅ **CLI interface**: Rich terminal UI with commands like `/help`, `/new`, `/quit`  
@@ -137,7 +119,7 @@ Building even a "basic" agent involves dozens of decisions about architecture, e
 
 ### Your Focus
 
-Experience how the agent handles conversations. Does it feel natural? Are tool calls intuitive? Notice what makes a good agent interaction vs. a frustrating one.
+Experience how the agent handles conversation. Does it feel natural? Are tool calls intuitive? Notice what makes a good agent interaction vs. a frustrating one.
 
 ### Code Approach
 
@@ -231,9 +213,11 @@ Continue chatting with the agent in the CLI and try various prompts:
 
 ---
 
-<!-- ## Step 4: Create a Dataset
+Coming soon:
 
-### What You're Really Accomplishing
+## Step 4: Create a Dataset
+
+<!-- ### What You're Really Accomplishing
 
 Transitioning from ad-hoc testing to systematic evaluation by building a curated set of test cases that represent your agent's expected usage.
 
