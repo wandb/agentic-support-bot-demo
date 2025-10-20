@@ -116,7 +116,7 @@ class TestToolsIntegration:
         from tools import TOOLS
         
         assert isinstance(TOOLS, list)
-        assert len(TOOLS) == 2
+        assert len(TOOLS) == 3  # get_weather, create_issue, get_issue
 
     def test_tools_are_callable_functions(self):
         """Test that TOOLS contains callable functions."""
@@ -161,50 +161,61 @@ class TestConfigurationFile:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
         
-        # Required fields for tyler chat
-        required_fields = ["name", "model_name", "purpose", "tools"]
+        # Extract agent config (handle nested structure)
+        agent_config = config.get("agent", config)
         
-        for field in required_fields:
-            assert field in config, f"Missing required field: {field}"
-            assert config[field], f"Field {field} is empty"
+        # Required agent fields
+        agent_required = ["name", "model_name", "purpose"]
+        for field in agent_required:
+            assert field in agent_config, f"Missing required agent field: {field}"
+            assert agent_config[field], f"Field {field} is empty"
 
     def test_config_name_is_valid(self, config_path):
         """Test that agent name is configured correctly."""
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
         
+        # Extract agent config (handle nested structure)
+        agent_config = config.get("agent", config)
+        
         # Agent name should be a non-empty string
-        assert isinstance(config["name"], str)
-        assert len(config["name"]) > 0
+        assert isinstance(agent_config["name"], str)
+        assert len(agent_config["name"]) > 0
 
     def test_config_model_is_valid(self, config_path):
         """Test that model name is configured correctly."""
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
         
+        # Extract agent config (handle nested structure)
+        agent_config = config.get("agent", config)
+        
         # Model name should be a non-empty string
-        assert isinstance(config["model_name"], str)
-        assert len(config["model_name"]) > 0
+        assert isinstance(agent_config["model_name"], str)
+        assert len(agent_config["model_name"]) > 0
 
     def test_config_purpose_is_string(self, config_path):
         """Test that purpose is a non-empty string."""
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
         
-        assert isinstance(config["purpose"], str)
-        assert len(config["purpose"]) > 0
-        # Should mention support bot functionality
-        assert "support" in config["purpose"].lower()
+        # Extract agent config (handle nested structure)
+        agent_config = config.get("agent", config)
+        
+        assert isinstance(agent_config["purpose"], str)
+        assert len(agent_config["purpose"]) > 0
 
     def test_config_tools_references_tools_file(self, config_path):
-        """Test that tools configuration references tools.py."""
+        """Test that tools configuration references tools.py if present."""
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
         
-        assert isinstance(config["tools"], list)
-        assert len(config["tools"]) > 0
-        # Should reference tools.py
-        assert any("tools.py" in str(tool) for tool in config["tools"])
+        # Tools are optional in starter config
+        if "tools" in config:
+            assert isinstance(config["tools"], list)
+            assert len(config["tools"]) > 0
+            # Should reference tools.py
+            assert any("tools.py" in str(tool) for tool in config["tools"])
 
     def test_config_optional_fields_have_valid_types(self, config_path):
         """Test that optional fields have correct types if present."""

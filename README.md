@@ -101,15 +101,18 @@ We'll build your agent incrementally, starting simple and adding complexity. You
 
 **Instructions:**
 
-Your `tyler-chat-config.yaml` should already be minimal (just agent name and model). If not, it should look like:
+Your `tyler-chat-config.yaml` should already be minimal. If not, it should look like:
 
 ```yaml
 agent:
   name: "agent"
   model_name: "gpt-4o"
+  purpose: "You are a helpful AI assistant."
 
 temperature: 0.7
 ```
+
+**Notice:** The purpose is generic - not specific to a support bot. You'll make it specific in Step 3!
 
 **Test it:**
 
@@ -273,7 +276,7 @@ Create a support ticket for API timeout errors
    - **Agent Config**: Look at the config sent to the model
 
 **What you should notice:**
-- ❌ Agent has no clear **purpose** (it doesn't know it's a support bot!)
+- ❌ Agent has a **generic purpose** ("helpful AI assistant" - it doesn't know it's a support bot!)
 - ❌ Tools have no **descriptions** (agent doesn't know when to use them!)
 
 This is the problem. Weave helped you see it!

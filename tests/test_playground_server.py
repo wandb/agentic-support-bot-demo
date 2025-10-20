@@ -40,6 +40,9 @@ def test_serialize_chunk_to_sse_with_content():
     delta = Mock()
     delta.content = "Hello"
     delta.role = "assistant"
+    delta.tool_calls = None  # No tool calls in this test
+    delta.thinking = None
+    delta.reasoning_content = None
     
     choice = Mock()
     choice.index = 0
@@ -76,6 +79,9 @@ def test_serialize_chunk_to_sse_with_finish_reason():
     delta = Mock()
     delta.content = None
     delta.role = None
+    delta.tool_calls = None
+    delta.thinking = None
+    delta.reasoning_content = None
     
     choice = Mock()
     choice.index = 0
@@ -103,6 +109,9 @@ def test_serialize_chunk_to_sse_with_usage():
     delta = Mock()
     delta.content = None
     delta.role = None
+    delta.tool_calls = None
+    delta.thinking = None
+    delta.reasoning_content = None
     
     choice = Mock()
     choice.index = 0
