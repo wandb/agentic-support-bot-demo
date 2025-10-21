@@ -88,9 +88,9 @@ Edit `.env` and add your API key and project:
 
 ## Step 2: Get a Basic Agent Running
 
-**Note:** This demo is specifically about **using Weave**, not building an agent from scratch. We're using the [Slide framework](https://slide.mintlify.app) to get an agent up and running quickly so you can focus on experiencing Weave's observability and evaluation workflow.
-
 We'll build your agent incrementally, starting simple and adding complexity. You'll use **Weave traces at each stage** to understand what's happening.
+
+**Note:** This demo is specifically about **using Weave**, not building an agent from scratch. We're using the [Slide framework](https://slide.mintlify.app) to get an agent up and running quickly so you can focus on experiencing Weave's observability and evaluation workflow.
 
 ### Part A: Create Your First Agent
 
@@ -117,6 +117,8 @@ reasoning: "low"
 **Notice:** The purpose is generic - not specific to a support bot. You'll make it specific in Step 3!
 
 **Test it:**
+
+Now let's test it using Tyler's CLI:
 
 ```bash
 uv run tyler chat
