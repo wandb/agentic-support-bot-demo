@@ -77,6 +77,7 @@ cp .env.example .env
 Edit `.env` and add your API keys:
 - `WANDB_API_KEY` - **Required** for Weave observability
 - `OPENAI_API_KEY` - Required if using OpenAI models
+- `WANDB_PROJECT` - (Optional) Defaults to `agentic-support-bot-demo` - this is the Weave project where your traces will appear
 
 **Note**: You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name` in `tyler-chat-config.yaml`.
 
@@ -127,7 +128,7 @@ You: Hello!
 
 The agent should respond conversationally. Now **check Weave**:
 
-1. Navigate to [wandb.ai](https://wandb.ai) and find your project
+1. Navigate to your Weave project at [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (look for `agentic-support-bot-demo` in your projects)
 2. Click **Traces** - you should see your conversation!
 3. Click into the trace to see the full interaction captured
 
@@ -226,6 +227,11 @@ What's the weather in San Francisco?
 Create a support ticket for API timeout errors
 ```
 
+**Check your traces in Weave:**
+
+1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
+2. Click **Traces** to see your Playground interactions
+
 **What to notice in Weave dashboard:**
 - Some traces show tool calls, others don't
 - Agent doesn't consistently use tools
@@ -268,7 +274,7 @@ Create a support ticket for API timeout errors
 
 **Now use Weave to diagnose WHY:**
 
-1. Open [wandb.ai](https://wandb.ai) and go to your project
+1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
 2. Click **Traces** and find your recent interactions
 3. Click into a trace and examine:
    - **Messages**: What did the agent say?
@@ -367,9 +373,10 @@ Create a support ticket for API timeout errors
 
 **Now check Weave traces:**
 
-1. Find your new traces in the dashboard
-2. Compare to your old traces (side-by-side if possible)
-3. **Notice the difference:**
+1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
+2. Find your new traces in the **Traces** tab
+3. Compare to your old traces (side-by-side if possible)
+4. **Notice the difference:**
    - ✅ Agent now searches docs appropriately
    - ✅ Agent creates tickets properly
    - ✅ Agent "vibes" as a support bot!
@@ -752,14 +759,21 @@ def tone_scorer(output: dict) -> dict:
 
 ```
 .
-├── tyler-chat-config.yaml  # Agent configuration
+├── examples/               # Complete reference files for skip-ahead
+│   ├── step-2a-basic-agent/
+│   ├── step-2b-with-tools/
+│   └── step-3-complete/
+├── tyler-chat-config.yaml  # Agent configuration (starter)
+├── tools.py                # Custom tool implementations (starter)
+├── playground_server.py    # API server for Weave Playground
 ├── main.py                 # Programmatic agent execution
-├── tools.py                # Custom tool implementations
 ├── tests/                  # Test suite
 ├── directive/              # Spec and implementation docs
 ├── pyproject.toml         # Project dependencies
 └── README.md              # This file
 ```
+
+**Weave Project**: All traces go to `agentic-support-bot-demo` project at [wandb.ai](https://wandb.ai)
 
 ---
 
@@ -793,10 +807,11 @@ def tone_scorer(output: dict) -> dict:
 **Solution**: 
 1. Make requests that clearly need tool usage
 2. Check `tools.py` is referenced in `tyler-chat-config.yaml`
-3. View Weave traces to see what the agent is doing
+3. View Weave traces at [wandb.ai/agentic-support-bot-demo](https://wandb.ai) to see what the agent is doing
+4. Check tool docstrings - agent needs clear descriptions to know when to use tools!
 
 **Problem**: `Warning: Failed to initialize Weave`  
-**Solution**: Non-blocking, but check your `WANDB_API_KEY` for full observability.
+**Solution**: Non-blocking, but check your `WANDB_API_KEY` for full observability. Your traces should appear at [wandb.ai/agentic-support-bot-demo](https://wandb.ai).
 
 ### Debug Mode
 
