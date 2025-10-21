@@ -74,7 +74,7 @@ uv sync
 cp .env.example .env
 ```
 
-Edit `.env` and add your API keys:
+Edit `.env` and add your API keys and project:
 - `WANDB_API_KEY` - **Required** for Weave observability
 - `OPENAI_API_KEY` - Required if using OpenAI models
 - `WANDB_PROJECT` - (Optional) Defaults to `agentic-support-bot-demo` - this is the Weave project where your traces will appear
@@ -88,6 +88,8 @@ Edit `.env` and add your API keys:
 ---
 
 ## Step 2: Get a Basic Agent Running
+
+**Note:** This demo is specifically about **learning Weave**, not building an agent framework from scratch. We're using the [Slide framework](https://slide.mintlify.app) to get an agent up and running quickly so you can focus on experiencing Weave's observability and iteration workflow.
 
 We'll build your agent incrementally, starting simple and adding complexity. You'll use **Weave traces at each stage** to understand what's happening.
 
@@ -128,7 +130,7 @@ You: Hello!
 
 The agent should respond conversationally. Now **check Weave**:
 
-1. Navigate to your Weave project at [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (look for `agentic-support-bot-demo` in your projects)
+1. Navigate to your Weave project at [agentic-support-bot-demo](https://wandb.ai) (look for `agentic-support-bot-demo` in your projects)
 2. Click **Traces** - you should see your conversation!
 3. Click into the trace to see the full interaction captured
 
