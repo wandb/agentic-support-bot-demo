@@ -204,11 +204,12 @@ mcp:
 
 **Step 2: Check Your Tools**
 
-Your `tools.py` should have two basic functions:
-- `create_issue(title, description, priority)` - Creates a support ticket  
-- `get_issue(issue_id)` - Retrieves a ticket
+Your `tools.py` should have two functions and a `TOOLS` export:
+- `create_issue(*, title, description, priority)` - Creates a support ticket  
+- `get_issue(*, issue_id)` - Retrieves a ticket
+- `TOOLS` - A list of tool definitions in JSON format
 
-**Notice:** These functions have NO or POOR docstrings. This is intentional - you'll improve them in Step 3!
+**Notice:** The tool descriptions in the `TOOLS` list are minimal (like "Create a support ticket"). This is intentional - you'll improve them in Step 3 to make the agent understand when to use each tool!
 
 **Step 3: Test in Weave Playground**
 
@@ -327,7 +328,7 @@ I need to create a support ticket for authentication issues
 
 **What you should notice:**
 - ❌ Agent has a **generic purpose** ("helpful AI assistant" - it doesn't know it's a support bot!)
-- ❌ Tools have no **descriptions** (agent doesn't know when to use them!)
+- ❌ Tool **descriptions are minimal** ("Create a support ticket", "Get ticket status" - agent doesn't know WHEN to use them!)
 
 This is the problem. Weave helped you see it!
 
@@ -380,41 +381,52 @@ mcp:
       args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
 ```
 
-**Fix #2: Add tool docstrings**
+**Fix #2: Improve tool descriptions**
 
-Update `tools.py` with clear docstrings. Here's an example for `create_issue`:
+Update `tools.py` with better descriptions in the tool definitions. Here's an example for `create_issue`:
 
 ```python
-def create_issue(title: str, description: str, priority: str = "medium") -> dict:
-    """Create a new support ticket for a user's problem or request.
-    
-    **When to use this tool:**
-    - User reports a bug, error, or problem with Weave
-    - User requests help or assistance with something
-    - User asks to create a support ticket
-    
-    Args:
-        title: Brief summary of the issue
-        description: Detailed description of the problem
-        priority: Priority level (low, medium, high). Defaults to medium.
-        
-    Returns:
-        Dictionary containing the created support ticket details
-    """
-    issue_id = str(uuid4())
-    created_at = datetime.now(timezone.utc).isoformat()
-    
-    return {
-        "id": issue_id,
-        "title": title,
-        "description": description,
-        "status": "open",
-        "priority": priority,
-        "created_at": created_at,
-    }
+TOOLS = [
+    {
+        "definition": {
+            "type": "function",
+            "function": {
+                "name": "support-create_issue",
+                "description": "Create a support ticket for a user's problem or request. Use when user reports a bug, error, or problem with Weave, requests help or assistance, or asks to create a support ticket.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Brief, clear summary of the issue (e.g., 'API timeout errors in production')"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Detailed description including error messages, steps to reproduce, or context"
+                        },
+                        "priority": {
+                            "type": "string",
+                            "description": "Urgency: 'high' for critical production issues, 'medium' for standard issues, 'low' for minor questions",
+                            "enum": ["low", "medium", "high"],
+                            "default": "medium"
+                        }
+                    },
+                    "required": ["title", "description"]
+                }
+            }
+        },
+        "implementation": create_issue
+    },
+    # ... do the same for get_issue
+]
 ```
 
-Do the same for `get_issue`. See `examples/step-3-complete/tools.py` for full examples.
+**Key improvements to make:**
+- Clear "when to use" guidance in the description
+- Detailed parameter descriptions
+- Examples where helpful
+
+See `examples/step-3-complete/tools.py` for the complete implementation.
 
 **Restart your agent:**
 

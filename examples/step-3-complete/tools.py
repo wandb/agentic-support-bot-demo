@@ -18,7 +18,7 @@ if os.getenv("WANDB_API_KEY"):
         print(f"Warning: Failed to initialize Weave: {e}")
 
 
-def create_issue(title: str, description: str, priority: str = "medium") -> dict:
+def create_issue(*, title: str, description: str, priority: str = "medium") -> dict:
     """Create a new support ticket for a user's problem or request.
     
     **When to use this tool:**
@@ -62,7 +62,7 @@ def create_issue(title: str, description: str, priority: str = "medium") -> dict
     }
 
 
-def get_issue(issue_id: str) -> dict:
+def get_issue(*, issue_id: str) -> dict:
     """Retrieve the current status and details of an existing support ticket.
     
     **When to use this tool:**
@@ -104,6 +104,57 @@ def get_issue(issue_id: str) -> dict:
     }
 
 
-# Export tools for Tyler
-TOOLS = [create_issue, get_issue]
+# Export tools for Slide framework
+TOOLS = [
+    {
+        "definition": {
+            "type": "function",
+            "function": {
+                "name": "support-create_issue",
+                "description": "Create a support ticket for a user's problem or request. Use when user reports a bug, error, or problem with Weave, requests help or assistance, or asks to create a support ticket.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Brief, clear summary of the issue (e.g., 'API timeout errors in production')"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Detailed description of the problem, including any error messages, steps to reproduce, or context the user provided"
+                        },
+                        "priority": {
+                            "type": "string",
+                            "description": "Urgency level - use 'high' for critical issues affecting production, 'medium' (default) for standard issues, 'low' for minor questions",
+                            "enum": ["low", "medium", "high"],
+                            "default": "medium"
+                        }
+                    },
+                    "required": ["title", "description"]
+                }
+            }
+        },
+        "implementation": create_issue
+    },
+    {
+        "definition": {
+            "type": "function",
+            "function": {
+                "name": "support-get_issue",
+                "description": "Retrieve the current status and details of an existing support ticket. Use when user asks about the status of a specific ticket/issue, provides an issue ID or ticket number, or wants an update on something they previously reported.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "issue_id": {
+                            "type": "string",
+                            "description": "The unique identifier of the ticket (the ID from create_issue or provided by the user)"
+                        }
+                    },
+                    "required": ["issue_id"]
+                }
+            }
+        },
+        "implementation": get_issue
+    }
+]
 

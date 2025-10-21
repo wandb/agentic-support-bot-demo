@@ -119,14 +119,23 @@ class TestToolsIntegration:
         assert len(TOOLS) == 2  # create_issue, get_issue
 
     def test_tools_are_callable_functions(self):
-        """Test that TOOLS contains callable functions."""
+        """Test that TOOLS contains callable functions or proper tool definitions."""
         from tools import TOOLS
         
         for tool in TOOLS:
-            assert callable(tool)
-            # Functions decorated with @tool should have metadata
-            assert hasattr(tool, '__name__')
-            assert hasattr(tool, '__doc__')
+            # Support both direct function exports and Slide framework format
+            if isinstance(tool, dict):
+                # Slide framework format with definition and implementation
+                assert "definition" in tool
+                assert "implementation" in tool
+                assert callable(tool["implementation"])
+                # Verify the function has metadata
+                impl = tool["implementation"]
+                assert hasattr(impl, '__name__')
+            else:
+                # Direct function export
+                assert callable(tool)
+                assert hasattr(tool, '__name__')
 
 
 class TestConfigurationFile:

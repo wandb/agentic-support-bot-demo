@@ -18,19 +18,8 @@ if os.getenv("WANDB_API_KEY"):
         print(f"Warning: Failed to initialize Weave: {e}")
 
 
-def create_issue(title: str, description: str, priority: str = "medium") -> dict:
-    """Create a new support ticket.
-    
-    Use this tool when the user reports a problem or requests help.
-    
-    Args:
-        title: Brief title of the issue
-        description: Detailed description of the problem
-        priority: Priority level (low, medium, high). Defaults to medium.
-        
-    Returns:
-        Dictionary containing the created issue details
-    """
+def create_issue(*, title: str, description: str, priority: str = "medium") -> dict:
+    # TODO: Add a better description explaining when to use this tool
     issue_id = str(uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
     
@@ -44,17 +33,8 @@ def create_issue(title: str, description: str, priority: str = "medium") -> dict
     }
 
 
-def get_issue(issue_id: str) -> dict:
-    """Retrieve an existing support ticket by ID.
-    
-    Use this tool when the user asks about the status of a specific issue.
-    
-    Args:
-        issue_id: The unique identifier of the issue
-        
-    Returns:
-        Dictionary containing the issue details
-    """
+def get_issue(*, issue_id: str) -> dict:
+    # TODO: Add a better description explaining when to use this tool
     created_at = datetime.now(timezone.utc).isoformat()
     updated_at = datetime.now(timezone.utc).isoformat()
     
@@ -69,6 +49,48 @@ def get_issue(issue_id: str) -> dict:
     }
 
 
-# Export tools for Tyler
-TOOLS = [create_issue, get_issue]
+# Export tools for Slide framework
+TOOLS = [
+    {
+        "definition": {
+            "type": "function",
+            "function": {
+                "name": "support-create_issue",
+                "description": "Create a support ticket",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "description": "Brief summary"},
+                        "description": {"type": "string", "description": "Details"},
+                        "priority": {
+                            "type": "string",
+                            "description": "Urgency",
+                            "enum": ["low", "medium", "high"],
+                            "default": "medium"
+                        }
+                    },
+                    "required": ["title", "description"]
+                }
+            }
+        },
+        "implementation": create_issue
+    },
+    {
+        "definition": {
+            "type": "function",
+            "function": {
+                "name": "support-get_issue",
+                "description": "Get ticket status",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "issue_id": {"type": "string", "description": "Ticket ID"}
+                    },
+                    "required": ["issue_id"]
+                }
+            }
+        },
+        "implementation": get_issue
+    }
+]
 
