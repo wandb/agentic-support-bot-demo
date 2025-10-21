@@ -89,7 +89,7 @@ Edit `.env` and add your API keys and project:
 
 ## Step 2: Get a Basic Agent Running
 
-**Note:** This demo is specifically about **learning Weave**, not building an agent framework from scratch. We're using the [Slide framework](https://slide.mintlify.app) to get an agent up and running quickly so you can focus on experiencing Weave's observability and iteration workflow.
+**Note:** This demo is specifically about **using Weave**, not building an agent from scratch. We're using the [Slide framework](https://slide.mintlify.app) to get an agent up and running quickly so you can focus on experiencing Weave's observability and evaluation workflow.
 
 We'll build your agent incrementally, starting simple and adding complexity. You'll use **Weave traces at each stage** to understand what's happening.
 
@@ -97,14 +97,9 @@ We'll build your agent incrementally, starting simple and adding complexity. You
 
 **What You're Accomplishing:** Get a minimal agent running and see your first Weave trace.
 
-> **⏭️ Want to skip ahead?** 
-> ```bash
-> cp examples/step-2a-basic-agent/tyler-chat-config.yaml .
-> ```
-
 **Instructions:**
 
-Your `tyler-chat-config.yaml` should already be minimal. If not, it should look like:
+Your `tyler-chat-config.yaml` is already set up with a minimal configuration:
 
 ```yaml
 agent:
