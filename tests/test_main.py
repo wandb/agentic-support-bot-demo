@@ -116,7 +116,7 @@ class TestToolsIntegration:
         from tools import TOOLS
         
         assert isinstance(TOOLS, list)
-        assert len(TOOLS) == 3  # get_weather, create_issue, get_issue
+        assert len(TOOLS) == 2  # create_issue, get_issue
 
     def test_tools_are_callable_functions(self):
         """Test that TOOLS contains callable functions."""

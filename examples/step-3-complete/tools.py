@@ -18,38 +18,6 @@ if os.getenv("WANDB_API_KEY"):
         print(f"Warning: Failed to initialize Weave: {e}")
 
 
-def get_weather(city: str) -> dict:
-    """Get current weather conditions for any city in the world.
-    
-    **When to use this tool:**
-    - User asks about weather, temperature, or conditions in a specific location
-    - User wants to know if it's sunny, rainy, etc. somewhere
-    - User is planning activities and needs weather information
-    
-    **Example user requests:**
-    - "What's the weather in San Francisco?"
-    - "Is it raining in London?"
-    - "How hot is it in Tokyo right now?"
-    
-    Args:
-        city: Name of the city (e.g., "San Francisco", "London", "Tokyo")
-        
-    Returns:
-        Dictionary containing:
-        - city: The city name
-        - temperature: Current temperature in Fahrenheit
-        - condition: Weather condition (e.g., "sunny", "cloudy", "rainy")
-        - humidity: Humidity percentage
-    """
-    # Mock weather data for demo purposes
-    return {
-        "city": city,
-        "temperature": 72,
-        "condition": "sunny",
-        "humidity": 45
-    }
-
-
 def create_issue(title: str, description: str, priority: str = "medium") -> dict:
     """Create a new support ticket for a user's problem or request.
     
@@ -137,5 +105,5 @@ def get_issue(issue_id: str) -> dict:
 
 
 # Export tools for Tyler
-TOOLS = [get_weather, create_issue, get_issue]
+TOOLS = [create_issue, get_issue]
 

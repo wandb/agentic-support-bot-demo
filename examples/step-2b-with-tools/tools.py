@@ -18,26 +18,6 @@ if os.getenv("WANDB_API_KEY"):
         print(f"Warning: Failed to initialize Weave: {e}")
 
 
-def get_weather(city: str) -> dict:
-    """Get current weather for a city.
-    
-    Use this tool when the user asks about weather conditions.
-    
-    Args:
-        city: Name of the city to get weather for
-        
-    Returns:
-        Dictionary with temperature and weather condition
-    """
-    # Mock weather data for demo
-    return {
-        "city": city,
-        "temperature": 72,
-        "condition": "sunny",
-        "humidity": 45
-    }
-
-
 def create_issue(title: str, description: str, priority: str = "medium") -> dict:
     """Create a new support ticket.
     
@@ -90,5 +70,5 @@ def get_issue(issue_id: str) -> dict:
 
 
 # Export tools for Tyler
-TOOLS = [get_weather, create_issue, get_issue]
+TOOLS = [create_issue, get_issue]
 

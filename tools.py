@@ -18,16 +18,6 @@ if os.getenv("WANDB_API_KEY"):
         print(f"Warning: Failed to initialize Weave: {e}")
 
 
-def get_weather(city: str) -> dict:
-    # TODO: Add a docstring explaining when to use this tool
-    return {
-        "city": city,
-        "temperature": 72,
-        "condition": "sunny",
-        "humidity": 45
-    }
-
-
 def create_issue(title: str, description: str, priority: str = "medium") -> dict:
     # TODO: Add a docstring explaining when to use this tool
     issue_id = str(uuid4())
@@ -60,5 +50,5 @@ def get_issue(issue_id: str) -> dict:
 
 
 # Export tools for Tyler
-TOOLS = [get_weather, create_issue, get_issue]
+TOOLS = [create_issue, get_issue]
 

@@ -118,7 +118,7 @@ reasoning: "low"
 
 **Test it:**
 
-Now let's test it using Tyler's CLI:
+Now let's test it using Slide's CLI:
 
 ```bash
 uv run tyler chat
@@ -126,7 +126,7 @@ uv run tyler chat
 
 Try a simple message:
 ```
-You: Hello!
+You: Hello!  What is your name and how can you help?
 ```
 
 The agent should respond conversationally. Now **check Weave**:
@@ -187,8 +187,7 @@ mcp:
 
 **Step 2: Check Your Tools**
 
-Your `tools.py` should have three basic functions:
-- `get_weather(city)` - Gets weather for a city
+Your `tools.py` should have two basic functions:
 - `create_issue(title, description, priority)` - Creates a support ticket  
 - `get_issue(issue_id)` - Retrieves a ticket
 
@@ -222,18 +221,26 @@ Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
 4. Click **Add provider**
 5. Select `tyler-agent/agent` from the model dropdown
 
-**Try these prompts:**
+**Try these prompts to test your agent:**
 
 ```
-How do I use Weave to log predictions?
-```
-
-```
-What's the weather in San Francisco?
+1. How do I initialize Weave in my Python code?
 ```
 
 ```
-Create a support ticket for API timeout errors
+2. I'm getting API timeout errors when logging predictions. Can you help?
+```
+
+```
+3. What's the status of ticket #123?
+```
+
+```
+4. Can you explain how to track model performance in Weave?
+```
+
+```
+5. I need to create a support ticket for authentication issues
 ```
 
 **Check your traces in Weave:**
@@ -264,22 +271,33 @@ This is what we'll fix in Step 3.
 
 ### Part A: Identify the Problem
 
-**Test your agent** with these prompts in Weave Playground:
+**Test your agent** with these same prompts in Weave Playground:
 
 ```
-How do I use Weave to log predictions?
+1. How do I initialize Weave in my Python code?
 ```
-(Agent should search Weave docs via MCP)
 
 ```
-Create a support ticket for API timeout errors
+2. I'm getting API timeout errors when logging predictions. Can you help?
 ```
-(Agent should use create_issue tool)
+
+```
+3. What's the status of ticket #123?
+```
+
+```
+4. Can you explain how to track model performance in Weave?
+```
+
+```
+5. I need to create a support ticket for authentication issues
+```
 
 **What you'll likely see:**
-- Agent responds but doesn't search docs effectively
-- Agent might not create tickets properly  
-- Agent doesn't feel like a "support bot"
+- Agent responds but doesn't search docs effectively (prompts 1 & 4)
+- Agent might not create tickets properly (prompts 2 & 5)
+- Agent doesn't properly retrieve ticket status (prompt 3)
+- Agent doesn't feel like a "support bot" - just a generic assistant
 
 **Now use Weave to diagnose WHY:**
 
@@ -347,31 +365,39 @@ mcp:
 
 **Fix #2: Add tool docstrings**
 
-Update `tools.py` with clear docstrings. Here's an example for `get_weather`:
+Update `tools.py` with clear docstrings. Here's an example for `create_issue`:
 
 ```python
-def get_weather(city: str) -> dict:
-    """Get current weather conditions for any city.
+def create_issue(title: str, description: str, priority: str = "medium") -> dict:
+    """Create a new support ticket for a user's problem or request.
     
     **When to use this tool:**
-    - User asks about weather, temperature, or conditions in a location
-    - User wants to know if it's sunny, rainy, etc. somewhere
+    - User reports a bug, error, or problem with Weave
+    - User requests help or assistance with something
+    - User asks to create a support ticket
     
     Args:
-        city: Name of the city (e.g., "San Francisco", "London")
+        title: Brief summary of the issue
+        description: Detailed description of the problem
+        priority: Priority level (low, medium, high). Defaults to medium.
         
     Returns:
-        Dictionary with temperature and weather condition
+        Dictionary containing the created support ticket details
     """
+    issue_id = str(uuid4())
+    created_at = datetime.now(timezone.utc).isoformat()
+    
     return {
-        "city": city,
-        "temperature": 72,
-        "condition": "sunny",
-        "humidity": 45
+        "id": issue_id,
+        "title": title,
+        "description": description,
+        "status": "open",
+        "priority": priority,
+        "created_at": created_at,
     }
 ```
 
-Do the same for `create_issue` and `get_issue`. See `examples/step-3-complete/tools.py` for full examples.
+Do the same for `get_issue`. See `examples/step-3-complete/tools.py` for full examples.
 
 **Restart your agent:**
 
@@ -384,24 +410,37 @@ uv run playground_server.py
 
 ### Part C: Verify Improvements with Weave
 
-**Test the same prompts again** in Weave Playground:
+**Test the same 5 prompts again** in Weave Playground:
 
 ```
-How do I use Weave to log predictions?
+1. How do I initialize Weave in my Python code?
 ```
 
 ```
-Create a support ticket for API timeout errors
+2. I'm getting API timeout errors when logging predictions. Can you help?
+```
+
+```
+3. What's the status of ticket #123?
+```
+
+```
+4. Can you explain how to track model performance in Weave?
+```
+
+```
+5. I need to create a support ticket for authentication issues
 ```
 
 **Now check Weave traces:**
 
 1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
 2. Find your new traces in the **Traces** tab
-3. Compare to your old traces (side-by-side if possible)
+3. Compare to your old traces from Part A (side-by-side if possible)
 4. **Notice the difference:**
-   - ✅ Agent now searches docs appropriately
-   - ✅ Agent creates tickets properly
+   - ✅ Agent now searches docs appropriately (prompts 1 & 4)
+   - ✅ Agent creates tickets properly (prompts 2 & 5)
+   - ✅ Agent retrieves ticket status (prompt 3)
    - ✅ Agent "vibes" as a support bot!
 
 **This is the Weave workflow:**
