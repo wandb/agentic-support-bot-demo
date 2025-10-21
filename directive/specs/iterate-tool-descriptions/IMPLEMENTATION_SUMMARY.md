@@ -30,7 +30,6 @@ Additionally, created an `examples/` directory with complete reference implement
 ### New Files
 
 **Examples Directory**
-- `examples/step-2a-basic-agent/tyler-chat-config.yaml` — Minimal agent config (no tools, generic purpose)
 - `examples/step-2b-with-tools/tyler-chat-config.yaml` — Config with tools and MCP server configured
 - `examples/step-2b-with-tools/tools.py` — Three tools with good docstrings (get_weather, create_issue, get_issue)
 - `examples/step-3-complete/tyler-chat-config.yaml` — Complete support bot config with specific purpose statement
@@ -98,7 +97,7 @@ Additionally, created an `examples/` directory with complete reference implement
 
 ### Decision 1: Examples Directory Structure
 **Context**: Needed to provide reference implementations without giving away answers upfront  
-**Choice**: Created three distinct example directories (step-2a, step-2b, step-3-complete)  
+**Choice**: Created two example directories (step-2b, step-3-complete) - root config serves as Step 2a  
 **Rationale**: 
 - Allows skip-ahead functionality for users interested in specific steps
 - Provides working reference when users get stuck

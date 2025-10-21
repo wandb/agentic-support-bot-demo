@@ -96,8 +96,6 @@ Steps 4-10: Existing steps (renumbered)
 - **Structure**:
   ```
   examples/
-  ├── step-2a-basic-agent/
-  │   └── tyler-chat-config.yaml    # Minimal
   ├── step-2b-with-tools/
   │   ├── tyler-chat-config.yaml    # + tools/MCP
   │   └── tools.py                  # Good docstrings

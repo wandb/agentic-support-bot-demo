@@ -851,7 +851,6 @@ def tone_scorer(output: dict) -> dict:
 ```
 .
 ├── examples/               # Complete reference files for skip-ahead
-│   ├── step-2a-basic-agent/
 │   ├── step-2b-with-tools/
 │   └── step-3-complete/
 ├── tyler-chat-config.yaml  # Agent configuration (starter)

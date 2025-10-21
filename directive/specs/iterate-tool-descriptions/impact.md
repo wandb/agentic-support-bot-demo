@@ -3,7 +3,6 @@
 ## Modules/packages likely touched
 
 ### New Files to Create
-- `examples/step-2a-basic-agent/tyler-chat-config.yaml` - Minimal agent config (no tools, no MCP)
 - `examples/step-2b-with-tools/tyler-chat-config.yaml` - Config with tools + MCP configured
 - `examples/step-2b-with-tools/tools.py` - Tools with good docstrings
 - `examples/step-3-complete/tyler-chat-config.yaml` - Final support bot config with purpose statement

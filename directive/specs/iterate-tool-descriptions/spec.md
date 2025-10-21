@@ -115,8 +115,6 @@ As a **developer evaluating Weave**, I want **to build an agent incrementally an
 ```
 .
 ├── examples/                          # Completed files for skip-ahead
-│   ├── step-2a-basic-agent/
-│   │   └── tyler-chat-config.yaml    # Minimal config, no tools
 │   ├── step-2b-with-tools/
 │   │   ├── tyler-chat-config.yaml    # Config with tools & MCP
 │   │   └── tools.py                  # Well-documented tools
