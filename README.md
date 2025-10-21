@@ -127,23 +127,23 @@ uv run tyler chat
 Try these prompts:
 
 ```
-1. How do I initialize Weave in my Python code?
+How do I initialize Weave in my Python code?
 ```
 
 ```
-2. I'm getting API timeout errors when logging predictions. Can you help?
+I'm getting API timeout errors when logging predictions. Can you help?
 ```
 
 ```
-3. What's the status of ticket #123?
+What's the status of ticket #123?
 ```
 
 ```
-4. Can you explain how to track model performance in wandb?
+Can you explain how to track model performance in wandb?
 ```
 
 ```
-5. I need to create a support ticket for authentication issues
+I need to create a support ticket for authentication issues
 ```
 
 The agent should respond conversationally to all prompts. Now **check Weave**:
@@ -241,23 +241,23 @@ Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
 **Try these prompts to test your agent:**
 
 ```
-1. How do I initialize Weave in my Python code?
+How do I initialize Weave in my Python code?
 ```
 
 ```
-2. I'm getting API timeout errors when logging predictions. Can you help?
+I'm getting API timeout errors when logging predictions. Can you help?
 ```
 
 ```
-3. What's the status of ticket #123?
+What's the status of ticket #123?
 ```
 
 ```
-4. Can you explain how to track model performance in wandb?
+Can you explain how to track model performance in wandb?
 ```
 
 ```
-5. I need to create a support ticket for authentication issues
+I need to create a support ticket for authentication issues
 ```
 
 **Check your traces in Weave:**
@@ -291,29 +291,29 @@ This is what we'll fix in Step 3.
 **Test your agent** with these same prompts in Weave Playground:
 
 ```
-1. How do I initialize Weave in my Python code?
+How do I initialize Weave in my Python code?
 ```
 
 ```
-2. I'm getting API timeout errors when logging predictions. Can you help?
+I'm getting API timeout errors when logging predictions. Can you help?
 ```
 
 ```
-3. What's the status of ticket #123?
+What's the status of ticket #123?
 ```
 
 ```
-4. Can you explain how to track model performance in wandb?
+Can you explain how to track model performance in wandb?
 ```
 
 ```
-5. I need to create a support ticket for authentication issues
+I need to create a support ticket for authentication issues
 ```
 
 **What you'll likely see:**
-- Agent responds but doesn't search docs effectively (prompts 1 & 4)
-- Agent might not create tickets properly (prompts 2 & 5)
-- Agent doesn't properly retrieve ticket status (prompt 3)
+- Agent responds but doesn't search docs effectively
+- Agent might not create tickets properly
+- Agent doesn't properly retrieve ticket status
 - Agent doesn't feel like a "support bot" - just a generic assistant
 
 **Now use Weave to diagnose WHY:**
@@ -427,26 +427,26 @@ uv run playground_server.py
 
 ### Part C: Verify Improvements with Weave
 
-**Test the same 5 prompts again** in Weave Playground:
+**Test the same prompts again** in Weave Playground:
 
 ```
-1. How do I initialize Weave in my Python code?
-```
-
-```
-2. I'm getting API timeout errors when logging predictions. Can you help?
+How do I initialize Weave in my Python code?
 ```
 
 ```
-3. What's the status of ticket #123?
+I'm getting API timeout errors when logging predictions. Can you help?
 ```
 
 ```
-4. Can you explain how to track model performance in wandb?
+What's the status of ticket #123?
 ```
 
 ```
-5. I need to create a support ticket for authentication issues
+Can you explain how to track model performance in wandb?
+```
+
+```
+I need to create a support ticket for authentication issues
 ```
 
 **Now check Weave traces:**
@@ -455,9 +455,9 @@ uv run playground_server.py
 2. Find your new traces in the **Traces** tab
 3. Compare to your old traces from Part A (side-by-side if possible)
 4. **Notice the difference:**
-   - ✅ Agent now searches docs appropriately (prompts 1 & 4)
-   - ✅ Agent creates tickets properly (prompts 2 & 5)
-   - ✅ Agent retrieves ticket status (prompt 3)
+   - ✅ Agent now searches docs appropriately
+   - ✅ Agent creates tickets properly
+   - ✅ Agent retrieves ticket status
    - ✅ Agent "vibes" as a support bot!
 
 **This is the Weave workflow:**
