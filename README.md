@@ -32,7 +32,7 @@ Currently there is a need to write and run code, so to get started you will need
 - **GitHub** to clone the repo
 - **Terminal access** to run commands
 - **Weights & Biases account** ([sign up free](https://wandb.ai/authorize))
-- **LLM API key** (e.g., [OpenAI](https://platform.openai.com/api-keys))
+  - Your W&B API key will be used for both Weave observability AND as the LLM API (we use W&B Inference with DeepSeek)
 
 For each step we have attempted to include both **code-first** and **UI-first** instructions so you can feel what it is like for both technical and non-technical users.
 
@@ -74,12 +74,11 @@ uv sync
 cp .env.example .env
 ```
 
-Edit `.env` and add your API keys and project:
-- `WANDB_API_KEY` - **Required** for Weave observability
-- `OPENAI_API_KEY` - Required if using OpenAI models
+Edit `.env` and add your API key and project:
+- `WANDB_API_KEY` - **Required** for both Weave observability and LLM API (we use W&B Inference with DeepSeek)
 - `WANDB_PROJECT` - (Optional) Defaults to `agentic-support-bot-demo` - this is the Weave project where your traces will appear
 
-**Note**: You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name` in `tyler-chat-config.yaml`.
+**Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `tyler-chat-config.yaml`.
 
 ### UI Approach
 
@@ -104,10 +103,15 @@ Your `tyler-chat-config.yaml` is already set up with a minimal configuration:
 ```yaml
 agent:
   name: "agent"
-  model_name: "gpt-4o"
+  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
   purpose: "You are a helpful AI assistant."
 
+# W&B Inference endpoint configuration
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
+
 temperature: 0.7
+reasoning: "low"
 ```
 
 **Notice:** The purpose is generic - not specific to a support bot. You'll make it specific in Step 3!
@@ -156,10 +160,16 @@ Update your `tyler-chat-config.yaml` to include tools and MCP:
 ```yaml
 agent:
   name: "agent"
-  model_name: "gpt-4o"
+  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+  purpose: "You are a helpful AI assistant."
+
+# W&B Inference endpoint configuration
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
 
 temperature: 0.7
 max_tool_iterations: 10
+reasoning: "low"
 
 # Tool Configuration
 tools:
@@ -295,7 +305,7 @@ Update `tyler-chat-config.yaml`:
 ```yaml
 agent:
   name: "Buzz"
-  model_name: "gpt-4o"
+  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
   purpose: |
     You are a support bot for Weave, W&B's LLM observability platform.
     
@@ -305,13 +315,27 @@ agent:
     3. Create and manage support tickets for issues users report
     
     Always be friendly, clear, and helpful in your responses.
+  
+  notes: |
+    - Use the search_docs tool for questions about Weave features and usage
+    - Use create_issue for when users report problems or need help
+    - Use get_issue to check on existing support tickets
+    - Ask clarifying questions if the user's request is unclear
+    - Be proactive in suggesting next steps
+
+# W&B Inference endpoint configuration
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
 
 temperature: 0.7
 max_tool_iterations: 10
+reasoning: "low"
 
+# Tool Configuration
 tools:
   - "./tools.py"
 
+# MCP Server Configuration for Weave documentation search
 mcp:
   servers:
     mintlify:
