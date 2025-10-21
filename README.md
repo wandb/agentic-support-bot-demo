@@ -88,7 +88,7 @@ Edit `.env` and add your API key and project:
 
 ## Step 2: Get a Basic Agent Running
 
-We'll build your agent incrementally, starting simple and adding complexity. You'll use **Weave traces at each stage** to understand what's happening.
+We'll build your agent incrementally, starting simple and adding complexity. You'll use **Weave at each stage** to understand what's happening.
 
 **Note:** This demo is specifically about **using Weave**, not building an agent from scratch. We're using the [Slide framework](https://slide.mintlify.app) to get an agent up and running quickly so you can focus on experiencing Weave's observability and evaluation workflow.
 
@@ -114,7 +114,7 @@ temperature: 0.7
 reasoning: "low"
 ```
 
-**Notice:** The purpose is generic - not specific to a support bot. You'll make it specific in Step 3!
+**Notice:** The agent is generic - not specific to a support bot. You'll make it specific in Step 3!
 
 **Test it:**
 
@@ -124,12 +124,29 @@ Now let's test it using Slide's CLI:
 uv run tyler chat
 ```
 
-Try a simple message:
+Try these prompts:
+
 ```
-You: Hello!  What is your name and how can you help?
+1. How do I initialize Weave in my Python code?
 ```
 
-The agent should respond conversationally. Now **check Weave**:
+```
+2. I'm getting API timeout errors when logging predictions. Can you help?
+```
+
+```
+3. What's the status of ticket #123?
+```
+
+```
+4. Can you explain how to track model performance in wandb?
+```
+
+```
+5. I need to create a support ticket for authentication issues
+```
+
+The agent should respond conversationally to all prompts. Now **check Weave**:
 
 1. Navigate to your Weave project at [agentic-support-bot-demo](https://wandb.ai) (look for `agentic-support-bot-demo` in your projects)
 2. Click **Traces** - you should see your conversation!
@@ -236,7 +253,7 @@ Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
 ```
 
 ```
-4. Can you explain how to track model performance in Weave?
+4. Can you explain how to track model performance in wandb?
 ```
 
 ```
@@ -286,7 +303,7 @@ This is what we'll fix in Step 3.
 ```
 
 ```
-4. Can you explain how to track model performance in Weave?
+4. Can you explain how to track model performance in wandb?
 ```
 
 ```
@@ -425,7 +442,7 @@ uv run playground_server.py
 ```
 
 ```
-4. Can you explain how to track model performance in Weave?
+4. Can you explain how to track model performance in wandb?
 ```
 
 ```
