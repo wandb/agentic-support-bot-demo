@@ -186,12 +186,12 @@ reasoning: "low"
 tools:
   - "./tools.py"
 
-# MCP Server Configuration for Weave documentation search
+# MCP Server Configuration for W&B documentation search
 mcp:
   servers:
-    mintlify:
+    wandb:
       command: "npx"
-      args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
+      args: ["-y", "@mintlify/mcp-server", "https://docs.wandb.ai/mcp"]
 ```
 
 **Step 2: Check Your Tools**
@@ -378,12 +378,12 @@ reasoning: "low"
 tools:
   - "./tools.py"
 
-# MCP Server Configuration for Weave documentation search
+# MCP Server Configuration for W&B documentation search
 mcp:
   servers:
-    mintlify:
+    wandb:
       command: "npx"
-      args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
+      args: ["-y", "@mintlify/mcp-server", "https://docs.wandb.ai/mcp"]
 ```
 
 **Fix #2: Improve tool descriptions**
