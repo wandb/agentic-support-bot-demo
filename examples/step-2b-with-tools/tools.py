@@ -1,4 +1,4 @@
-"""Starter tools - You'll improve these through the tutorial."""
+"""Custom tools for the agent - Step 2b with good docstrings."""
 
 import os
 from datetime import datetime, timezone

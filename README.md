@@ -32,7 +32,7 @@ Currently there is a need to write and run code, so to get started you will need
 - **GitHub** to clone the repo
 - **Terminal access** to run commands
 - **Weights & Biases account** ([sign up free](https://wandb.ai/authorize))
-- **LLM API key** (e.g., [OpenAI](https://platform.openai.com/api-keys))
+  - Your W&B API key will be used for both Weave observability AND as the LLM API (we use W&B Inference with DeepSeek)
 
 For each step we have attempted to include both **code-first** and **UI-first** instructions so you can feel what it is like for both technical and non-technical users.
 
@@ -42,7 +42,9 @@ For each step we have attempted to include both **code-first** and **UI-first** 
 
 ## Step 1: Project Setup
 
-### Code Approach
+### What You're Really Accomplishing
+
+To save you time on boilerplate setup, we've created this repository with dependencies, configuration files, and example code already in place. This lets you focus on the agent-specific decisions (coming in Step 2) rather than wrestling with environment setup.
 
 1. **Clone the repository**
 
@@ -70,151 +72,459 @@ uv sync
 cp .env.example .env
 ```
 
-Edit `.env` and add your API keys:
-- `WANDB_API_KEY` - **Required** for Weave observability
-- `OPENAI_API_KEY` - Required if using OpenAI models
+Edit `.env` and add your API key and project:
+- `WANDB_API_KEY` - **Required** for both Weave observability and LLM API (we use W&B Inference with DeepSeek)
+- `WANDB_PROJECT` - (Optional) Defaults to `agentic-support-bot-demo` - this is the Weave project where your traces will appear
 
-**Note**: You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name` in `tyler-chat-config.yaml`.
-
-### UI Approach
-
-❌ **Can't be done currently.** 
-
-**Question for discussion**: Could we adopt an Agent Class that can be configured entirely through the Weave UI? This would make onboarding non-technical users much smoother.
+**Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `tyler-chat-config.yaml`.
 
 ---
 
 ## Step 2: Get a Basic Agent Running
 
-### Code Approach
+We'll build your agent incrementally, starting simple and adding complexity. You'll use **Weave at each stage** to understand what's happening.
 
-Start the interactive chat CLI:
+**Note:** This demo is specifically about **using Weave**, not building an agent from scratch. We're using the [Slide framework](https://slide.mintlify.app) to get an agent up and running quickly so you can focus on experiencing Weave's observability and evaluation workflow.
+
+### Part A: Create Your First Agent
+
+**What You're Accomplishing:** Get a minimal agent running and see your first Weave trace.
+
+**Instructions:**
+
+Your `tyler-chat-config.yaml` is already set up with a minimal configuration:
+
+```yaml
+agent:
+  name: "agent"
+  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+  purpose: "You are a helpful AI assistant."
+
+# W&B Inference endpoint configuration
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
+
+temperature: 0.7
+reasoning: "low"
+```
+
+**Notice:** The agent is generic - not specific to a support bot. You'll make it specific in Step 3!
+
+**Test it:**
+
+Now let's test it using Slide's CLI:
 
 ```bash
 uv run tyler chat
 ```
 
-This launches an interactive terminal session where you can:
-- 💬 Chat naturally with the support bot
-- 🔧 Create and retrieve support issues using natural language
-- 📊 See real-time streaming responses
-- 🔄 Maintain conversation context across multiple messages
-- 📈 Automatically log all interactions to Weave
+Try these prompts:
 
-**Try these example prompts:**
 ```
-You: I need to create a new issue for API timeouts
+How do I initialize Weave in my Python code?
+```
 
-You: Can you get me the details for issue #123?
 ```
+I'm getting API timeout errors when logging predictions. Can you help?
+```
+
+```
+What's the status of ticket #123?
+```
+
+```
+Can you explain how to track model performance in wandb?
+```
+
+```
+I need to create a support ticket for authentication issues
+```
+
+The agent should respond conversationally to all prompts. Now **check Weave**:
+
+1. Navigate to your Weave project at [agentic-support-bot-demo](https://wandb.ai) (look for `agentic-support-bot-demo` in your projects)
+2. Click **Traces** - you should see your conversation!
+3. Click into the trace to see the full interaction captured
+
+**What to notice:**
+- ✅ Agent works and can converse
+- ✅ Weave automatically captured everything
+- ❌ Agent can't DO anything (no tools yet)
 
 **Chat Commands:**
-- `/help` - Show available commands
-- `/new` - Start a new conversation thread
 - `/quit` or `/exit` - Exit the chat
-- `/clear` - Clear the screen
-
-**View your traces**
-
-1. Navigate to your Weave project at [wandb.ai](https://wandb.ai)
-2. After running the agent locally (code approach above), you'll see traces appear automatically
-3. Click into a trace to explore the agent's behavior
+- `/help` - Show available commands
 
 ---
 
-## Step 3: Vibe Check - Experiment in the Playground
+### Part B: Add Tools and MCP Server
 
-### Code Approach
+**What You're Accomplishing:** Give your agent capabilities (local tools + documentation search) and test in Weave Playground.
 
-Continue chatting with the agent in the CLI and try various prompts:
+> **⏭️ Want to skip ahead?** 
+> ```bash
+> cp examples/step-2b-with-tools/* .
+> ```
 
-- Ask it questions about your product
-- Request it to create support tickets
-- Test edge cases and unusual requests
-- See how it handles multi-turn conversations
+**Step 1: Add Tools to Your Config**
 
-**What to look for:**
-- Is the agent helpful and on-brand?
-- Does it call tools at the right time?
-- Are responses clear and accurate?
+Update your `tyler-chat-config.yaml` to include tools and MCP:
 
-### UI Approach
+```yaml
+agent:
+  name: "agent"
+  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+  purpose: "You are a helpful AI assistant."
 
-Now you can test the agent visually in Weave Playground!
+# W&B Inference endpoint configuration
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
 
-**1. Start the Playground Server**
+temperature: 0.7
+max_tool_iterations: 10
+reasoning: "low"
+
+# Tool Configuration
+tools:
+  - "./tools.py"
+
+# MCP Server Configuration for Weave documentation search
+mcp:
+  servers:
+    mintlify:
+      command: "npx"
+      args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
+```
+
+**Step 2: Check Your Tools**
+
+Your `tools.py` should have two functions and a `TOOLS` export:
+- `create_issue(*, title, description, priority)` - Creates a support ticket  
+- `get_issue(*, issue_id)` - Retrieves a ticket
+- `TOOLS` - A list of tool definitions in JSON format
+
+**Notice:** The tool definitions in `TOOLS` have NO descriptions or parameter details - just the function names! This is intentional - you'll add descriptions and parameters in Step 3 to teach the agent when and how to use each tool!
+
+**Step 3: Test in Weave Playground**
+
+Start the playground server:
 
 ```bash
 uv run playground_server.py
 ```
 
-The server will start on `http://0.0.0.0:8000`. You should see:
-```
-============================================================
-Tyler Playground API Server
-============================================================
-Agent: Buzz (gpt-4o)
-Server: http://0.0.0.0:8000
-Health check: http://0.0.0.0:8000/health
-============================================================
-```
+In a **new terminal**, expose via ngrok:
 
-**2. Expose via ngrok (for Weave Playground access)**
-
-In a new terminal:
 ```bash
 ngrok http 8000
 ```
 
 Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
 
-**3. Configure Weave Playground**
+**Connect Weave Playground:**
 
 1. Go to [Weave Playground](https://wandb.ai/playground)
-2. Click **Select a model** dropdown → **+ Add AI provider**
-3. Fill in provider information:
-   - **Provider name**: `tyler-support-bot`
+2. Click **Select a model** → **+ Add AI provider**
+3. Fill in:
+   - **Provider name**: `tyler-agent`
    - **Base URL**: `https://abc123.ngrok-free.app/v1/` (your ngrok URL + `/v1/`)
-   - **API key**: `dummy` (not validated for local dev, but required field)
-   - **Models**: Click "Add model" and enter `support-bot`
+   - **API key**: `dummy`
+   - **Models**: Click "Add model" and enter `agent`
 4. Click **Add provider**
-5. Select `tyler-support-bot/support-bot` from the model dropdown
+5. Select `tyler-agent/agent` from the model dropdown
 
-**4. Start Chatting!**
+**Try these prompts to test your agent:**
 
-Try these prompts in the Playground:
-- "Create a new support issue for API timeout problems with high priority"
-- "Show me issue #123"
-- "I need help with authentication errors"
+```
+How do I initialize Weave in my Python code?
+```
 
-**What to look for:**
-- 📊 **Streaming responses**: Watch tokens appear in real-time
-- 🔧 **Tool usage**: See when create_issue/get_issue are called
-- 📈 **Weave traces**: Check your project dashboard for automatic trace logging
-- 💬 **Conversation flow**: Test multi-turn conversations
-- ⚡ **Response quality**: Is the agent helpful and accurate?
+```
+I'm getting API timeout errors when logging predictions. Can you help?
+```
 
-**Troubleshooting:**
+```
+What's the status of ticket #123?
+```
 
-- **Server won't start**: Make sure you're running from the project root where `tyler-chat-config.yaml` exists
-- **ngrok connection fails**: Check that ngrok is running and the URL is correct
-- **Playground shows errors**: Verify the Base URL ends with `/v1/` (trailing slash matters)
-- **No traces in Weave**: Check that `WANDB_API_KEY` is set in your `.env` file
+```
+Can you explain how to track model performance in wandb?
+```
 
-**Alternative: Test with curl**
+```
+I need to create a support ticket for authentication issues
+```
 
-If you don't want to set up ngrok, test locally:
+**Check your traces in Weave:**
+
+1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
+2. Click **Traces** to see your Playground interactions
+
+**What to notice in Weave dashboard:**
+- Some traces show tool calls, others don't
+- Agent doesn't consistently use tools
+- Agent doesn't really "vibe" as a support bot
+- Why? **The agent doesn't know its purpose or when to use tools!**
+
+This is what we'll fix in Step 3.
+
+---
+
+## Step 3: Iterate to Make it Vibe as a Support Agent
+
+**What You're Learning:** The core Weave workflow - **observe → diagnose → fix → verify**. This is how you improve agents!
+
+> **⏭️ Want to skip to the finished support bot?** 
+> ```bash
+> cp examples/step-3-complete/* .
+> ```
+> 
+> ⚠️ **But you'll miss the best part!** Iteration is where Weave shines.
+
+### Part A: Identify the Problem
+
+**Test your agent** with these same prompts in Weave Playground:
+
+```
+How do I initialize Weave in my Python code?
+```
+
+```
+I'm getting API timeout errors when logging predictions. Can you help?
+```
+
+```
+What's the status of ticket #123?
+```
+
+```
+Can you explain how to track model performance in wandb?
+```
+
+```
+I need to create a support ticket for authentication issues
+```
+
+**What you'll likely see:**
+- Agent responds but doesn't search docs effectively
+- Agent might not create tickets properly
+- Agent doesn't properly retrieve ticket status
+- Agent doesn't feel like a "support bot" - just a generic assistant
+
+**Now use Weave to diagnose WHY:**
+
+1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
+2. Click **Traces** and find your recent interactions
+3. Click into a trace and examine:
+   - **Messages**: What did the agent say?
+   - **Tool Calls**: Were tools called? Which ones? With what arguments?
+   - **Agent Config**: Look at the config sent to the model
+
+**What you should notice:**
+- ❌ Agent has a **generic purpose** ("helpful AI assistant" - it doesn't know it's a support bot!)
+- ❌ Tool definitions are **missing descriptions and parameters** - agent doesn't know WHEN to use them or HOW!
+
+This is the problem. Weave helped you see it!
+
+---
+
+### Part B: Improve Purpose & Tool Descriptions
+
+**Fix #1: Give your agent a clear purpose**
+
+Update `tyler-chat-config.yaml`:
+
+```yaml
+agent:
+  name: "Buzz"
+  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+  purpose: |
+    You are a support bot for Weave, W&B's LLM observability platform.
+    
+    Your role is to:
+    1. Help users with questions about Weave features and functionality
+    2. Search the Weave documentation when users ask how-to questions
+    3. Create and manage support tickets for issues users report
+    
+    Always be friendly, clear, and helpful in your responses.
+  
+  notes: |
+    - Use the search_docs tool for questions about Weave features and usage
+    - Use create_issue for when users report problems or need help
+    - Use get_issue to check on existing support tickets
+    - Ask clarifying questions if the user's request is unclear
+    - Be proactive in suggesting next steps
+
+# W&B Inference endpoint configuration
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
+
+temperature: 0.7
+max_tool_iterations: 10
+reasoning: "low"
+
+# Tool Configuration
+tools:
+  - "./tools.py"
+
+# MCP Server Configuration for Weave documentation search
+mcp:
+  servers:
+    mintlify:
+      command: "npx"
+      args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
+```
+
+**Fix #2: Improve tool descriptions**
+
+Update `tools.py` with better descriptions in the tool definitions. Here's an example for `create_issue`:
+
+```python
+TOOLS = [
+    {
+        "definition": {
+            "type": "function",
+            "function": {
+                "name": "support-create_issue",
+                "description": "Create a support ticket for a user's problem or request. Use when user reports a bug, error, or problem with Weave, requests help or assistance, or asks to create a support ticket.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Brief, clear summary of the issue (e.g., 'API timeout errors in production')"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Detailed description including error messages, steps to reproduce, or context"
+                        },
+                        "priority": {
+                            "type": "string",
+                            "description": "Urgency: 'high' for critical production issues, 'medium' for standard issues, 'low' for minor questions",
+                            "enum": ["low", "medium", "high"],
+                            "default": "medium"
+                        }
+                    },
+                    "required": ["title", "description"]
+                }
+            }
+        },
+        "implementation": create_issue
+    },
+    # ... do the same for get_issue
+]
+```
+
+**Key improvements to make:**
+1. Add a clear **description** explaining when to use the tool
+2. Add **parameters** section with all function arguments
+3. Add detailed **parameter descriptions** with examples
+4. Specify **required** parameters
+
+The agent needs both the description (when to use) AND the parameters (how to use) to call tools effectively.
+
+See `examples/step-3-complete/tools.py` for the complete implementation.
+
+**Restart your agent:**
+
 ```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Create a support ticket for API timeouts"}],"stream":true}'
+# Stop the current playground server (Ctrl+C)
+uv run playground_server.py
 ```
 
 ---
 
-<!-- ## Step 4: Create a Dataset
+### Part C: Verify Improvements with Weave
 
-Build a test dataset to systematically evaluate your agent.
+**Test the same prompts again** in Weave Playground:
+
+```
+How do I initialize Weave in my Python code?
+```
+
+```
+I'm getting API timeout errors when logging predictions. Can you help?
+```
+
+```
+What's the status of ticket #123?
+```
+
+```
+Can you explain how to track model performance in wandb?
+```
+
+```
+I need to create a support ticket for authentication issues
+```
+
+**Now check Weave traces:**
+
+1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
+2. Find your new traces in the **Traces** tab
+3. Compare to your old traces from Part A (side-by-side if possible)
+4. **Notice the difference:**
+   - ✅ Agent now searches docs appropriately
+   - ✅ Agent creates tickets properly
+   - ✅ Agent retrieves ticket status
+   - ✅ Agent "vibes" as a support bot!
+
+**This is the Weave workflow:**
+1. 🔍 **Observe** behavior in traces
+2. 🩺 **Diagnose** what's wrong
+3. ✏️ **Fix** the issue (purpose + descriptions)
+4. ✅ **Verify** improvement in new traces
+
+**You just learned how to iterate on agents with observability!**
+
+---
+
+### Not Perfect? Iterate Again!
+
+If your agent still doesn't work perfectly, **use Weave traces to understand why** and keep iterating:
+
+- Check which tool calls are wrong
+- Read the agent's reasoning
+- Improve tool descriptions further
+- Refine the purpose statement
+
+This is real agent development!
+
+---
+
+---
+
+Coming soon:
+
+## Step 4: Create a Dataset
+
+<!-- ### What You're Really Accomplishing
+
+Transitioning from ad-hoc testing to systematic evaluation by building a curated set of test cases that represent your agent's expected usage.
+
+### Questions a Real User Would Face
+
+- **What scenarios should I cover?** Which are most important? Most common? Most risky?
+- **How do I structure test data?** What format? What fields are needed?
+- **How many test cases do I need?** 10? 100? 1000?
+- **Should I include edge cases or focus on common paths?** Balance between coverage and effort?
+- **Where do test cases come from?** Manual creation? Real user data? Synthetic generation?
+- **How do I version and maintain this dataset?** Git? Database? Manual files?
+- **What's the "expected output"?** Exact matches? Semantic similarity? Action taken?
+
+Creating good test datasets is harder than it looks - it requires domain knowledge, creativity, and careful thought about what "correct" means.
+
+### What This Demo Decided For You
+
+✅ **Dataset format**: Weave Dataset structure with rows and columns  
+✅ **Test coverage**: Example test cases covering main agent capabilities  
+✅ **Expected outputs**: Simple action-based expectations (create_ticket, provide_info, etc.)  
+✅ **Storage**: Versioned in Weave (or code) for reproducibility  
+✅ **Size**: Small but representative set (~10-20 cases) to start
+
+### Your Focus
+
+As you create or review test cases, think about whether they truly represent real-world usage. Are you testing the right things? Would failures on these cases matter in production?
 
 ### Code Approach
 
@@ -252,7 +562,32 @@ dataset = weave.Dataset(
 
 ## Step 5: Create Evaluation Scorers
 
-Define how you'll measure agent performance.
+### What You're Really Accomplishing
+
+Defining objective, automated metrics to measure agent quality - translating human judgment into code.
+
+### Questions a Real User Would Face
+
+- **What should I measure?** Accuracy? Helpfulness? Tone? Safety? All of the above?
+- **How do I measure subjective qualities?** Like "helpfulness" or "brand voice"?
+- **Should I use LLM-as-judge?** Which model? What prompt? How reliable is it?
+- **Exact match or semantic similarity?** When is each appropriate?
+- **How do I handle multiple valid responses?** Not all questions have one right answer
+- **What about edge cases?** Refusals, clarifications, multi-turn conversations?
+- **How do I validate my scorers are correct?** Who judges the judges?
+
+Building good evaluation metrics is one of the hardest parts of AI engineering - it requires domain expertise and careful thinking about what success means.
+
+### What This Demo Decided For You
+
+✅ **Scorer framework**: Weave's `@weave.op()` decorator for automatic tracking  
+✅ **Initial metrics**: Simple action accuracy and tool usage scoring  
+✅ **Evaluation patterns**: Example code showing scorer structure  
+✅ **Output format**: Dictionary-based results for flexibility
+
+### Your Focus
+
+Think critically about the scorers: Do they measure what matters? Would high scores actually mean a good agent? What important qualities are missing? This is where product sense meets engineering.
 
 ### Code Approach
 
@@ -283,7 +618,33 @@ def tool_usage_scorer(output: dict) -> dict:
 
 ## Step 6: Establish Baseline Performance
 
-Run evaluations to understand your starting point.
+### What You're Really Accomplishing
+
+Creating your first quantitative measurement of agent performance - establishing a benchmark to compare all future improvements against.
+
+### Questions a Real User Would Face
+
+- **How do I run evaluations at scale?** Sequentially? In parallel? Rate limits?
+- **What's a "good" score?** Is 80% accuracy good enough? 90%? Depends on the task?
+- **How long will this take?** Runtime and cost for N test cases?
+- **How do I handle flakiness?** LLM outputs are non-deterministic
+- **Should I use sampling/temperature 0?** Trade-offs between consistency and creativity?
+- **Where do I store results?** For comparison over time?
+- **How do I surface results to stakeholders?** Dashboards? Reports? Alerts?
+
+Running your first eval is exciting but raises questions about reliability, cost, and what the numbers actually mean.
+
+### What This Demo Decided For You
+
+✅ **Evaluation harness**: Weave's `Evaluation` class handles execution and tracking  
+✅ **Parallelization**: Automatically handles concurrent execution  
+✅ **Result storage**: Results automatically logged to Weave for comparison  
+✅ **Cost tracking**: Token usage tracked per evaluation run  
+✅ **Model config**: Sensible defaults (temperature, etc.) pre-set
+
+### Your Focus
+
+Look at the results critically. What does a 75% accuracy score actually tell you? Which failures matter most? This baseline is your north star for improvement - make sure you trust it.
 
 ### Code Approach
 
@@ -324,7 +685,34 @@ print(f"Baseline accuracy: {results['accuracy']}")
 
 ## Step 7: Test Different Models
 
-Compare performance across different LLM providers and models.
+### What You're Really Accomplishing
+
+Systematically comparing LLM providers and models to find the best balance of quality, cost, and latency for your specific use case.
+
+### Questions a Real User Would Face
+
+- **Which models should I test?** GPT-4? Claude? Gemini? Open source?
+- **How do I switch between providers?** Different APIs, auth patterns, response formats?
+- **What about cost differences?** Some models are 10-100x more expensive than others
+- **What about latency?** Faster models might sacrifice quality
+- **How do I handle provider-specific features?** Function calling implementation varies
+- **Should I test different model sizes?** GPT-4 vs GPT-3.5? Claude Opus vs Sonnet?
+- **How do I make comparisons fair?** Same prompts? Same temperature? Same test set?
+- **What if a model fails mid-eval?** Rate limits, timeouts, API errors?
+
+Model selection is crucial - it impacts your quality, cost, and reliability. But testing is time-consuming and expensive.
+
+### What This Demo Decided For You
+
+✅ **Provider abstraction**: LiteLLM handles different APIs uniformly  
+✅ **Easy switching**: Change one line in config file to test new models  
+✅ **Comparison framework**: Weave automatically tracks results for side-by-side comparison  
+✅ **Suggested models**: Pre-configured with sensible options to try  
+✅ **Cost visibility**: Token usage and estimated costs in traces
+
+### Your Focus
+
+As you compare models, think about the trade-offs. Is a 5% accuracy improvement worth 10x the cost? How much does latency matter for your users? This is where engineering meets business decisions.
 
 ### Code Approach
 
@@ -350,7 +738,35 @@ Run evaluations for each model and compare in Weave.
 
 ## Step 8: Iterate to Improve Accuracy
 
-Now that you have a baseline, start improving:
+### What You're Really Accomplishing
+
+The iterative improvement cycle - the core of AI engineering where you experiment, measure, and refine to boost performance.
+
+### Questions a Real User Would Face
+
+- **Where do I start?** Prompts? Tools? Examples? RAG? Fine-tuning?
+- **How do I know what to fix?** Which errors are most important?
+- **Should I use few-shot examples?** How many? Which ones? Where to put them?
+- **How do I improve tool calling?** Better descriptions? Better names? More/fewer tools?
+- **What about prompt engineering?** What techniques actually work?
+- **Should I add guardrails?** How to validate outputs without breaking creativity?
+- **How much testing between changes?** Full eval every time? Spot checks?
+- **How do I avoid overfitting to my test set?** Am I gaming my own metrics?
+- **When is "good enough" good enough?** Diminishing returns vs. perfectionism?
+
+This is the messy, creative phase where art meets science. Every change needs testing, and improvements aren't always obvious.
+
+### What This Demo Decided For You
+
+✅ **Iteration tools**: Easy config changes with immediate testing  
+✅ **Fast feedback loop**: CLI for quick spot checks, evals for validation  
+✅ **Common techniques**: Examples of prompt improvements, tool refinements  
+✅ **Measurement framework**: Automatic comparison of runs in Weave  
+✅ **Version control**: Git + Weave for tracking what changed and impact
+
+### Your Focus
+
+This is where you live for weeks in real projects. Notice what makes iteration fast vs. slow. Can you quickly test a hypothesis? Is it clear what improved and what regressed? This workflow quality determines your development velocity.
 
 ### Code Approach
 
@@ -381,7 +797,34 @@ python run_evaluation.py
 
 ## Step 9 (Bonus): Iterate on the Details
 
-Polish the agent's personality and behavior:
+### What You're Really Accomplishing
+
+Moving from "works" to "delightful" - the final polish that makes users love (or hate) your agent.
+
+### Questions a Real User Would Face
+
+- **What's the right personality?** Formal? Casual? Funny? It depends on brand and context
+- **How much context should the agent maintain?** Full conversation? Last N messages? Summarization?
+- **When should the agent ask clarifying questions?** Too many is annoying, too few causes errors
+- **How do I handle ambiguity gracefully?** Not every user request is clear
+- **What about error messages?** Technical details vs. user-friendly language?
+- **Should the agent apologize?** Set boundaries? How human-like should it feel?
+- **How do I measure "quality"?** NPS? User feedback? Custom scorers?
+
+These details are what separate good agents from great ones, but they're highly subjective and hard to measure objectively.
+
+### What This Demo Decided For You
+
+✅ **Base personality**: Friendly support bot tone pre-configured  
+✅ **Context handling**: Multi-turn conversation support built-in  
+✅ **Error patterns**: Basic error handling implemented  
+✅ **Evaluation framework**: Infrastructure to test subjective qualities with custom scorers
+
+### Your Focus
+
+This is where product intuition matters most. These details can't always be A/B tested or measured - you need to develop taste for what makes a good interaction. Pay attention to how the agent "feels" to use.
+
+### Details to Polish
 
 - **Tone of voice**: Make it friendly, professional, or quirky
 - **Follow-up questions**: Have the agent proactively ask clarifying questions
@@ -404,14 +847,20 @@ def tone_scorer(output: dict) -> dict:
 
 ```
 .
-├── tyler-chat-config.yaml  # Agent configuration
+├── examples/               # Complete reference files for skip-ahead
+│   ├── step-2b-with-tools/
+│   └── step-3-complete/
+├── tyler-chat-config.yaml  # Agent configuration (starter)
+├── tools.py                # Custom tool implementations (starter)
+├── playground_server.py    # API server for Weave Playground
 ├── main.py                 # Programmatic agent execution
-├── tools.py                # Custom tool implementations
 ├── tests/                  # Test suite
 ├── directive/              # Spec and implementation docs
 ├── pyproject.toml         # Project dependencies
 └── README.md              # This file
 ```
+
+**Weave Project**: All traces go to `agentic-support-bot-demo` project at [wandb.ai](https://wandb.ai)
 
 ---
 
@@ -445,10 +894,11 @@ def tone_scorer(output: dict) -> dict:
 **Solution**: 
 1. Make requests that clearly need tool usage
 2. Check `tools.py` is referenced in `tyler-chat-config.yaml`
-3. View Weave traces to see what the agent is doing
+3. View Weave traces at [wandb.ai/agentic-support-bot-demo](https://wandb.ai) to see what the agent is doing
+4. Check tool docstrings - agent needs clear descriptions to know when to use tools!
 
 **Problem**: `Warning: Failed to initialize Weave`  
-**Solution**: Non-blocking, but check your `WANDB_API_KEY` for full observability.
+**Solution**: Non-blocking, but check your `WANDB_API_KEY` for full observability. Your traces should appear at [wandb.ai/agentic-support-bot-demo](https://wandb.ai).
 
 ### Debug Mode
 

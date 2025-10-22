@@ -1,42 +1,15 @@
-# Tyler Chat Configuration for Support Bot
-# Run with: tyler chat --config support-bot.yaml
-#
-# W&B Inference Setup:
-# 1. Get your W&B API key from: https://wandb.ai/authorize
-# 2. Add to your .env file:
-#    WANDB_API_KEY=<your-wandb-api-key>
+# Tyler Chat Configuration - Starter
+# This is a minimal starter configuration
+# You'll build this up through the tutorial
 
-# Agent Identity
-name: "Buzz"
-purpose: |
-  You are a helpful support bot assistant that helps users manage support issues.
-  You can create new issues and retrieve existing ones.
-  Always be friendly, clear, and helpful in your responses.
-
-notes: |
-  - When creating issues, ask for all necessary details (title, description, priority)
-  - When retrieving issues, provide complete information in a clear format
-  - If a user's request is unclear, ask clarifying questions
-  - Be proactive in suggesting next steps
-
-# Model Configuration - Using W&B Inference DeepSeek model
-# DeepSeek models support reasoning content (thinking tokens)
-# Note: The openai/ prefix tells litellm to use OpenAI-compatible format for W&B Inference
-model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+agent:
+  name: "agent"
+  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+  purpose: "You are a helpful AI assistant."
 
 # W&B Inference endpoint configuration
 base_url: "https://api.inference.wandb.ai/v1"
-
-# API Key: Reads WANDB_API_KEY from environment
 api_key: "${WANDB_API_KEY}"
 
 temperature: 0.7
-max_tool_iterations: 10
-
-# Reasoning/Thinking Configuration
-# DeepSeek models support thinking tokens when this is enabled
-reasoning: "low"  # Options: "low", "medium", "high" or dict for advanced config
-
-# Tool Configuration
-tools:
-  - "./tools.py"  # Load custom support bot tools (create_issue, get_issue)
+reasoning: "low"

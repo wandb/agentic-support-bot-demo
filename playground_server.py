@@ -92,9 +92,12 @@ def load_agent() -> tuple[Agent, dict]:
         logger.error(f"Invalid YAML in config file: {e}")
         raise ValueError(f"Failed to parse config file: {e}")
     
+    # Extract agent config (handle nested structure)
+    agent_config = config.get("agent", config)  # Support both nested and flat
+    
     # Validate required fields
     required_fields = ["name", "model_name", "purpose"]
-    missing_fields = [f for f in required_fields if f not in config]
+    missing_fields = [f for f in required_fields if f not in agent_config]
     if missing_fields:
         raise ValueError(f"Missing required config fields: {', '.join(missing_fields)}")
     
@@ -134,9 +137,9 @@ def load_agent() -> tuple[Agent, dict]:
     
     # Create agent with all config fields
     agent_kwargs = {
-        "name": config["name"],
-        "model_name": config["model_name"],
-        "purpose": config["purpose"],
+        "name": agent_config["name"],
+        "model_name": agent_config["model_name"],
+        "purpose": agent_config["purpose"],
         "tools": tools,
         "temperature": config.get("temperature", 0.7),
         "max_tool_iterations": config.get("max_tool_iterations", 10)
@@ -161,18 +164,20 @@ def load_agent() -> tuple[Agent, dict]:
         agent_kwargs["reasoning"] = config["reasoning"]
         logger.info(f"Reasoning enabled: {config['reasoning']}")
     
-    if "notes" in config:
-        agent_kwargs["notes"] = config["notes"]
+    if "notes" in agent_config:
+        agent_kwargs["notes"] = agent_config["notes"]
     
     agent = Agent(**agent_kwargs)
     
-    logger.info(f"Agent initialized: {config['name']} ({config['model_name']})")
+    logger.info(f"Agent initialized: {agent_config['name']} ({agent_config['model_name']})")
     return agent, config
 
 
 # Initialize agent at startup
 try:
     AGENT, CONFIG = load_agent()
+    # Extract agent config for easy access throughout the module
+    AGENT_CONFIG = CONFIG.get("agent", CONFIG)
 except Exception as e:
     logger.error(f"Failed to initialize agent: {e}")
     raise
@@ -196,7 +201,7 @@ def serialize_chunk_to_sse(chunk) -> str:
         "id": getattr(chunk, 'id', f'chatcmpl-{uuid.uuid4()}'),
         "object": getattr(chunk, 'object', 'chat.completion.chunk'),
         "created": getattr(chunk, 'created', int(time.time())),
-        "model": getattr(chunk, 'model', CONFIG["model_name"]),
+        "model": getattr(chunk, 'model', AGENT_CONFIG["model_name"]),
         "choices": []
     }
     
@@ -318,8 +323,8 @@ async def health_check():
     """Health check endpoint."""
     return HealthResponse(
         status="ok",
-        agent_name=CONFIG["name"],
-        model=CONFIG["model_name"]
+        agent_name=AGENT_CONFIG["name"],
+        model=AGENT_CONFIG["model_name"]
     )
 
 
@@ -411,7 +416,7 @@ if __name__ == "__main__":
     logger.info("="*60)
     logger.info("Tyler Playground API Server")
     logger.info("="*60)
-    logger.info(f"Agent: {CONFIG['name']} ({CONFIG['model_name']})")
+    logger.info(f"Agent: {AGENT_CONFIG['name']} ({AGENT_CONFIG['model_name']})")
     logger.info(f"Server: http://{host}:{port}")
     logger.info(f"Health check: http://{host}:{port}/health")
     logger.info("="*60)

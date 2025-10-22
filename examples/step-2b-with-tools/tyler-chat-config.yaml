@@ -1,0 +1,27 @@
+# Tyler Chat Configuration with Tools
+# This configuration includes tools but no clear purpose yet
+
+agent:
+  name: "agent"
+  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+  purpose: "You are a helpful AI assistant."
+
+# W&B Inference endpoint configuration
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
+
+temperature: 0.7
+max_tool_iterations: 10
+reasoning: "low"
+
+# Tool Configuration
+tools:
+  - "./tools.py"
+
+# MCP Server Configuration for documentation search
+mcp:
+  servers:
+    mintlify:
+      command: "npx"
+      args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
+
