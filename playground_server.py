@@ -120,7 +120,39 @@ def load_agent() -> tuple[Agent, dict]:
             # Get TOOLS list
             if hasattr(tools_module, 'TOOLS'):
                 tools = tools_module.TOOLS
-                logger.info(f"Loaded {len(tools)} tools: {[t.__name__ for t in tools]}")
+                # Validate dict-based tool specs only
+                if not isinstance(tools, list):
+                    raise TypeError("TOOLS must be a list of dict-based tool definitions")
+                validated_tools = []
+                tool_names = []
+                for idx, t in enumerate(tools):
+                    if not isinstance(t, dict):
+                        raise TypeError(
+                            f"TOOLS[{idx}] must be a dict with 'definition' and 'implementation'"
+                        )
+                    definition = t.get('definition')
+                    implementation = t.get('implementation')
+                    if not isinstance(definition, dict):
+                        raise ValueError(
+                            f"TOOLS[{idx}].definition must be a dict"
+                        )
+                    if implementation is None:
+                        raise ValueError(
+                            f"TOOLS[{idx}] missing 'implementation'"
+                        )
+                    # Extract function name for logging
+                    name = (
+                        definition.get('function', {})
+                                  .get('name')
+                    )
+                    if not name:
+                        raise ValueError(
+                            f"TOOLS[{idx}].definition.function.name is required"
+                        )
+                    validated_tools.append(t)
+                    tool_names.append(name)
+                tools = validated_tools
+                logger.info(f"Loaded {len(tools)} tools: {tool_names}")
             else:
                 logger.warning(f"No TOOLS list found in {tool_path}")
         except Exception as e:
