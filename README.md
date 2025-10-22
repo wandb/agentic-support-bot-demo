@@ -211,6 +211,13 @@ Start the playground server:
 uv run playground_server.py
 ```
 
+**Tip**: You can specify a different config file with the `--config` flag:
+```bash
+uv run playground_server.py --config examples/step-3-complete/tyler-chat-config.yaml
+```
+
+Run `uv run playground_server.py --help` to see all available options.
+
 In a **new terminal**, expose via ngrok:
 
 ```bash

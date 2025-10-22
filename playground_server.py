@@ -5,6 +5,7 @@ Exposes the Tyler support bot through a /v1/chat/completions endpoint
 that works with Weave Playground and other OpenAI-compatible clients.
 """
 
+import argparse
 import asyncio
 import json
 import logging
@@ -64,9 +65,12 @@ class HealthResponse(BaseModel):
 # Agent Initialization
 # ============================================================================
 
-def load_agent() -> tuple[Agent, dict]:
+def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict]:
     """
     Load Tyler agent from configuration file.
+    
+    Args:
+        config_path: Path to the Tyler configuration YAML file
     
     Returns:
         Tuple of (agent instance, config dict)
@@ -75,7 +79,6 @@ def load_agent() -> tuple[Agent, dict]:
         FileNotFoundError: If config file doesn't exist
         ValueError: If config is invalid or tools can't be loaded
     """
-    config_path = "tyler-chat-config.yaml"
     
     # Load config file
     try:
@@ -207,7 +210,9 @@ def load_agent() -> tuple[Agent, dict]:
 
 # Initialize agent at startup
 try:
-    AGENT, CONFIG = load_agent()
+    # Check for config path in environment variable (set by CLI args)
+    config_path = os.getenv("TYLER_CONFIG", "tyler-chat-config.yaml")
+    AGENT, CONFIG = load_agent(config_path)
     # Extract agent config for easy access throughout the module
     AGENT_CONFIG = CONFIG.get("agent", CONFIG)
 except Exception as e:
@@ -490,21 +495,55 @@ async def chat_completions(
 if __name__ == "__main__":
     import uvicorn
     
-    host = os.getenv("PLAYGROUND_SERVER_HOST", "0.0.0.0")
-    port = int(os.getenv("PLAYGROUND_SERVER_PORT", "8000"))
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="Tyler Playground API Server - OpenAI-compatible chat completions endpoint"
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="tyler-chat-config.yaml",
+        help="Path to Tyler configuration YAML file (default: tyler-chat-config.yaml)"
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default=os.getenv("PLAYGROUND_SERVER_HOST", "0.0.0.0"),
+        help="Host to bind the server to (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.getenv("PLAYGROUND_SERVER_PORT", "8000")),
+        help="Port to bind the server to (default: 8000)"
+    )
+    args = parser.parse_args()
+    
+    # Set config path in environment so module initialization picks it up
+    os.environ["TYLER_CONFIG"] = args.config
+    
+    # Reload the agent with the specified config
+    # This is needed because the module-level initialization already happened
+    try:
+        AGENT, CONFIG = load_agent(args.config)
+        AGENT_CONFIG = CONFIG.get("agent", CONFIG)
+    except Exception as e:
+        logger.error(f"Failed to load agent with config {args.config}: {e}")
+        raise
     
     logger.info("="*60)
     logger.info("Tyler Playground API Server")
     logger.info("="*60)
+    logger.info(f"Config: {args.config}")
     logger.info(f"Agent: {AGENT_CONFIG['name']} ({AGENT_CONFIG['model_name']})")
-    logger.info(f"Server: http://{host}:{port}")
-    logger.info(f"Health check: http://{host}:{port}/health")
+    logger.info(f"Server: http://{args.host}:{args.port}")
+    logger.info(f"Health check: http://{args.host}:{args.port}/health")
     logger.info("="*60)
     
     uvicorn.run(
         "playground_server:app",
-        host=host,
-        port=port,
+        host=args.host,
+        port=args.port,
         log_level="info",
         reload=False  # Disable reload to prevent double initialization
     )
