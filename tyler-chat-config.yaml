@@ -2,10 +2,9 @@
 # This is a minimal starter configuration
 # You'll build this up through the tutorial
 
-agent:
-  name: "agent"
-  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
-  purpose: "You are a helpful AI assistant."
+name: "agent"
+model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+purpose: "You are a helpful AI assistant."
 
 # W&B Inference endpoint configuration
 base_url: "https://api.inference.wandb.ai/v1"

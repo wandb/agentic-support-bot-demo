@@ -95,10 +95,9 @@ We'll build your agent incrementally, starting simple and adding complexity. You
 Your `tyler-chat-config.yaml` is already set up with a minimal configuration:
 
 ```yaml
-agent:
-  name: "agent"
-  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
-  purpose: "You are a helpful AI assistant."
+name: "agent"
+model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+purpose: "You are a helpful AI assistant."
 
 # W&B Inference endpoint configuration
 base_url: "https://api.inference.wandb.ai/v1"
@@ -171,10 +170,9 @@ The agent should respond conversationally to all prompts. Now **check Weave**:
 Update your `tyler-chat-config.yaml` to include tools and MCP:
 
 ```yaml
-agent:
-  name: "agent"
-  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
-  purpose: "You are a helpful AI assistant."
+name: "agent"
+model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+purpose: "You are a helpful AI assistant."
 
 # W&B Inference endpoint configuration
 base_url: "https://api.inference.wandb.ai/v1"
@@ -335,25 +333,24 @@ This is the problem. Weave helped you see it!
 Update `tyler-chat-config.yaml`:
 
 ```yaml
-agent:
-  name: "Buzz"
-  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
-  purpose: |
-    You are a support bot for Weave, W&B's LLM observability platform.
-    
-    Your role is to:
-    1. Help users with questions about Weave features and functionality
-    2. Search the Weave documentation when users ask how-to questions
-    3. Create and manage support tickets for issues users report
-    
-    Always be friendly, clear, and helpful in your responses.
+name: "Buzz"
+model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+purpose: |
+  You are a support bot for Weave, W&B's LLM observability platform.
   
-  notes: |
-    - Use the search_docs tool for questions about Weave features and usage
-    - Use create_issue for when users report problems or need help
-    - Use get_issue to check on existing support tickets
-    - Ask clarifying questions if the user's request is unclear
-    - Be proactive in suggesting next steps
+  Your role is to:
+  1. Help users with questions about Weave features and functionality
+  2. Search the Weave documentation when users ask how-to questions
+  3. Create and manage support tickets for issues users report
+  
+  Always be friendly, clear, and helpful in your responses.
+
+notes: |
+  - Use the search_docs tool for questions about Weave features and usage
+  - Use create_issue for when users report problems or need help
+  - Use get_issue to check on existing support tickets
+  - Ask clarifying questions if the user's request is unclear
+  - Be proactive in suggesting next steps
 
 # W&B Inference endpoint configuration
 base_url: "https://api.inference.wandb.ai/v1"
