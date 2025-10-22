@@ -50,27 +50,13 @@ def get_issue(*, issue_id: str) -> dict:
 
 
 # Export tools for Slide framework
+# TODO: Add descriptions and parameter details to help the agent understand when to use these tools
 TOOLS = [
     {
         "definition": {
             "type": "function",
             "function": {
                 "name": "support-create_issue",
-                "description": "Create a support ticket",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "title": {"type": "string", "description": "Brief summary"},
-                        "description": {"type": "string", "description": "Details"},
-                        "priority": {
-                            "type": "string",
-                            "description": "Urgency",
-                            "enum": ["low", "medium", "high"],
-                            "default": "medium"
-                        }
-                    },
-                    "required": ["title", "description"]
-                }
             }
         },
         "implementation": create_issue
@@ -80,14 +66,6 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "support-get_issue",
-                "description": "Get ticket status",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "issue_id": {"type": "string", "description": "Ticket ID"}
-                    },
-                    "required": ["issue_id"]
-                }
             }
         },
         "implementation": get_issue

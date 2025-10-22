@@ -46,8 +46,6 @@ For each step we have attempted to include both **code-first** and **UI-first** 
 
 To save you time on boilerplate setup, we've created this repository with dependencies, configuration files, and example code already in place. This lets you focus on the agent-specific decisions (coming in Step 2) rather than wrestling with environment setup.
 
-### Code Approach
-
 1. **Clone the repository**
 
 ```bash
@@ -79,10 +77,6 @@ Edit `.env` and add your API key and project:
 - `WANDB_PROJECT` - (Optional) Defaults to `agentic-support-bot-demo` - this is the Weave project where your traces will appear
 
 **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `tyler-chat-config.yaml`.
-
-### UI Approach
-
-❌ **Can't be done currently.** 
 
 ---
 
@@ -209,7 +203,7 @@ Your `tools.py` should have two functions and a `TOOLS` export:
 - `get_issue(*, issue_id)` - Retrieves a ticket
 - `TOOLS` - A list of tool definitions in JSON format
 
-**Notice:** The tool descriptions in the `TOOLS` list are minimal (like "Create a support ticket"). This is intentional - you'll improve them in Step 3 to make the agent understand when to use each tool!
+**Notice:** The tool definitions in `TOOLS` have NO descriptions or parameter details - just the function names! This is intentional - you'll add descriptions and parameters in Step 3 to teach the agent when and how to use each tool!
 
 **Step 3: Test in Weave Playground**
 
@@ -328,7 +322,7 @@ I need to create a support ticket for authentication issues
 
 **What you should notice:**
 - ❌ Agent has a **generic purpose** ("helpful AI assistant" - it doesn't know it's a support bot!)
-- ❌ Tool **descriptions are minimal** ("Create a support ticket", "Get ticket status" - agent doesn't know WHEN to use them!)
+- ❌ Tool definitions are **missing descriptions and parameters** - agent doesn't know WHEN to use them or HOW!
 
 This is the problem. Weave helped you see it!
 
@@ -422,9 +416,12 @@ TOOLS = [
 ```
 
 **Key improvements to make:**
-- Clear "when to use" guidance in the description
-- Detailed parameter descriptions
-- Examples where helpful
+1. Add a clear **description** explaining when to use the tool
+2. Add **parameters** section with all function arguments
+3. Add detailed **parameter descriptions** with examples
+4. Specify **required** parameters
+
+The agent needs both the description (when to use) AND the parameters (how to use) to call tools effectively.
 
 See `examples/step-3-complete/tools.py` for the complete implementation.
 
