@@ -1,10 +1,9 @@
 # Tyler Chat Configuration with Tools
 # This configuration includes tools but no clear purpose yet
 
-agent:
-  name: "agent"
-  model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
-  purpose: "You are a helpful AI assistant."
+name: "agent"
+model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+purpose: "You are a helpful AI assistant."
 
 # W&B Inference endpoint configuration
 base_url: "https://api.inference.wandb.ai/v1"
