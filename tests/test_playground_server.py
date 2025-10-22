@@ -198,7 +198,8 @@ def test_chat_completions_empty_messages(client):
             "model": "gpt-4o",
             "messages": [],
             "stream": True
-        }
+        },
+        headers={"Authorization": "Bearer dummy"}
     )
     
     assert response.status_code == 400
@@ -268,6 +269,73 @@ def test_cors_headers(client):
 
 
 # ============================================================================
+# Authentication Tests
+# ============================================================================
+
+def test_chat_completions_missing_auth_header(client):
+    """Test chat completions without Authorization header."""
+    response = client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "gpt-4o",
+            "messages": [{"role": "user", "content": "Hello"}],
+            "stream": True
+        }
+    )
+    
+    assert response.status_code == 401
+    assert "Missing Authorization header" in response.json()["detail"]
+
+
+def test_chat_completions_invalid_auth_format(client):
+    """Test chat completions with invalid Authorization header format."""
+    response = client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "gpt-4o",
+            "messages": [{"role": "user", "content": "Hello"}],
+            "stream": True
+        },
+        headers={"Authorization": "InvalidFormat"}
+    )
+    
+    assert response.status_code == 401
+    assert "Invalid Authorization header format" in response.json()["detail"]
+
+
+def test_chat_completions_invalid_api_key(client):
+    """Test chat completions with invalid API key."""
+    response = client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "gpt-4o",
+            "messages": [{"role": "user", "content": "Hello"}],
+            "stream": True
+        },
+        headers={"Authorization": "Bearer wrong_key"}
+    )
+    
+    assert response.status_code == 401
+    assert "Invalid API key" in response.json()["detail"]
+
+
+def test_chat_completions_valid_api_key(client):
+    """Test chat completions with valid API key."""
+    response = client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "gpt-4o",
+            "messages": [{"role": "user", "content": "Hello"}],
+            "stream": True
+        },
+        headers={"Authorization": "Bearer dummy"}
+    )
+    
+    # Should pass auth check (may fail later for other reasons, but not 401)
+    assert response.status_code != 401
+
+
+# ============================================================================
 # Edge Cases
 # ============================================================================
 
@@ -280,7 +348,8 @@ def test_chat_completions_with_special_characters(client):
             "model": "gpt-4o",
             "messages": [{"role": "user", "content": "Test with emoji 🎉 and newlines\n\nand tabs\t\there"}],
             "stream": True
-        }
+        },
+        headers={"Authorization": "Bearer dummy"}
     )
     
     # Should either succeed or fail gracefully (but not crash)
@@ -297,7 +366,8 @@ def test_chat_completions_with_very_long_message(client):
             "model": "gpt-4o",
             "messages": [{"role": "user", "content": long_message}],
             "stream": True
-        }
+        },
+        headers={"Authorization": "Bearer dummy"}
     )
     
     # Should either succeed or fail gracefully

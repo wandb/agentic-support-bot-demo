@@ -219,17 +219,31 @@ ngrok http 8000
 
 Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
 
+**Set up a dummy team secret:**
+
+Before connecting to the Weave Playground, you need to create a team secret in W&B:
+
+**Note:** Only W&B Admins can create, edit, or delete secrets.
+
+1. Navigate to your team's **Settings** page
+2. In the **Team Secrets** section, click **New secret**
+3. Enter the secret name: `BUZZ_API_KEY`
+4. In the **Secret** field, enter: `dummy`
+5. Click **Add secret**
+
+This demonstrates how API authentication works with W&B secrets. The playground server validates this API key when you connect (it expects "dummy" for this demo). For more details on W&B secrets, see the [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets).
+
 **Connect Weave Playground:**
 
 1. Go to [Weave Playground](https://wandb.ai/playground)
-2. Click **Select a model** → **+ Add AI provider**
+2. Click **Select a model** → **+ Add AI provider** -> **Custom provider**
 3. Fill in:
-   - **Provider name**: `tyler-agent`
-   - **Base URL**: `https://abc123.ngrok-free.app/v1/` (your ngrok URL + `/v1/`)
-   - **API key**: `dummy`
-   - **Models**: Click "Add model" and enter `agent`
+   - **Provider name**: `buzz_agent`
+   - **Base URL**: `https://abc123.ngrok-free.app/v1` (your ngrok URL + `/v1`)
+   - **API key**: `BUZZ_API_KEY`
+   - **Models**: Click "Add model" and enter `buzz`
 4. Click **Add provider**
-5. Select `tyler-agent/agent` from the model dropdown
+5. Select `buzz_agent/buzz` from the model dropdown
 
 **Try these prompts to test your agent:**
 

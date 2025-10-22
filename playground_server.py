@@ -15,7 +15,7 @@ from typing import List, Literal, Optional, AsyncGenerator
 
 import yaml
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -307,6 +307,47 @@ def serialize_chunk_to_sse(chunk) -> str:
 
 
 # ============================================================================
+# Authentication
+# ============================================================================
+
+def verify_api_key(authorization: Optional[str] = None) -> None:
+    """
+    Verify the API key from the Authorization header.
+    
+    This is a simple demonstration of API key validation.
+    In production, you would validate against a secure secret store.
+    
+    Args:
+        authorization: Authorization header value (e.g., "Bearer dummy")
+        
+    Raises:
+        HTTPException: If API key is missing or invalid
+    """
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Authorization header. Please provide API key."
+        )
+    
+    # Extract bearer token
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Authorization header format. Expected 'Bearer <token>'"
+        )
+    
+    api_key = authorization[7:]  # Remove "Bearer " prefix
+    
+    # For demo purposes, we accept "dummy" as the API key
+    # In production, you would validate against W&B secrets or a secure key store
+    if api_key != "dummy":
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key"
+        )
+
+
+# ============================================================================
 # Message Conversion
 # ============================================================================
 
@@ -373,12 +414,19 @@ async def root():
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest):
+async def chat_completions(
+    request: ChatCompletionRequest,
+    authorization: Optional[str] = Header(None)
+):
     """
     OpenAI-compatible chat completions endpoint.
     
     Always streams responses for optimal UX.
+    Requires API key authentication via Authorization header.
     """
+    # Verify API key
+    verify_api_key(authorization)
+    
     # Validate request
     if not request.messages:
         raise HTTPException(
