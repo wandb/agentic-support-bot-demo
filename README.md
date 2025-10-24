@@ -205,7 +205,32 @@ Your `tools.py` should have two functions and a `TOOLS` export:
 
 **Step 3: Test in Weave Playground**
 
-Start the playground server:
+**Set up API key authentication:**
+
+The playground server requires an API key for authentication. You need to:
+
+1. **Set the API key locally** (in your `.env` file):
+   ```bash
+   # Copy the example file
+   cp .env.example .env
+   
+   # Edit .env and set your API key (use any secure value)
+   PLAYGROUND_API_KEY=your_secret_key_here
+   ```
+
+2. **Create a team secret in W&B** (for Weave Playground to authenticate):
+   
+   **Note:** Only W&B Admins can create, edit, or delete secrets.
+   
+   - Navigate to your team's **Settings** page
+   - In the **Team Secrets** section, click **New secret**
+   - Enter the secret name: `BUZZ_API_KEY`
+   - In the **Secret** field, enter the **same value** you used in your `.env` file
+   - Click **Add secret**
+
+For more details on W&B secrets, see the [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets).
+
+**Start the playground server:**
 
 ```bash
 uv run playground_server.py
@@ -225,20 +250,6 @@ ngrok http 8000
 ```
 
 Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
-
-**Set up a dummy team secret:**
-
-Before connecting to the Weave Playground, you need to create a team secret in W&B:
-
-**Note:** Only W&B Admins can create, edit, or delete secrets.
-
-1. Navigate to your team's **Settings** page
-2. In the **Team Secrets** section, click **New secret**
-3. Enter the secret name: `BUZZ_API_KEY`
-4. In the **Secret** field, enter: `dummy`
-5. Click **Add secret**
-
-This demonstrates how API authentication works with W&B secrets. The playground server validates this API key when you connect (it expects "dummy" for this demo). For more details on W&B secrets, see the [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets).
 
 **Connect Weave Playground:**
 

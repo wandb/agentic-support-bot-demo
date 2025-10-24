@@ -214,16 +214,22 @@ def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict
     return agent, config
 
 
-# Initialize agent at startup
-try:
-    # Check for config path in environment variable (set by CLI args)
-    config_path = os.getenv("TYLER_CONFIG", "tyler-chat-config.yaml")
-    AGENT, CONFIG = load_agent(config_path)
-    # Extract agent config for easy access throughout the module
-    AGENT_CONFIG = CONFIG.get("agent", CONFIG)
-except Exception as e:
-    logger.error(f"Failed to initialize agent: {e}")
-    raise
+# Global agent variables (initialized conditionally below)
+AGENT = None
+CONFIG = None
+AGENT_CONFIG = None
+
+# Initialize agent at module load time only if not running as main script
+# When running as main, command-line args will handle initialization
+if __name__ != "__main__":
+    try:
+        # Check for config path in environment variable
+        config_path = os.getenv("TYLER_CONFIG", "tyler-chat-config.yaml")
+        AGENT, CONFIG = load_agent(config_path)
+        AGENT_CONFIG = CONFIG.get("agent", CONFIG)
+    except Exception as e:
+        logger.error(f"Failed to initialize agent: {e}")
+        raise
 
 
 # ============================================================================
@@ -325,11 +331,11 @@ def verify_api_key(authorization: Optional[str] = None) -> None:
     """
     Verify the API key from the Authorization header.
     
-    This is a simple demonstration of API key validation.
-    In production, you would validate against a secure secret store.
+    Validates the provided API key against the PLAYGROUND_API_KEY environment variable.
+    If PLAYGROUND_API_KEY is not set, raises an error to prevent unauthorized access.
     
     Args:
-        authorization: Authorization header value (e.g., "Bearer dummy")
+        authorization: Authorization header value (e.g., "Bearer <your-secret-key>")
         
     Raises:
         HTTPException: If API key is missing or invalid
@@ -349,9 +355,16 @@ def verify_api_key(authorization: Optional[str] = None) -> None:
     
     api_key = authorization[7:]  # Remove "Bearer " prefix
     
-    # For demo purposes, we accept "dummy" as the API key
-    # In production, you would validate against W&B secrets or a secure key store
-    if api_key != "dummy":
+    # Get expected API key from environment variable
+    expected_key = os.getenv("PLAYGROUND_API_KEY")
+    if not expected_key:
+        logger.error("PLAYGROUND_API_KEY environment variable not set")
+        raise HTTPException(
+            status_code=500,
+            detail="Server configuration error: API key not configured"
+        )
+    
+    if api_key != expected_key:
         raise HTTPException(
             status_code=401,
             detail="Invalid API key"
@@ -386,7 +399,7 @@ def convert_to_tyler_thread(messages: List[ChatMessage]) -> Thread:
 async def lifespan(app: FastAPI):
     """Manage MCP connections during app lifespan."""
     # Startup: Connect to MCP servers
-    if CONFIG.get("mcp"):
+    if AGENT and CONFIG and CONFIG.get("mcp"):
         try:
             logger.info("Connecting to MCP servers...")
             await AGENT.connect_mcp()
@@ -399,7 +412,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown: Cleanup MCP connections
-    if CONFIG.get("mcp"):
+    if AGENT and CONFIG and CONFIG.get("mcp"):
         try:
             logger.info("Cleaning up MCP connections...")
             await AGENT.cleanup()
@@ -556,11 +569,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     
-    # Set config path in environment so module initialization picks it up
-    os.environ["TYLER_CONFIG"] = args.config
+    # Validate required environment variables
+    if not os.getenv("PLAYGROUND_API_KEY"):
+        logger.error("PLAYGROUND_API_KEY environment variable is required")
+        logger.error("Please set it in your .env file or environment")
+        logger.error("Example: export PLAYGROUND_API_KEY=your_secret_key")
+        raise ValueError("Missing required environment variable: PLAYGROUND_API_KEY")
     
-    # Reload the agent with the specified config
-    # This is needed because the module-level initialization already happened
+    # Load the agent with the specified config
     try:
         AGENT, CONFIG = load_agent(args.config)
         AGENT_CONFIG = CONFIG.get("agent", CONFIG)
@@ -575,6 +591,7 @@ if __name__ == "__main__":
     logger.info(f"Agent: {AGENT_CONFIG['name']} ({AGENT_CONFIG['model_name']})")
     logger.info(f"Server: http://{args.host}:{args.port}")
     logger.info(f"Health check: http://{args.host}:{args.port}/health")
+    logger.info(f"Authentication: Required (Bearer token)")
     logger.info("="*60)
     
     uvicorn.run(
