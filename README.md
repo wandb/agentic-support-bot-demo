@@ -257,7 +257,7 @@ Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
 2. Click **Select a model** → **+ Add AI provider** -> **Custom provider**
 3. Fill in:
    - **Provider name**: `buzz_agent`
-   - **Base URL**: `https://abc123.ngrok-free.app/v1` (your ngrok URL + `/v1`)
+   - **Base URL**: `https://abc123.ngrok-free.app/v1` (your ngrok URL + `/v1`, no trailing slash)
    - **API key**: `BUZZ_API_KEY`
    - **Models**: Click "Add model" and enter `buzz`
 4. Click **Add provider**
