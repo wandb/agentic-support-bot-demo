@@ -575,11 +575,81 @@ I need to create a support ticket for authentication issues
 
 ---
 
-Coming soon:
+## Step 4: Dataset & Evaluation - From Vibes to Production-Ready
 
-## Step 4: Create a Dataset
+**What You're Really Accomplishing:**
 
-<!-- ### What You're Really Accomplishing
+Moving from "it feels right" to "it's provably ready for production" by building systematic evaluation. You'll create a comprehensive test dataset and implement automated scoring to validate your agent's behavior across diverse scenarios - including edge cases and adversarial inputs you haven't tested yet.
+
+> **⏭️ Want to skip ahead?** 
+> ```bash
+> cp examples/step-4-complete/* .
+> ```
+> 
+> ⚠️ **But you'll miss the learning!** This step teaches evaluation thinking - a critical skill for production agents.
+
+---
+
+### The Challenge: What Makes a Bot "Production-Ready"?
+
+After Step 3, you have a support bot that works well in demos. But can you confidently deploy it to real users? Consider these questions:
+
+**Dataset Design Questions:**
+- **What scenarios should you test?** Happy paths? Edge cases? Adversarial inputs?
+- **How many test cases are enough?** 10? 50? 100? What coverage do you need?
+- **What about failure modes?** Off-topic questions? Inappropriate requests? Prompt injection?
+- **How do you define "correct"?** Exact matches? Semantic similarity? Correct actions taken?
+
+**Evaluation Questions:**
+- **How do you measure quality?** Tool usage? Answer accuracy? Tone and safety?
+- **Should you use LLM-as-judge?** What are the trade-offs vs. simple rules?
+- **What about costs?** Running 50+ test cases with LLM judges isn't free!
+- **How do you track improvements?** Compare runs? Identify regressions?
+
+**Think about this for a moment before seeing the solution.**
+
+What test cases would YOU create? What would you measure?
+
+---
+
+📖 **See [STEP_4_EVALUATION.md](./STEP_4_EVALUATION.md) for the complete Step 4 tutorial.**
+
+### Quick Overview
+
+**What You're Building:**
+- **64-case evaluation dataset** covering realistic scenarios, edge cases, and adversarial inputs
+- **Multi-tier scorers**: Rule-based (tool correctness) + LLM judges (accuracy, safety)
+- **Automated evaluation pipeline** using Weave's EvaluationLogger
+- **Results analysis** in Weave UI for tracking improvements
+
+**Quick Start:**
+
+```bash
+# 1. Publish dataset to Weave
+uv run python examples/step-4-complete/publish_dataset.py
+
+# 2. Run evaluation (sample first to test)
+uv run python examples/step-4-complete/run_evaluation.py --sample 10
+
+# 3. View results in Weave UI
+# https://wandb.ai/ → agentic-support-bot-demo → Evals tab
+```
+
+⚠️ **Cost Warning**: Full evaluation with LLM judges costs $3-5. Use `--sample 10` first!
+
+**Files:** All example code in `examples/step-4-complete/`
+- `dataset.py` - 64 test cases
+- `publish_dataset.py` - Publish to Weave
+- `scorers.py` - Evaluation scorers
+- `run_evaluation.py` - Evaluation execution
+
+**Tests:** Run `uv run pytest tests/test_dataset.py tests/test_scorers.py -v` (38 tests)
+
+---
+
+<!-- OLD PLACEHOLDER CONTENT BELOW - TO BE REMOVED
+
+### What You're Really Accomplishing
 
 Transitioning from ad-hoc testing to systematic evaluation by building a curated set of test cases that represent your agent's expected usage.
 
