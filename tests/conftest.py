@@ -13,6 +13,7 @@ def mock_environment():
         {
             "WANDB_API_KEY": "test-wandb-key",
             "OPENAI_API_KEY": "test-openai-key",
+            "PLAYGROUND_API_KEY": "dummy",  # For playground server authentication tests
         },
         clear=True,
     ):

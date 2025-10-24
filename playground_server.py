@@ -5,17 +5,19 @@ Exposes the Tyler support bot through a /v1/chat/completions endpoint
 that works with Weave Playground and other OpenAI-compatible clients.
 """
 
+import argparse
 import asyncio
 import json
 import logging
 import os
 import time
 import uuid
+from contextlib import asynccontextmanager
 from typing import List, Literal, Optional, AsyncGenerator
 
 import yaml
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -64,9 +66,12 @@ class HealthResponse(BaseModel):
 # Agent Initialization
 # ============================================================================
 
-def load_agent() -> tuple[Agent, dict]:
+def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict]:
     """
     Load Tyler agent from configuration file.
+    
+    Args:
+        config_path: Path to the Tyler configuration YAML file
     
     Returns:
         Tuple of (agent instance, config dict)
@@ -75,7 +80,6 @@ def load_agent() -> tuple[Agent, dict]:
         FileNotFoundError: If config file doesn't exist
         ValueError: If config is invalid or tools can't be loaded
     """
-    config_path = "tyler-chat-config.yaml"
     
     # Load config file
     try:
@@ -199,20 +203,33 @@ def load_agent() -> tuple[Agent, dict]:
     if "notes" in agent_config:
         agent_kwargs["notes"] = agent_config["notes"]
     
+    # Add MCP configuration if present
+    if "mcp" in config:
+        agent_kwargs["mcp"] = config["mcp"]
+        logger.info(f"MCP configuration detected: {len(config['mcp'].get('servers', []))} server(s)")
+    
     agent = Agent(**agent_kwargs)
     
     logger.info(f"Agent initialized: {agent_config['name']} ({agent_config['model_name']})")
     return agent, config
 
 
-# Initialize agent at startup
-try:
-    AGENT, CONFIG = load_agent()
-    # Extract agent config for easy access throughout the module
-    AGENT_CONFIG = CONFIG.get("agent", CONFIG)
-except Exception as e:
-    logger.error(f"Failed to initialize agent: {e}")
-    raise
+# Global agent variables (initialized conditionally below)
+AGENT = None
+CONFIG = None
+AGENT_CONFIG = None
+
+# Initialize agent at module load time only if not running as main script
+# When running as main, command-line args will handle initialization
+if __name__ != "__main__":
+    try:
+        # Check for config path in environment variable
+        config_path = os.getenv("TYLER_CONFIG", "tyler-chat-config.yaml")
+        AGENT, CONFIG = load_agent(config_path)
+        AGENT_CONFIG = CONFIG.get("agent", CONFIG)
+    except Exception as e:
+        logger.error(f"Failed to initialize agent: {e}")
+        raise
 
 
 # ============================================================================
@@ -307,6 +324,54 @@ def serialize_chunk_to_sse(chunk) -> str:
 
 
 # ============================================================================
+# Authentication
+# ============================================================================
+
+def verify_api_key(authorization: Optional[str] = None) -> None:
+    """
+    Verify the API key from the Authorization header.
+    
+    Validates the provided API key against the PLAYGROUND_API_KEY environment variable.
+    If PLAYGROUND_API_KEY is not set, raises an error to prevent unauthorized access.
+    
+    Args:
+        authorization: Authorization header value (e.g., "Bearer <your-secret-key>")
+        
+    Raises:
+        HTTPException: If API key is missing or invalid
+    """
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Authorization header. Please provide API key."
+        )
+    
+    # Extract bearer token
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Authorization header format. Expected 'Bearer <token>'"
+        )
+    
+    api_key = authorization[7:]  # Remove "Bearer " prefix
+    
+    # Get expected API key from environment variable
+    expected_key = os.getenv("PLAYGROUND_API_KEY")
+    if not expected_key:
+        logger.error("PLAYGROUND_API_KEY environment variable not set")
+        raise HTTPException(
+            status_code=500,
+            detail="Server configuration error: API key not configured"
+        )
+    
+    if api_key != expected_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key"
+        )
+
+
+# ============================================================================
 # Message Conversion
 # ============================================================================
 
@@ -327,13 +392,44 @@ def convert_to_tyler_thread(messages: List[ChatMessage]) -> Thread:
 
 
 # ============================================================================
+# Lifecycle Management
+# ============================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage MCP connections during app lifespan."""
+    # Startup: Connect to MCP servers
+    if AGENT and CONFIG and CONFIG.get("mcp"):
+        try:
+            logger.info("Connecting to MCP servers...")
+            await AGENT.connect_mcp()
+            logger.info("✓ MCP servers connected successfully")
+        except Exception as e:
+            logger.error(f"Failed to connect to MCP servers: {e}")
+            # Don't fail startup - MCP is optional
+            logger.warning("Continuing without MCP integration")
+    
+    yield
+    
+    # Shutdown: Cleanup MCP connections
+    if AGENT and CONFIG and CONFIG.get("mcp"):
+        try:
+            logger.info("Cleaning up MCP connections...")
+            await AGENT.cleanup()
+            logger.info("✓ MCP cleanup completed")
+        except Exception as e:
+            logger.warning(f"Error during MCP cleanup: {e}")
+
+
+# ============================================================================
 # FastAPI Application
 # ============================================================================
 
 app = FastAPI(
     title="Tyler Playground API",
     description="OpenAI-compatible API for Tyler support bot agent",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -373,12 +469,19 @@ async def root():
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest):
+async def chat_completions(
+    request: ChatCompletionRequest,
+    authorization: Optional[str] = Header(None)
+):
     """
     OpenAI-compatible chat completions endpoint.
     
     Always streams responses for optimal UX.
+    Requires API key authentication via Authorization header.
     """
+    # Verify API key
+    verify_api_key(authorization)
+    
     # Validate request
     if not request.messages:
         raise HTTPException(
@@ -442,21 +545,59 @@ async def chat_completions(request: ChatCompletionRequest):
 if __name__ == "__main__":
     import uvicorn
     
-    host = os.getenv("PLAYGROUND_SERVER_HOST", "0.0.0.0")
-    port = int(os.getenv("PLAYGROUND_SERVER_PORT", "8000"))
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="Tyler Playground API Server - OpenAI-compatible chat completions endpoint"
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="tyler-chat-config.yaml",
+        help="Path to Tyler configuration YAML file (default: tyler-chat-config.yaml)"
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default=os.getenv("PLAYGROUND_SERVER_HOST", "0.0.0.0"),
+        help="Host to bind the server to (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.getenv("PLAYGROUND_SERVER_PORT", "8000")),
+        help="Port to bind the server to (default: 8000)"
+    )
+    args = parser.parse_args()
+    
+    # Validate required environment variables
+    if not os.getenv("PLAYGROUND_API_KEY"):
+        logger.error("PLAYGROUND_API_KEY environment variable is required")
+        logger.error("Please set it in your .env file or environment")
+        logger.error("Example: export PLAYGROUND_API_KEY=your_secret_key")
+        raise ValueError("Missing required environment variable: PLAYGROUND_API_KEY")
+    
+    # Load the agent with the specified config
+    try:
+        AGENT, CONFIG = load_agent(args.config)
+        AGENT_CONFIG = CONFIG.get("agent", CONFIG)
+    except Exception as e:
+        logger.error(f"Failed to load agent with config {args.config}: {e}")
+        raise
     
     logger.info("="*60)
     logger.info("Tyler Playground API Server")
     logger.info("="*60)
+    logger.info(f"Config: {args.config}")
     logger.info(f"Agent: {AGENT_CONFIG['name']} ({AGENT_CONFIG['model_name']})")
-    logger.info(f"Server: http://{host}:{port}")
-    logger.info(f"Health check: http://{host}:{port}/health")
+    logger.info(f"Server: http://{args.host}:{args.port}")
+    logger.info(f"Health check: http://{args.host}:{args.port}/health")
+    logger.info(f"Authentication: Required (Bearer token)")
     logger.info("="*60)
     
     uvicorn.run(
         "playground_server:app",
-        host=host,
-        port=port,
+        host=args.host,
+        port=args.port,
         log_level="info",
         reload=False  # Disable reload to prevent double initialization
     )

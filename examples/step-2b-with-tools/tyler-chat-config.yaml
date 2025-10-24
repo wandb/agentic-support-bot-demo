@@ -17,10 +17,10 @@ reasoning: "low"
 tools:
   - "./tools.py"
 
-# MCP Server Configuration for documentation search
+# MCP Server Configuration for W&B documentation search
 mcp:
   servers:
-    mintlify:
-      command: "npx"
-      args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
+    - name: "wandb"
+      transport: "streamablehttp"
+      url: "https://docs.wandb.ai/mcp"
 

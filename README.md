@@ -186,12 +186,12 @@ reasoning: "low"
 tools:
   - "./tools.py"
 
-# MCP Server Configuration for Weave documentation search
+# MCP Server Configuration for W&B documentation search
 mcp:
   servers:
-    mintlify:
-      command: "npx"
-      args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
+    - name: "wandb"
+      transport: "streamablehttp"
+      url: "https://docs.wandb.ai/mcp"
 ```
 
 **Step 2: Check Your Tools**
@@ -205,11 +205,43 @@ Your `tools.py` should have two functions and a `TOOLS` export:
 
 **Step 3: Test in Weave Playground**
 
-Start the playground server:
+**Set up API key authentication:**
+
+The playground server requires an API key for authentication. You need to:
+
+1. **Set the API key locally** (in your `.env` file):
+   ```bash
+   # Copy the example file
+   cp .env.example .env
+   
+   # Edit .env and set your API key (for the purpose of this demo, you can just use "dummy" as your secret)
+   PLAYGROUND_API_KEY=your_secret_key_here
+   ```
+
+2. **Create a team secret in W&B** (for Weave Playground to authenticate):
+   
+   **Note:** Only W&B Admins can create, edit, or delete secrets.
+   
+   - Navigate to your team's **Settings** page
+   - In the **Team Secrets** section, click **New secret**
+   - Enter the secret name: `PLAYGROUND_API_KEY`
+   - In the **Secret** field, enter the **same secret value** you used in your `.env` file
+   - Click **Add secret**
+
+For more details on W&B secrets, see the [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets).
+
+**Start the playground server:**
 
 ```bash
 uv run playground_server.py
 ```
+
+**Tip**: You can specify a different config file with the `--config` flag:
+```bash
+uv run playground_server.py --config examples/step-3-complete/tyler-chat-config.yaml
+```
+
+Run `uv run playground_server.py --help` to see all available options.
 
 In a **new terminal**, expose via ngrok:
 
@@ -222,14 +254,14 @@ Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
 **Connect Weave Playground:**
 
 1. Go to [Weave Playground](https://wandb.ai/playground)
-2. Click **Select a model** → **+ Add AI provider**
+2. Click **Select a model** → **+ Add AI provider** -> **Custom provider**
 3. Fill in:
-   - **Provider name**: `tyler-agent`
-   - **Base URL**: `https://abc123.ngrok-free.app/v1/` (your ngrok URL + `/v1/`)
-   - **API key**: `dummy`
-   - **Models**: Click "Add model" and enter `agent`
+   - **Provider name**: `buzz_agent`
+   - **Base URL**: `https://abc123.ngrok-free.app/v1` (your ngrok URL + `/v1`, no trailing slash)
+   - **API key**: `BUZZ_API_KEY`
+   - **Models**: Click "Add model" and enter `buzz`
 4. Click **Add provider**
-5. Select `tyler-agent/agent` from the model dropdown
+5. Select `buzz_agent/buzz` from the model dropdown
 
 **Try these prompts to test your agent:**
 
@@ -364,12 +396,12 @@ reasoning: "low"
 tools:
   - "./tools.py"
 
-# MCP Server Configuration for Weave documentation search
+# MCP Server Configuration for W&B documentation search
 mcp:
   servers:
-    mintlify:
-      command: "npx"
-      args: ["-y", "@mintlify/mcp-server", "https://weave-docs.wandb.ai"]
+    - name: "wandb"
+      transport: "streamablehttp"
+      url: "https://docs.wandb.ai/mcp"
 ```
 
 **Fix #2: Improve tool descriptions**
