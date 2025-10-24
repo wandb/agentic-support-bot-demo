@@ -189,9 +189,9 @@ tools:
 # MCP Server Configuration for W&B documentation search
 mcp:
   servers:
-    wandb:
-      command: "npx"
-      args: ["-y", "@mintlify/mcp-server", "https://docs.wandb.ai/mcp"]
+    - name: "wandb"
+      transport: "streamablehttp"
+      url: "https://docs.wandb.ai/mcp"
 ```
 
 **Step 2: Check Your Tools**
@@ -388,9 +388,9 @@ tools:
 # MCP Server Configuration for W&B documentation search
 mcp:
   servers:
-    wandb:
-      command: "npx"
-      args: ["-y", "@mintlify/mcp-server", "https://docs.wandb.ai/mcp"]
+    - name: "wandb"
+      transport: "streamablehttp"
+      url: "https://docs.wandb.ai/mcp"
 ```
 
 **Fix #2: Improve tool descriptions**

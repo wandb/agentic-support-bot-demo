@@ -12,6 +12,7 @@ import logging
 import os
 import time
 import uuid
+from contextlib import asynccontextmanager
 from typing import List, Literal, Optional, AsyncGenerator
 
 import yaml
@@ -202,6 +203,11 @@ def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict
     if "notes" in agent_config:
         agent_kwargs["notes"] = agent_config["notes"]
     
+    # Add MCP configuration if present
+    if "mcp" in config:
+        agent_kwargs["mcp"] = config["mcp"]
+        logger.info(f"MCP configuration detected: {len(config['mcp'].get('servers', []))} server(s)")
+    
     agent = Agent(**agent_kwargs)
     
     logger.info(f"Agent initialized: {agent_config['name']} ({agent_config['model_name']})")
@@ -373,13 +379,44 @@ def convert_to_tyler_thread(messages: List[ChatMessage]) -> Thread:
 
 
 # ============================================================================
+# Lifecycle Management
+# ============================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage MCP connections during app lifespan."""
+    # Startup: Connect to MCP servers
+    if CONFIG.get("mcp"):
+        try:
+            logger.info("Connecting to MCP servers...")
+            await AGENT.connect_mcp()
+            logger.info("✓ MCP servers connected successfully")
+        except Exception as e:
+            logger.error(f"Failed to connect to MCP servers: {e}")
+            # Don't fail startup - MCP is optional
+            logger.warning("Continuing without MCP integration")
+    
+    yield
+    
+    # Shutdown: Cleanup MCP connections
+    if CONFIG.get("mcp"):
+        try:
+            logger.info("Cleaning up MCP connections...")
+            await AGENT.cleanup()
+            logger.info("✓ MCP cleanup completed")
+        except Exception as e:
+            logger.warning(f"Error during MCP cleanup: {e}")
+
+
+# ============================================================================
 # FastAPI Application
 # ============================================================================
 
 app = FastAPI(
     title="Tyler Playground API",
     description="OpenAI-compatible API for Tyler support bot agent",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
