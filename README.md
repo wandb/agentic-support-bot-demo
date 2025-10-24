@@ -214,7 +214,7 @@ The playground server requires an API key for authentication. You need to:
    # Copy the example file
    cp .env.example .env
    
-   # Edit .env and set your API key (use any secure value)
+   # Edit .env and set your API key (for the purpose of this demo, you can just use "dummy" as your secret)
    PLAYGROUND_API_KEY=your_secret_key_here
    ```
 
@@ -224,8 +224,8 @@ The playground server requires an API key for authentication. You need to:
    
    - Navigate to your team's **Settings** page
    - In the **Team Secrets** section, click **New secret**
-   - Enter the secret name: `BUZZ_API_KEY`
-   - In the **Secret** field, enter the **same value** you used in your `.env` file
+   - Enter the secret name: `PLAYGROUND_API_KEY`
+   - In the **Secret** field, enter the **same secret value** you used in your `.env` file
    - Click **Add secret**
 
 For more details on W&B secrets, see the [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets).
