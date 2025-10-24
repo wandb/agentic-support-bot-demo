@@ -360,53 +360,52 @@ This is the problem. Weave helped you see it!
 
 ### Part B: Improve Purpose & Tool Descriptions
 
-**Fix #1: Give your agent a clear purpose**
+Now it's time to iterate! Instead of just giving you the answer, let's walk through what you should experiment with.
 
-Update `tyler-chat-config.yaml`:
+**🎯 Your Goal:** Make the agent understand its role as a Weights & Biases support bot and know when/how to use its tools.
+
+---
+
+#### **Iteration 1: Give Your Agent a Clear Purpose**
+
+Open `tyler-chat-config.yaml` and look at the `purpose` field:
 
 ```yaml
-name: "Buzz"
-model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
-purpose: |
-  You are a support bot for Weave, W&B's LLM observability platform.
-  
-  Your role is to:
-  1. Help users with questions about Weave features and functionality
-  2. Search the Weave documentation when users ask how-to questions
-  3. Create and manage support tickets for issues users report
-  
-  Always be friendly, clear, and helpful in your responses.
-
-notes: |
-  - Use the search_docs tool for questions about Weave features and usage
-  - Use create_issue for when users report problems or need help
-  - Use get_issue to check on existing support tickets
-  - Ask clarifying questions if the user's request is unclear
-  - Be proactive in suggesting next steps
-
-# W&B Inference endpoint configuration
-base_url: "https://api.inference.wandb.ai/v1"
-api_key: "${WANDB_API_KEY}"
-
-temperature: 0.7
-max_tool_iterations: 10
-reasoning: "low"
-
-# Tool Configuration
-tools:
-  - "./tools.py"
-
-# MCP Server Configuration for W&B documentation search
-mcp:
-  servers:
-    - name: "wandb"
-      transport: "streamablehttp"
-      url: "https://docs.wandb.ai/mcp"
+purpose: "You are a helpful AI assistant."
 ```
 
-**Fix #2: Improve tool descriptions**
+**What's wrong with this?**
+- It's generic - could be any chatbot
+- Doesn't tell the agent it's a support bot
+- Doesn't explain what the agent should help with
+- No guidance on behavior or tone
 
-Update `tools.py` with better descriptions in the tool definitions. Here's an example for `create_issue`:
+**Your task:** Rewrite the `purpose` to make it clear this is a **support bot for Weights & Biases**. Think about:
+- What is this bot's role?
+- What types of requests should it handle?
+- What should its personality/tone be?
+
+**Hints:**
+- Be specific about what product/company you're supporting (Weights & Biases)
+- List the key things the agent should do
+- Set expectations for how it should interact with users
+- Consider adding a `notes` section with operational guidelines
+
+**💡 Need help?** Look at `examples/step-3-complete/tyler-chat-config.yaml` to see a well-crafted purpose statement.
+
+**Test your changes:**
+```bash
+# Restart the playground server
+uv run playground_server.py
+```
+
+Try your test prompts again in Weave Playground. Does it feel more like a support bot? Check the traces to see if the purpose is helping.
+
+---
+
+#### **Iteration 2: Add Tool Descriptions**
+
+Open `tools.py` and look at the `TOOLS` export (around line 54):
 
 ```python
 TOOLS = [
@@ -415,57 +414,109 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "support-create_issue",
-                "description": "Create a support ticket for a user's problem or request. Use when user reports a bug, error, or problem with Weave, requests help or assistance, or asks to create a support ticket.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "title": {
-                            "type": "string",
-                            "description": "Brief, clear summary of the issue (e.g., 'API timeout errors in production')"
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "Detailed description including error messages, steps to reproduce, or context"
-                        },
-                        "priority": {
-                            "type": "string",
-                            "description": "Urgency: 'high' for critical production issues, 'medium' for standard issues, 'low' for minor questions",
-                            "enum": ["low", "medium", "high"],
-                            "default": "medium"
-                        }
-                    },
-                    "required": ["title", "description"]
-                }
+                # Missing: description, parameters!
             }
         },
         "implementation": create_issue
     },
-    # ... do the same for get_issue
+    # ... same for get_issue
 ]
 ```
 
-**Key improvements to make:**
-1. Add a clear **description** explaining when to use the tool
-2. Add **parameters** section with all function arguments
-3. Add detailed **parameter descriptions** with examples
-4. Specify **required** parameters
+**What's wrong with this?**
+- ❌ No `description` - agent doesn't know WHEN to use this tool
+- ❌ No `parameters` - agent doesn't know HOW to use this tool
+- ❌ No parameter descriptions - agent doesn't know what values to pass
 
-The agent needs both the description (when to use) AND the parameters (how to use) to call tools effectively.
+**Your task:** Add complete tool definitions. For each tool, you need to add:
 
-See `examples/step-3-complete/tools.py` for the complete implementation.
+1. **`description`** - When should the agent use this tool? What scenarios?
+2. **`parameters`** - What arguments does the tool accept?
+3. **Parameter descriptions** - What should each parameter contain? Include examples!
+4. **`required`** - Which parameters are mandatory?
 
-**Restart your agent:**
+**Example structure to fill in:**
 
-```bash
-# Stop the current playground server (Ctrl+C)
-uv run playground_server.py
+```python
+{
+    "definition": {
+        "type": "function",
+        "function": {
+            "name": "support-create_issue",
+            "description": "YOUR DESCRIPTION HERE - explain when to use this tool",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "YOUR DESCRIPTION - what should title contain?"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "YOUR DESCRIPTION - what should description contain?"
+                    },
+                    "priority": {
+                        "type": "string",
+                        "description": "YOUR DESCRIPTION - how should agent choose priority?",
+                        "enum": ["low", "medium", "high"],
+                        "default": "medium"
+                    }
+                },
+                "required": ["title", "description"]
+            }
+        }
+    },
+    "implementation": create_issue
+}
 ```
+
+**Tips for writing good tool descriptions:**
+- **Description field**: Explain the scenarios when this tool should be called. Give examples of user requests.
+- **Parameter descriptions**: Be specific! Include examples of good values. The agent uses these to decide what to pass.
+- **Think from the agent's perspective**: What information would YOU need to decide when and how to use this tool?
+
+**Do this for both tools:**
+- `support-create_issue` - When should tickets be created for W&B issues? What makes a good title vs description?
+- `support-get_issue` - When should the agent retrieve ticket status? What does the user need to provide?
+
+**💡 Stuck?** Look at `examples/step-3-complete/tools.py` (lines 108-159) to see fully documented tool definitions. But try writing your own first!
+
+**Test your changes:**
+
+1. Save `tools.py`
+2. Restart the playground server (the tools are loaded at startup):
+   ```bash
+   # Stop with Ctrl+C, then restart
+   uv run playground_server.py
+   ```
+3. Test the same prompts in Weave Playground
+4. **Check Weave traces** - do you see better tool usage now?
 
 ---
 
-### Part C: Verify Improvements with Weave
+#### **Iteration 3: Compare and Refine**
 
-**Test the same prompts again** in Weave Playground:
+After making your changes:
+
+1. **Test thoroughly** with the same prompts from Part A
+2. **Check Weave traces** - compare before and after:
+   - Are tools being called appropriately?
+   - Are the parameters correct?
+   - Does the agent feel like a support bot?
+3. **Iterate more** - tool descriptions are hard to get right the first time!
+   - If the agent doesn't call tools when it should, improve the `description`
+   - If the agent passes wrong values, improve parameter descriptions
+   - If the tone is off, refine the `purpose` statement
+
+**This is real agent development** - observe, diagnose, fix, verify, repeat!
+
+---
+
+### Part C: Verify Your Improvements with Weave
+
+After making your changes to `purpose` and tool descriptions, it's time to see if they worked!
+
+**1. Test the same prompts again** in Weave Playground:
 
 ```
 How do I initialize Weave in my Python code?
@@ -487,39 +538,40 @@ Can you explain how to track model performance in wandb?
 I need to create a support ticket for authentication issues
 ```
 
-**Now check Weave traces:**
+**2. Use Weave to compare before and after:**
 
 1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
-2. Find your new traces in the **Traces** tab
-3. Compare to your old traces from Part A (side-by-side if possible)
-4. **Notice the difference:**
-   - ✅ Agent now searches docs appropriately
-   - ✅ Agent creates tickets properly
-   - ✅ Agent retrieves ticket status
-   - ✅ Agent "vibes" as a support bot!
+2. Click the **Traces** tab
+3. Find your new traces (after your changes)
+4. **Compare them side-by-side** with your old traces from Part A
 
-**This is the Weave workflow:**
-1. 🔍 **Observe** behavior in traces
-2. 🩺 **Diagnose** what's wrong
-3. ✏️ **Fix** the issue (purpose + descriptions)
-4. ✅ **Verify** improvement in new traces
+**3. Ask yourself:**
+- ✅ Does the agent search docs when appropriate?
+- ✅ Does it create tickets when users report issues?
+- ✅ Does it retrieve ticket status correctly?
+- ✅ Does it "feel" like a support bot now?
+- ✅ Are the tool parameters being filled correctly?
 
-**You just learned how to iterate on agents with observability!**
+**4. Look at the differences in the traces:**
+- How has the agent's behavior changed?
+- Which tool descriptions are working well?
+- Which ones might need more iteration?
 
----
+**5. Keep iterating if needed:**
+- If the agent still doesn't use tools correctly, refine your descriptions
+- If the tone is off, adjust the `purpose` statement
+- If parameters are wrong, improve parameter descriptions
 
-### Not Perfect? Iterate Again!
-
-If your agent still doesn't work perfectly, **use Weave traces to understand why** and keep iterating:
-
-- Check which tool calls are wrong
-- Read the agent's reasoning
-- Improve tool descriptions further
-- Refine the purpose statement
-
-This is real agent development!
+**💡 Want to see a polished example?** Compare your work with `examples/step-3-complete/` - but remember, your version might be different, and that's okay! There's no single "right" way to write these descriptions.
 
 ---
+
+**🎉 You just learned a core Weave workflow:**
+
+1. 🔍 **Observe** - Run your agent and examine traces
+2. 🩺 **Diagnose** - Identify what's wrong by looking at tool calls, responses, and config
+3. ✏️ **Fix** - Improve purpose, tool descriptions, or other config
+4. ✅ **Verify** - Test again and compare traces to see if it improved
 
 ---
 

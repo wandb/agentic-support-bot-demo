@@ -1,4 +1,4 @@
-"""Custom tools for the Weave support bot - Final polished version."""
+"""Custom tools for the W&B support bot - Final polished version."""
 
 import os
 from datetime import datetime, timezone
@@ -22,7 +22,7 @@ def create_issue(*, title: str, description: str, priority: str = "medium") -> d
     """Create a new support ticket for a user's problem or request.
     
     **When to use this tool:**
-    - User reports a bug, error, or problem with Weave
+    - User reports a bug, error, or problem with W&B
     - User requests help or assistance with something
     - User describes an issue they're experiencing
     - User asks for a feature or enhancement
@@ -31,7 +31,7 @@ def create_issue(*, title: str, description: str, priority: str = "medium") -> d
     - "I'm getting API timeout errors"
     - "Can you help me with authentication issues?"
     - "Create a ticket for my problem with traces not showing up"
-    - "I need help setting up Weave in my project"
+    - "I need help setting up W&B in my project"
     
     Args:
         title: Brief, clear summary of the issue (e.g., "API timeout errors in production")
@@ -111,7 +111,7 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "support-create_issue",
-                "description": "Create a support ticket for a user's problem or request. Use when user reports a bug, error, or problem with Weave, requests help or assistance, or asks to create a support ticket.",
+                "description": "Create a support ticket for a user's problem or request. Use when user reports a bug, error, or problem with W&B, requests help or assistance, or asks to create a support ticket.",
                 "parameters": {
                     "type": "object",
                     "properties": {
