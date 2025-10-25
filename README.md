@@ -877,11 +877,12 @@ After Step 4, you can confidently say:
 
 ```
 examples/step-4-complete/
-├── dataset.py              # 64 test cases
-├── publish_dataset.py      # Publish to Weave
-├── scorers.py              # Rule-based + LLM judges
-├── judge-config.yaml       # LLM judge model configuration
-└── run_evaluation.py       # EvaluationLogger workflow
+├── dataset.py                    # 64 test cases
+├── publish_dataset.py            # Publish to Weave
+├── scorers.py                    # Rule-based + LLM judges
+├── accuracy-judge-config.yaml    # Accuracy judge configuration
+├── safety-judge-config.yaml      # Safety judge configuration
+└── run_evaluation.py             # EvaluationLogger workflow
 
 tests/
 ├── test_dataset.py         # 18 dataset validation tests
@@ -909,14 +910,19 @@ uv run pytest tests/test_dataset.py tests/test_scorers.py -v
 **Cost-saving tips:**
 - Sample first: `--sample 10` costs ~$0.50
 - Skip LLM judges: `--no-llm-judges` is free
-- Use cheaper models: Edit `judge-config.yaml` to change `model_name`
+- Use cheaper models: Edit judge config files to change `model_name`
 
 **Customize Judge Models:**
 
-Edit `examples/step-4-complete/judge-config.yaml`:
+Edit the judge config files to use different models:
+
+```bash
+# Accuracy judge configuration
+cat examples/step-4-complete/accuracy-judge-config.yaml
+```
 
 ```yaml
-# Use gpt-4o-mini (cheap, fast)
+# Use gpt-4o-mini (cheap, fast) - default
 model_name: "gpt-4o-mini"
 
 # Or use gpt-4.1 (more accurate, expensive)
@@ -927,6 +933,8 @@ model_name: "gpt-4o-mini"
 # base_url: "https://api.inference.wandb.ai/v1"
 # api_key: "${WANDB_API_KEY}"
 ```
+
+Both `accuracy-judge-config.yaml` and `safety-judge-config.yaml` use the same settings by default.
 
 ---
 

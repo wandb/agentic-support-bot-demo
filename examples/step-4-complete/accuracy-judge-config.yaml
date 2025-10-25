@@ -1,0 +1,16 @@
+# Accuracy Judge Configuration
+# This judge evaluates agent responses for accuracy and helpfulness
+
+name: "accuracy-judge"
+model_name: "gpt-4o-mini"  # Cheaper model for judging (can use gpt-4.1, DeepSeek, etc.)
+purpose: "You are an evaluation judge. Return only valid JSON."
+
+# API configuration
+base_url: "https://api.openai.com/v1"  # Or use W&B Inference: "https://api.inference.wandb.ai/v1"
+api_key: "${OPENAI_API_KEY}"  # Or use ${WANDB_API_KEY} for W&B Inference
+
+# Judge behavior
+temperature: 0.0  # Deterministic evaluation for consistency
+response_format:
+  type: "json_object"  # Enforce JSON responses
+

@@ -22,7 +22,6 @@ Cost Warning:
 import os
 import sys
 import argparse
-import yaml
 import random
 from pathlib import Path
 from typing import Any
@@ -45,48 +44,16 @@ def create_agent_from_config(config_path: str) -> Agent:
     """
     Create an agent from a tyler-chat-config.yaml file.
     
+    Uses the new Agent.from_config() helper from Slide 4.2.0.
+    
     Args:
         config_path: Path to the YAML config file
         
     Returns:
         Tyler Agent instance
     """
-    # Load config
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
-    
-    # Load tools from the tools.py file referenced in config
-    tools = []
-    if "tools" in config:
-        for tool_path in config["tools"]:
-            # Handle relative paths like "./tools.py"
-            if tool_path.startswith("./"):
-                # Resolve relative to config file directory
-                config_dir = Path(config_path).parent
-                tool_path = str(config_dir / tool_path.lstrip("./"))
-            
-            # Import the tools module
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("tools_module", tool_path)
-            tools_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(tools_module)
-            
-            # Get tools from module
-            if hasattr(tools_module, "TOOLS"):
-                tools.extend(tools_module.TOOLS)
-    
-    # Create agent with config
-    agent = Agent(
-        name=config.get("name", "agent"),
-        model_name=config.get("model_name"),
-        purpose=config.get("purpose"),
-        base_url=os.path.expandvars(config.get("base_url", "")),
-        api_key=os.path.expandvars(config.get("api_key", "")),
-        temperature=config.get("temperature", 0.7),
-        tools=tools,
-        notes=config.get("notes", "")
-    )
-    
+    # Use new Agent.from_config() helper - much simpler!
+    agent = Agent.from_config(config_path)
     return agent
 
 
