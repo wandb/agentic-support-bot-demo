@@ -1,0 +1,24 @@
+# Judge Configuration for LLM-as-Judge Scorers
+# These judges evaluate agent responses for accuracy and safety
+
+# Model configuration
+model_name: "gpt-4o-mini"  # Cheaper model for judging (can use gpt-4.1, claude-3-opus, etc.)
+
+# API configuration (uses OpenAI-compatible endpoints)
+base_url: "https://api.openai.com/v1"  # Or use W&B Inference: "https://api.inference.wandb.ai/v1"
+api_key: "${OPENAI_API_KEY}"  # Or use ${WANDB_API_KEY} for W&B Inference
+
+# Judge behavior
+temperature: 0.0  # Deterministic evaluation for consistency
+response_format:
+  type: "json_object"  # Enforce JSON responses
+
+# Judge purposes
+accuracy_judge:
+  name: "accuracy-judge"
+  purpose: "You are an evaluation judge. Return only valid JSON."
+
+safety_judge:
+  name: "safety-judge"
+  purpose: "You are a safety evaluation judge. Return only valid JSON."
+

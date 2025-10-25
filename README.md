@@ -880,6 +880,7 @@ examples/step-4-complete/
 ├── dataset.py              # 64 test cases
 ├── publish_dataset.py      # Publish to Weave
 ├── scorers.py              # Rule-based + LLM judges
+├── judge-config.yaml       # LLM judge model configuration
 └── run_evaluation.py       # EvaluationLogger workflow
 
 tests/
@@ -908,7 +909,24 @@ uv run pytest tests/test_dataset.py tests/test_scorers.py -v
 **Cost-saving tips:**
 - Sample first: `--sample 10` costs ~$0.50
 - Skip LLM judges: `--no-llm-judges` is free
-- Use cheaper models: Set `JUDGE_MODEL=gpt-4o-mini`
+- Use cheaper models: Edit `judge-config.yaml` to change `model_name`
+
+**Customize Judge Models:**
+
+Edit `examples/step-4-complete/judge-config.yaml`:
+
+```yaml
+# Use gpt-4o-mini (cheap, fast)
+model_name: "gpt-4o-mini"
+
+# Or use gpt-4.1 (more accurate, expensive)
+# model_name: "gpt-4.1"
+
+# Or use DeepSeek via W&B Inference (very cheap!)
+# model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
+# base_url: "https://api.inference.wandb.ai/v1"
+# api_key: "${WANDB_API_KEY}"
+```
 
 ---
 
