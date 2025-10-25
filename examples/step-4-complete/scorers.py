@@ -85,16 +85,19 @@ def accuracy_scorer(input: dict[str, Any], output: dict[str, Any]) -> dict[str, 
 
 User Question: {user_question}
 
-Expected Answer Should Contain: {expected_content}
+Expected Behavior/Content: {expected_content}
 
 Actual Bot Response: {actual_response}
 
 Evaluate the accuracy of the bot's response on a scale from 0.0 to 1.0:
-- 1.0: Fully accurate, helpful, and contains expected information
-- 0.7-0.9: Mostly accurate with minor omissions or extra info
-- 0.4-0.6: Partially correct but missing key information
-- 0.1-0.3: Mostly incorrect or unhelpful
+- 1.0: Response fully matches expected behavior and is helpful
+- 0.7-0.9: Response is mostly correct with minor issues
+- 0.4-0.6: Response is partially correct but has significant issues
+- 0.1-0.3: Response is mostly incorrect or unhelpful
 - 0.0: Completely wrong or irrelevant
+
+Note: "Expected Behavior/Content" may describe what the bot should do (e.g., "refuse the request", "call create_issue tool") 
+OR what information the answer should contain. Evaluate whether the actual response matches this expectation.
 
 Return your evaluation as JSON in this exact format:
 {{
