@@ -612,385 +612,303 @@ What test cases would YOU create? What would you measure?
 
 ---
 
-📖 **See [STEP_4_EVALUATION.md](./STEP_4_EVALUATION.md) for the complete Step 4 tutorial.**
+**What You're Really Accomplishing:**
 
-### Quick Overview
+Moving from "it feels right" to "it's provably ready for production" by building systematic evaluation. You'll create a comprehensive test dataset with 64 diverse cases and implement automated scoring to validate your agent's behavior across realistic scenarios, edge cases, and adversarial inputs.
 
-**What You're Building:**
-- **64-case evaluation dataset** covering realistic scenarios, edge cases, and adversarial inputs
-- **Multi-tier scorers**: Rule-based (tool correctness) + LLM judges (accuracy, safety)
-- **Automated evaluation pipeline** using Weave's EvaluationLogger
-- **Results analysis** in Weave UI for tracking improvements
+> **⏭️ Want to skip ahead?** 
+> ```bash
+> cp examples/step-4-complete/* .
+> ```
 
-**Quick Start:**
+---
+
+### Part A: Review the Evaluation Dataset
+
+The example dataset in `examples/step-4-complete/dataset.py` contains **64 carefully crafted test cases**:
 
 ```bash
-# 1. Publish dataset to Weave
+# View the complete dataset
+cat examples/step-4-complete/dataset.py
+```
+
+**Dataset Coverage:**
+- **31 W&B/Weave questions**: Initialization, debugging, troubleshooting, features
+- **16 Tool usage scenarios**: Support ticket creation and retrieval
+- **18 Refusal scenarios**: Off-topic questions, inappropriate requests, adversarial attempts
+
+**Dataset Structure:**
+
+Each test case includes:
+```python
+{
+    "input": "How do I initialize Weave in Python?",
+    "expected_output": "Call weave.init() with your project name",
+    "expected_tools": [],  # Tools that should be called
+    "tags": ["weave", "initialization", "factual"]
+}
+```
+
+**Key Insights:**
+- **Coverage matters**: 64 diverse cases reveal more issues than 200 similar ones
+- **Test refusals**: Critical to verify the bot says "no" appropriately  
+- **Edge cases included**: Prompt injection, jailbreaks, nonsense requests test robustness
+
+---
+
+### Part B: Publish Dataset to Weave
+
+Publishing provides versioning, reproducibility, and team collaboration:
+
+```bash
 uv run python examples/step-4-complete/publish_dataset.py
-
-# 2. Run evaluation (sample first to test)
-uv run python examples/step-4-complete/run_evaluation.py --sample 10
-
-# 3. View results in Weave UI
-# https://wandb.ai/ → agentic-support-bot-demo → Evals tab
 ```
 
-⚠️ **Cost Warning**: Full evaluation with LLM judges costs $3-5. Use `--sample 10` first!
+This script:
+1. Validates dataset structure (≥50 cases, required fields)
+2. Connects to Weave using your `WANDB_API_KEY`
+3. Publishes as `support-bot-eval-dataset`
+4. Creates version history (each publish = new version)
 
-**Files:** All example code in `examples/step-4-complete/`
-- `dataset.py` - 64 test cases
-- `publish_dataset.py` - Publish to Weave
-- `scorers.py` - Evaluation scorers
-- `run_evaluation.py` - Evaluation execution
-
-**Tests:** Run `uv run pytest tests/test_dataset.py tests/test_scorers.py -v` (38 tests)
+**Verify in Weave UI:**
+1. Go to https://wandb.ai/
+2. Open project: `agentic-support-bot-demo`
+3. Click **Datasets** tab
+4. Browse all 64 test cases
 
 ---
 
-<!-- OLD PLACEHOLDER CONTENT BELOW - TO BE REMOVED
+### Part C: Understanding the Scorers
 
-### What You're Really Accomplishing
+The evaluation uses **three types of scorers** to measure different aspects:
 
-Transitioning from ad-hoc testing to systematic evaluation by building a curated set of test cases that represent your agent's expected usage.
-
-### Questions a Real User Would Face
-
-- **What scenarios should I cover?** Which are most important? Most common? Most risky?
-- **How do I structure test data?** What format? What fields are needed?
-- **How many test cases do I need?** 10? 100? 1000?
-- **Should I include edge cases or focus on common paths?** Balance between coverage and effort?
-- **Where do test cases come from?** Manual creation? Real user data? Synthetic generation?
-- **How do I version and maintain this dataset?** Git? Database? Manual files?
-- **What's the "expected output"?** Exact matches? Semantic similarity? Action taken?
-
-Creating good test datasets is harder than it looks - it requires domain knowledge, creativity, and careful thought about what "correct" means.
-
-### What This Demo Decided For You
-
-✅ **Dataset format**: Weave Dataset structure with rows and columns  
-✅ **Test coverage**: Example test cases covering main agent capabilities  
-✅ **Expected outputs**: Simple action-based expectations (create_ticket, provide_info, etc.)  
-✅ **Storage**: Versioned in Weave (or code) for reproducibility  
-✅ **Size**: Small but representative set (~10-20 cases) to start
-
-### Your Focus
-
-As you create or review test cases, think about whether they truly represent real-world usage. Are you testing the right things? Would failures on these cases matter in production?
-
-### Code Approach
+**1. Rule-Based Scorer: Tool Correctness** (Fast, Free, Deterministic)
 
 ```python
-import weave
-
-# Initialize Weave
-weave.init('your-project-name')
-
-# Create a dataset of test cases
-dataset = weave.Dataset(
-    name='support-bot-eval',
-    rows=[
-        {'user_message': 'I need help with API rate limits', 'expected_action': 'provide_info'},
-        {'user_message': 'Create a ticket for billing issue', 'expected_action': 'create_ticket'},
-        {'user_message': 'What is the status of ticket #456?', 'expected_action': 'get_ticket'},
-        # Add more test cases...
-    ]
-)
-```
-
-### UI Approach
-
-1. In Weave, navigate to **Datasets**
-2. Click **New Dataset**
-3. Add rows manually or import from CSV
-4. Include columns for:
-   - Input (user message)
-   - Expected behavior
-   - Any other metadata
-
-**Question**: How intuitive is the dataset creation flow?
-
----
-
-## Step 5: Create Evaluation Scorers
-
-### What You're Really Accomplishing
-
-Defining objective, automated metrics to measure agent quality - translating human judgment into code.
-
-### Questions a Real User Would Face
-
-- **What should I measure?** Accuracy? Helpfulness? Tone? Safety? All of the above?
-- **How do I measure subjective qualities?** Like "helpfulness" or "brand voice"?
-- **Should I use LLM-as-judge?** Which model? What prompt? How reliable is it?
-- **Exact match or semantic similarity?** When is each appropriate?
-- **How do I handle multiple valid responses?** Not all questions have one right answer
-- **What about edge cases?** Refusals, clarifications, multi-turn conversations?
-- **How do I validate my scorers are correct?** Who judges the judges?
-
-Building good evaluation metrics is one of the hardest parts of AI engineering - it requires domain expertise and careful thinking about what success means.
-
-### What This Demo Decided For You
-
-✅ **Scorer framework**: Weave's `@weave.op()` decorator for automatic tracking  
-✅ **Initial metrics**: Simple action accuracy and tool usage scoring  
-✅ **Evaluation patterns**: Example code showing scorer structure  
-✅ **Output format**: Dictionary-based results for flexibility
-
-### Your Focus
-
-Think critically about the scorers: Do they measure what matters? Would high scores actually mean a good agent? What important qualities are missing? This is where product sense meets engineering.
-
-### Code Approach
-
-```python
-import weave
-
 @weave.op()
-def accuracy_scorer(output: dict, expected: dict) -> dict:
-    """Check if the agent took the expected action"""
+def tool_usage_scorer(input: dict, output: dict) -> dict:
+    """Did the bot call the correct tools?"""
+    expected_tools = set(input.get("expected_tools", []))
+    actual_tools = set(output.get("tools_used", []))
+    
     return {
-        'correct': output.get('action') == expected.get('expected_action')
-    }
-
-@weave.op()
-def tool_usage_scorer(output: dict) -> dict:
-    """Check if tools were used appropriately"""
-    return {
-        'used_tools': len(output.get('tool_calls', [])) > 0,
-        'tool_names': [t['name'] for t in output.get('tool_calls', [])]
+        "correct_tools": expected_tools == actual_tools,
+        "score": 1.0 if expected_tools == actual_tools else 0.0
     }
 ```
 
-### UI Approach
+✅ **Use for**: Objective checks (tools called, format correct)  
+❌ **Don't use for**: Subjective quality (helpfulness, tone)
 
-**Question**: Can scorers be created or configured in the UI? If not, would this be valuable?
-
----
-
-## Step 6: Establish Baseline Performance
-
-### What You're Really Accomplishing
-
-Creating your first quantitative measurement of agent performance - establishing a benchmark to compare all future improvements against.
-
-### Questions a Real User Would Face
-
-- **How do I run evaluations at scale?** Sequentially? In parallel? Rate limits?
-- **What's a "good" score?** Is 80% accuracy good enough? 90%? Depends on the task?
-- **How long will this take?** Runtime and cost for N test cases?
-- **How do I handle flakiness?** LLM outputs are non-deterministic
-- **Should I use sampling/temperature 0?** Trade-offs between consistency and creativity?
-- **Where do I store results?** For comparison over time?
-- **How do I surface results to stakeholders?** Dashboards? Reports? Alerts?
-
-Running your first eval is exciting but raises questions about reliability, cost, and what the numbers actually mean.
-
-### What This Demo Decided For You
-
-✅ **Evaluation harness**: Weave's `Evaluation` class handles execution and tracking  
-✅ **Parallelization**: Automatically handles concurrent execution  
-✅ **Result storage**: Results automatically logged to Weave for comparison  
-✅ **Cost tracking**: Token usage tracked per evaluation run  
-✅ **Model config**: Sensible defaults (temperature, etc.) pre-set
-
-### Your Focus
-
-Look at the results critically. What does a 75% accuracy score actually tell you? Which failures matter most? This baseline is your north star for improvement - make sure you trust it.
-
-### Code Approach
+**2. LLM-as-Judge: Accuracy Scorer** (Flexible, Costs Money)
 
 ```python
-import weave
-from tyler import create_agent
-
-# Initialize Weave
-weave.init('your-project-name')
-
-# Create evaluation
-evaluation = weave.Evaluation(
-    dataset=dataset,
-    scorers=[accuracy_scorer, tool_usage_scorer]
-)
-
-# Run with default model (gpt-4.1)
-agent = create_agent()
-results = evaluation.evaluate(agent)
-
-print(f"Baseline accuracy: {results['accuracy']}")
+@weave.op()
+def accuracy_scorer(input: dict, output: dict) -> dict:
+    """Is the answer accurate and helpful?"""
+    # Asks GPT-4o-mini to evaluate response quality
+    # Returns score 0.0-1.0 based on semantic similarity
 ```
 
-### UI Approach
+✅ **Use for**: Answer quality, semantic similarity, helpfulness  
+⚠️ **Note**: Costs ~$0.02 per evaluation, not 100% consistent
 
-1. Navigate to **Evaluations** in Weave
-2. Select your dataset
-3. Select your agent
-4. Run the evaluation
-5. View results in the dashboard
+**3. LLM-as-Judge: Safety Scorer** (Catches Harmful Content)
 
-**What to note:**
-- How easy was it to run your first eval?
-- Are the results clear and actionable?
-- Can you easily compare different runs?
-
----
-
-## Step 7: Test Different Models
-
-### What You're Really Accomplishing
-
-Systematically comparing LLM providers and models to find the best balance of quality, cost, and latency for your specific use case.
-
-### Questions a Real User Would Face
-
-- **Which models should I test?** GPT-4? Claude? Gemini? Open source?
-- **How do I switch between providers?** Different APIs, auth patterns, response formats?
-- **What about cost differences?** Some models are 10-100x more expensive than others
-- **What about latency?** Faster models might sacrifice quality
-- **How do I handle provider-specific features?** Function calling implementation varies
-- **Should I test different model sizes?** GPT-4 vs GPT-3.5? Claude Opus vs Sonnet?
-- **How do I make comparisons fair?** Same prompts? Same temperature? Same test set?
-- **What if a model fails mid-eval?** Rate limits, timeouts, API errors?
-
-Model selection is crucial - it impacts your quality, cost, and reliability. But testing is time-consuming and expensive.
-
-### What This Demo Decided For You
-
-✅ **Provider abstraction**: LiteLLM handles different APIs uniformly  
-✅ **Easy switching**: Change one line in config file to test new models  
-✅ **Comparison framework**: Weave automatically tracks results for side-by-side comparison  
-✅ **Suggested models**: Pre-configured with sensible options to try  
-✅ **Cost visibility**: Token usage and estimated costs in traces
-
-### Your Focus
-
-As you compare models, think about the trade-offs. Is a 5% accuracy improvement worth 10x the cost? How much does latency matter for your users? This is where engineering meets business decisions.
-
-### Code Approach
-
-Edit `tyler-chat-config.yaml` to test different models:
-
-```yaml
-# Try different models
-model_name: "gpt-4.1"        # Current default
-# model_name: "gpt-3.5-turbo"  # Faster, cheaper
-# model_name: "claude-3-opus"  # Anthropic
+```python
+@weave.op()
+def safety_scorer(input: dict, output: dict) -> dict:
+    """Safe, appropriate, with proper refusals?"""
+    # Evaluates tone (0-1), refusal appropriateness (0-1), safety (0-1)
+    # Returns multiple scores for comprehensive safety assessment
 ```
 
-Run evaluations for each model and compare in Weave.
+✅ **Use for**: Detecting toxic content, measuring tone, validating refusals
 
-### UI Approach
+**View the complete scorers:**
 
-1. In Weave, navigate to your evaluations
-2. Compare runs side-by-side
-3. Filter and sort by metrics
-4. **Question**: Can you easily see which model performs best for your use case?
-
----
-
-## Step 8: Iterate to Improve Accuracy
-
-### What You're Really Accomplishing
-
-The iterative improvement cycle - the core of AI engineering where you experiment, measure, and refine to boost performance.
-
-### Questions a Real User Would Face
-
-- **Where do I start?** Prompts? Tools? Examples? RAG? Fine-tuning?
-- **How do I know what to fix?** Which errors are most important?
-- **Should I use few-shot examples?** How many? Which ones? Where to put them?
-- **How do I improve tool calling?** Better descriptions? Better names? More/fewer tools?
-- **What about prompt engineering?** What techniques actually work?
-- **Should I add guardrails?** How to validate outputs without breaking creativity?
-- **How much testing between changes?** Full eval every time? Spot checks?
-- **How do I avoid overfitting to my test set?** Am I gaming my own metrics?
-- **When is "good enough" good enough?** Diminishing returns vs. perfectionism?
-
-This is the messy, creative phase where art meets science. Every change needs testing, and improvements aren't always obvious.
-
-### What This Demo Decided For You
-
-✅ **Iteration tools**: Easy config changes with immediate testing  
-✅ **Fast feedback loop**: CLI for quick spot checks, evals for validation  
-✅ **Common techniques**: Examples of prompt improvements, tool refinements  
-✅ **Measurement framework**: Automatic comparison of runs in Weave  
-✅ **Version control**: Git + Weave for tracking what changed and impact
-
-### Your Focus
-
-This is where you live for weeks in real projects. Notice what makes iteration fast vs. slow. Can you quickly test a hypothesis? Is it clear what improved and what regressed? This workflow quality determines your development velocity.
-
-### Code Approach
-
-**Try these improvements:**
-
-1. **Better prompts** - Edit the system prompt in `tyler-chat-config.yaml`
-2. **Add examples** - Include few-shot examples in your prompt
-3. **Refine tools** - Improve tool descriptions in `tools.py`
-4. **Add guardrails** - Implement validation logic
-
-After each change:
 ```bash
-# Test interactively
-uv run tyler chat
-
-# Run full evaluation
-python run_evaluation.py
+cat examples/step-4-complete/scorers.py
 ```
-
-### UI Approach
-
-1. Make changes to your agent (code or config)
-2. Run new evaluation in Weave
-3. Compare to previous runs
-4. **Key question**: Can you quickly identify what changed and whether it helped?
 
 ---
 
-## Step 9 (Bonus): Iterate on the Details
+### Part D: Run the Evaluation
 
-### What You're Really Accomplishing
+⚠️ **COST WARNING**: Full evaluation with LLM judges costs approximately **$3-5** for 64 test cases.
 
-Moving from "works" to "delightful" - the final polish that makes users love (or hate) your agent.
+**Start with a sample to test:**
 
-### Questions a Real User Would Face
+```bash
+# Test on 10 random cases first (costs ~$0.50)
+uv run python examples/step-4-complete/run_evaluation.py --sample 10
+```
 
-- **What's the right personality?** Formal? Casual? Funny? It depends on brand and context
-- **How much context should the agent maintain?** Full conversation? Last N messages? Summarization?
-- **When should the agent ask clarifying questions?** Too many is annoying, too few causes errors
-- **How do I handle ambiguity gracefully?** Not every user request is clear
-- **What about error messages?** Technical details vs. user-friendly language?
-- **Should the agent apologize?** Set boundaries? How human-like should it feel?
-- **How do I measure "quality"?** NPS? User feedback? Custom scorers?
-
-These details are what separate good agents from great ones, but they're highly subjective and hard to measure objectively.
-
-### What This Demo Decided For You
-
-✅ **Base personality**: Friendly support bot tone pre-configured  
-✅ **Context handling**: Multi-turn conversation support built-in  
-✅ **Error patterns**: Basic error handling implemented  
-✅ **Evaluation framework**: Infrastructure to test subjective qualities with custom scorers
-
-### Your Focus
-
-This is where product intuition matters most. These details can't always be A/B tested or measured - you need to develop taste for what makes a good interaction. Pay attention to how the agent "feels" to use.
-
-### Details to Polish
-
-- **Tone of voice**: Make it friendly, professional, or quirky
-- **Follow-up questions**: Have the agent proactively ask clarifying questions
-- **Error handling**: Gracefully handle ambiguous requests
-- **Multi-turn context**: Ensure the agent remembers previous messages
-
-**Test these in the playground and measure with custom scorers:**
+**Understanding the EvaluationLogger Pattern:**
 
 ```python
-@weave.op()
-def tone_scorer(output: dict) -> dict:
-    """Evaluate if the tone matches brand guidelines"""
-    # Your custom logic here
-    pass
+# 1. Initialize BEFORE agent calls (for token tracking!)
+eval_logger = EvaluationLogger(
+    model="support-bot-v1",
+    dataset="support-bot-eval-dataset"
+)
+
+# 2. For each test case:
+for test_case in dataset.rows:
+    output = invoke_agent(agent, test_case["input"])
+    
+    # Log prediction
+    pred_logger = eval_logger.log_prediction(
+        inputs={"query": test_case["input"]},
+        output=output
+    )
+    
+    # Apply scorers
+    pred_logger.log_score(scorer="tool_usage", score=tool_usage_scorer(...))
+    pred_logger.log_score(scorer="accuracy", score=accuracy_scorer(...))
+    pred_logger.log_score(scorer="safety", score=safety_scorer(...))
+    
+    # Finish this prediction
+    pred_logger.finish()
+
+# 3. Log summary
+eval_logger.log_summary()
 ```
+
+**Why EvaluationLogger?**
+- ✅ Incremental logging (log as you go)
+- ✅ Automatic token tracking
+- ✅ Handles failures gracefully
+- ✅ Flexible for custom scorers
+
+**Run full evaluation:**
+
+```bash
+# Full evaluation on all 64 cases (costs $3-5)
+uv run python examples/step-4-complete/run_evaluation.py
+```
+
+**Or skip LLM judges to save money:**
+
+```bash
+# Only run tool correctness scorer (free!)
+uv run python examples/step-4-complete/run_evaluation.py --no-llm-judges
+```
+
+---
+
+### Part E: Analyze Results in Weave UI
+
+After running the evaluation:
+
+**1. Navigate to Weave Evals Tab:**
+- Go to https://wandb.ai/
+- Open project: `agentic-support-bot-demo`
+- Click **Evals** tab
+
+**2. View Aggregate Metrics:**
+
+You'll see summary statistics:
+- **Tool Usage**: 87.5% correct (14/16 tool cases passed)
+- **Accuracy**: 0.78 average
+- **Safety**: 0.92 average (strong refusals)
+
+**3. Drill into Individual Predictions:**
+
+Click into the eval to see:
+- Which test cases passed/failed?
+- What did the agent say?
+- What were the scores?
+- Link to full agent trace
+
+**4. Identify Failure Patterns:**
+
+Group failures by tag to find:
+- Are refusal cases passing? (Good!)
+- Are tool cases failing? (Check tool descriptions)
+- Is accuracy low on debugging questions? (Improve docs search)
+
+**5. Compare Multiple Eval Runs:**
+- Select 2+ evaluations
+- Click **Compare**
+- See side-by-side metrics
+- Identify what improved/regressed
+
+---
+
+### What You Learned
+
+**Key Takeaways:**
+
+1. **Manual testing ≠ Production readiness**
+   - Ad-hoc testing misses edge cases
+   - Systematic evaluation reveals blind spots
+
+2. **Dataset quality > Dataset size**
+   - 64 diverse cases beat 200 similar ones
+   - Refusal scenarios are critical
+   - Adversarial inputs test robustness
+
+3. **Multiple scorer types work together**
+   - Rule-based: Fast, cheap, objective
+   - LLM judges: Flexible, semantic, subjective
+
+4. **Evaluation is iterative**
+   - Run eval → identify failures → improve → re-eval
+   - Track metrics over time
+
+5. **Cost management matters**
+   - Sample first (--sample 10)
+   - Skip expensive scorers in dev
+   - Use cheaper judge models
+
+**Production Readiness Checklist:**
+
+After Step 4, you can confidently say:
+- ✅ Bot handles diverse realistic questions
+- ✅ Bot appropriately refuses off-topic/harmful requests
+- ✅ Bot uses tools correctly (measurable)
+- ✅ You have quantitative metrics
+- ✅ You can test changes systematically
+
+---
+
+**Files Created:**
+
+```
+examples/step-4-complete/
+├── dataset.py              # 64 test cases
+├── publish_dataset.py      # Publish to Weave
+├── scorers.py              # Rule-based + LLM judges
+└── run_evaluation.py       # EvaluationLogger workflow
+
+tests/
+├── test_dataset.py         # 18 dataset validation tests
+└── test_scorers.py         # 20 scorer unit tests
+```
+
+**Run Tests:**
+
+```bash
+uv run pytest tests/test_dataset.py tests/test_scorers.py -v
+# All 38 tests should pass ✅
+```
+
+---
+
+**Cost Breakdown:**
+
+| Component | Cost per Run | Notes |
+|-----------|--------------|-------|
+| Agent calls (64 cases) | ~$1.00 | DeepSeek via W&B Inference |
+| Accuracy judges (64) | ~$1.50 | gpt-4o-mini |
+| Safety judges (64) | ~$1.50 | gpt-4o-mini |
+| **Total** | **~$3-5** | Full evaluation |
+
+**Cost-saving tips:**
+- Sample first: `--sample 10` costs ~$0.50
+- Skip LLM judges: `--no-llm-judges` is free
+- Use cheaper models: Set `JUDGE_MODEL=gpt-4o-mini`
 
 ---
 
@@ -1000,7 +918,8 @@ def tone_scorer(output: dict) -> dict:
 .
 ├── examples/               # Complete reference files for skip-ahead
 │   ├── step-2b-with-tools/
-│   └── step-3-complete/
+│   ├── step-3-complete/
+│   └── step-4-complete/
 ├── tyler-chat-config.yaml  # Agent configuration (starter)
 ├── tools.py                # Custom tool implementations (starter)
 ├── playground_server.py    # API server for Weave Playground
