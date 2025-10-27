@@ -15,7 +15,7 @@ Usage:
     uv run python examples/step-4-complete/run_evaluation.py --sample 10
 
 Cost Warning:
-    Running the full evaluation with LLM judges can cost $3-5.
+    Using W&B Inference with Llama is often free or very low cost.
     Use --sample to test on a smaller subset first.
 """
 
@@ -182,12 +182,11 @@ def run_evaluation(
     
     print()
     
-    # Cost warning
+    # Cost info
     if use_llm_judges:
-        estimated_cost = len(test_cases) * 0.05  # Rough estimate
-        print("⚠️  COST WARNING ⚠️")
+        print("📊 Evaluation Info")
         print(f"Running evaluation with LLM judges on {len(test_cases)} cases")
-        print(f"Estimated cost: ${estimated_cost:.2f} (LLM judge calls)")
+        print(f"Using Llama-3.1-8B via W&B Inference (often free or low cost)")
         print()
         response = input("Continue? (y/n): ")
         if response.lower() != 'y':
@@ -290,13 +289,13 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run full evaluation (costs $3-5)
+  # Run full evaluation (often free with W&B Inference)
   python run_evaluation.py
   
   # Test on 10 random cases first
   python run_evaluation.py --sample 10
   
-  # Run without LLM judges (free, only tool correctness)
+  # Run without LLM judges (only tool correctness)
   python run_evaluation.py --no-llm-judges
         """
     )

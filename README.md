@@ -700,18 +700,18 @@ def tool_usage_scorer(input: dict, output: dict) -> dict:
 ✅ **Use for**: Objective checks (tools called, format correct)  
 ❌ **Don't use for**: Subjective quality (helpfulness, tone)
 
-**2. LLM-as-Judge: Accuracy Scorer** (Flexible, Costs Money)
+**2. LLM-as-Judge: Accuracy Scorer** (Flexible, Often Free)
 
 ```python
 @weave.op()
 def accuracy_scorer(input: dict, output: dict) -> dict:
     """Is the answer accurate and helpful?"""
-    # Asks GPT-4o-mini to evaluate response quality
+    # Uses Llama-3.1-8B via W&B Inference to evaluate quality
     # Returns score 0.0-1.0 based on semantic similarity
 ```
 
 ✅ **Use for**: Answer quality, semantic similarity, helpfulness  
-⚠️ **Note**: Costs ~$0.02 per evaluation, not 100% consistent
+⚠️ **Note**: LLM judges aren't 100% consistent (they're probabilistic)
 
 **3. LLM-as-Judge: Safety Scorer** (Catches Harmful Content)
 
@@ -735,12 +735,12 @@ cat examples/step-4-complete/scorers.py
 
 ### Part D: Run the Evaluation
 
-⚠️ **COST WARNING**: Full evaluation with LLM judges costs approximately **$3-5** for 64 test cases.
+⚠️ **COST WARNING**: Full evaluation with LLM judges may incur costs depending on your W&B Inference tier (often free for reasonable usage).
 
 **Start with a sample to test:**
 
 ```bash
-# Test on 10 random cases first (costs ~$0.50)
+# Test on 10 random cases first
 uv run python examples/step-4-complete/run_evaluation.py --sample 10
 ```
 
@@ -784,7 +784,7 @@ eval_logger.log_summary()
 **Run full evaluation:**
 
 ```bash
-# Full evaluation on all 64 cases (costs $3-5)
+# Full evaluation on all 64 cases
 uv run python examples/step-4-complete/run_evaluation.py
 ```
 
@@ -902,39 +902,38 @@ uv run pytest tests/test_dataset.py tests/test_scorers.py -v
 
 | Component | Cost per Run | Notes |
 |-----------|--------------|-------|
-| Agent calls (64 cases) | ~$1.00 | DeepSeek via W&B Inference |
-| Accuracy judges (64) | ~$1.50 | gpt-4o-mini |
-| Safety judges (64) | ~$1.50 | gpt-4o-mini |
-| **Total** | **~$3-5** | Full evaluation |
+| Agent calls (64 cases) | Free-$1.00 | DeepSeek via W&B Inference |
+| Accuracy judges (64) | Free-$0.50 | Llama-3.1-8B via W&B Inference |
+| Safety judges (64) | Free-$0.50 | Llama-3.1-8B via W&B Inference |
+| **Total** | **Free-$2** | Full evaluation (W&B Inference may be free) |
 
 **Cost-saving tips:**
-- Sample first: `--sample 10` costs ~$0.50
-- Skip LLM judges: `--no-llm-judges` is free
-- Use cheaper models: Edit judge config files to change `model_name`
+- Sample first: `--sample 10` to test quickly
+- Skip LLM judges: `--no-llm-judges` if you only want tool correctness
+- W&B Inference: Using Llama via W&B Inference is often free or very cheap
 
 **Customize Judge Models:**
 
+The judges use **Llama-3.1-8B-Instruct via W&B Inference** by default (fast and cost-effective).
+
 Edit the judge config files to use different models:
 
-```bash
-# Accuracy judge configuration
-cat examples/step-4-complete/accuracy-judge-config.yaml
-```
-
 ```yaml
-# Use gpt-4o-mini (cheap, fast) - default
-model_name: "gpt-4o-mini"
+# examples/step-4-complete/accuracy-judge-config.yaml
+model_name: "meta-llama/Llama-3.1-8B-Instruct"  # Default
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
 
-# Or use gpt-4.1 (more accurate, expensive)
+# Or use gpt-4.1 for higher accuracy:
 # model_name: "gpt-4.1"
+# base_url: "https://api.openai.com/v1"
+# api_key: "${OPENAI_API_KEY}"
 
-# Or use DeepSeek via W&B Inference (very cheap!)
+# Or use DeepSeek (same as main agent):
 # model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
-# base_url: "https://api.inference.wandb.ai/v1"
-# api_key: "${WANDB_API_KEY}"
 ```
 
-Both `accuracy-judge-config.yaml` and `safety-judge-config.yaml` use the same settings by default.
+Both `accuracy-judge-config.yaml` and `safety-judge-config.yaml` use the same Llama model by default.
 
 ---
 

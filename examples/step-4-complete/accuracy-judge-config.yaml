@@ -2,12 +2,12 @@
 # This judge evaluates agent responses for accuracy and helpfulness
 
 name: "accuracy-judge"
-model_name: "gpt-4o-mini"  # Cheaper model for judging (can use gpt-4.1, DeepSeek, etc.)
+model_name: "meta-llama/Llama-3.1-8B-Instruct"  # Fast and cost-effective via W&B Inference
 purpose: "You are an evaluation judge. Return only valid JSON."
 
-# API configuration
-base_url: "https://api.openai.com/v1"  # Or use W&B Inference: "https://api.inference.wandb.ai/v1"
-api_key: "${OPENAI_API_KEY}"  # Or use ${WANDB_API_KEY} for W&B Inference
+# W&B Inference endpoint configuration
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
 
 # Judge behavior
 temperature: 0.0  # Deterministic evaluation for consistency
