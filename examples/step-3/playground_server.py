@@ -121,7 +121,11 @@ AGENT_CONFIG = None
 if __name__ != "__main__":
     try:
         # Check for config path in environment variable
-        config_path = os.getenv("TYLER_CONFIG", "tyler-chat-config.yaml")
+        # Default to workspace directory
+        import pathlib
+        workspace_dir = pathlib.Path(__file__).parent
+        default_config = workspace_dir / "tyler-chat-config.yaml"
+        config_path = os.getenv("TYLER_CONFIG", str(default_config))
         AGENT, CONFIG = load_agent(config_path)
         AGENT_CONFIG = CONFIG.get("agent", CONFIG)
     except Exception as e:
@@ -441,6 +445,11 @@ async def chat_completions(
 
 if __name__ == "__main__":
     import uvicorn
+    import pathlib
+    
+    # Default config path is in the workspace directory
+    workspace_dir = pathlib.Path(__file__).parent
+    default_config_path = str(workspace_dir / "tyler-chat-config.yaml")
     
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
@@ -449,8 +458,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="tyler-chat-config.yaml",
-        help="Path to Tyler configuration YAML file (default: tyler-chat-config.yaml)"
+        default=default_config_path,
+        help=f"Path to Tyler configuration YAML file (default: {default_config_path})"
     )
     parser.add_argument(
         "--host",

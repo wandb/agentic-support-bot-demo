@@ -76,7 +76,22 @@ Edit `.env` and add your API key and project:
 - `WANDB_API_KEY` - **Required** for both Weave observability and LLM API (we use W&B Inference with DeepSeek)
 - `WANDB_PROJECT` - (Optional) Defaults to `agentic-support-bot-demo` - this is the Weave project where your traces will appear
 
-**Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `tyler-chat-config.yaml`.
+**Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `workspace/tyler-chat-config.yaml`.
+
+4. **Set up your workspace**
+
+Copy the starter files to begin:
+
+```bash
+cp examples/step-1/* workspace/
+```
+
+This populates your workspace with:
+- `main.py` - Basic agent execution  
+- `tools.py` - Starter tool stubs
+- `tyler-chat-config.yaml` - Minimal agent configuration
+
+**Note:** The `workspace/` directory is gitignored - you can experiment freely and reset anytime by copying from `examples/`.
 
 ---
 
@@ -92,7 +107,7 @@ We'll build your agent incrementally, starting simple and adding complexity. You
 
 **Instructions:**
 
-Your `tyler-chat-config.yaml` is already set up with a minimal configuration:
+Your `workspace/tyler-chat-config.yaml` is already set up with a minimal configuration:
 
 ```yaml
 name: "agent"
@@ -114,7 +129,7 @@ reasoning: "low"
 Now let's test it using Slide's CLI:
 
 ```bash
-uv run tyler chat
+uv run tyler chat --config workspace/tyler-chat-config.yaml
 ```
 
 Try these prompts:
@@ -162,12 +177,12 @@ The agent should respond conversationally to all prompts. Now **check Weave**:
 
 > **⏭️ Want to skip ahead?** 
 > ```bash
-> cp examples/step-2b-with-tools/* .
+> cp examples/step-2/* workspace/
 > ```
 
-**Step 1: Add Tools to Your Config**
+**Step 1: Update Your Config to Enable Tools**
 
-Update your `tyler-chat-config.yaml` to include tools and MCP:
+Update your `workspace/tyler-chat-config.yaml` to include tools and MCP (your `tools.py` from Step 1 is already ready):
 
 ```yaml
 name: "agent"
@@ -196,7 +211,7 @@ mcp:
 
 **Step 2: Check Your Tools**
 
-Your `tools.py` should have two functions and a `TOOLS` export:
+Your `workspace/tools.py` should have two functions and a `TOOLS` export:
 - `create_issue(*, title, description, priority)` - Creates a support ticket  
 - `get_issue(*, issue_id)` - Retrieves a ticket
 - `TOOLS` - A list of tool definitions in JSON format
@@ -233,15 +248,15 @@ For more details on W&B secrets, see the [Secrets documentation](https://docs.wa
 **Start the playground server:**
 
 ```bash
-uv run playground_server.py
+uv run python workspace/playground_server.py
 ```
 
 **Tip**: You can specify a different config file with the `--config` flag:
 ```bash
-uv run playground_server.py --config examples/step-3-complete/tyler-chat-config.yaml
+uv run python workspace/playground_server.py --config examples/step-3/tyler-chat-config.yaml
 ```
 
-Run `uv run playground_server.py --help` to see all available options.
+Run `uv run python workspace/playground_server.py --help` to see all available options.
 
 In a **new terminal**, expose via ngrok:
 
@@ -306,10 +321,20 @@ This is what we'll fix in Step 3.
 
 > **⏭️ Want to skip to the finished support bot?** 
 > ```bash
-> cp examples/step-3-complete/* .
+> cp examples/step-3/* workspace/
 > ```
 > 
 > ⚠️ **But you'll miss the best part!** Iteration is where Weave shines.
+
+**First, add the playground server to your workspace:**
+
+```bash
+cp examples/step-3/playground_server.py workspace/
+```
+
+This gives you the OpenAI-compatible API server that works with Weave Playground.
+
+---
 
 ### Part A: Identify the Problem
 
@@ -368,7 +393,7 @@ Now it's time to iterate! Instead of just giving you the answer, let's walk thro
 
 #### **Iteration 1: Give Your Agent a Clear Purpose**
 
-Open `tyler-chat-config.yaml` and look at the `purpose` field:
+Open `workspace/tyler-chat-config.yaml` and look at the `purpose` field:
 
 ```yaml
 purpose: "You are a helpful AI assistant."
@@ -391,12 +416,12 @@ purpose: "You are a helpful AI assistant."
 - Set expectations for how it should interact with users
 - Consider adding a `notes` section with operational guidelines
 
-**💡 Need help?** Look at `examples/step-3-complete/tyler-chat-config.yaml` to see a well-crafted purpose statement.
+**💡 Need help?** Look at `examples/step-3/tyler-chat-config.yaml` to see a well-crafted purpose statement.
 
 **Test your changes:**
 ```bash
 # Restart the playground server
-uv run playground_server.py
+uv run python workspace/playground_server.py
 ```
 
 Try your test prompts again in Weave Playground. Does it feel more like a support bot? Check the traces to see if the purpose is helping.
@@ -479,7 +504,7 @@ TOOLS = [
 - `support-create_issue` - When should tickets be created for W&B issues? What makes a good title vs description?
 - `support-get_issue` - When should the agent retrieve ticket status? What does the user need to provide?
 
-**💡 Stuck?** Look at `examples/step-3-complete/tools.py` (lines 108-159) to see fully documented tool definitions. But try writing your own first!
+**💡 Stuck?** Look at `examples/step-3/tools.py` to see fully documented tool definitions. But try writing your own first!
 
 **Test your changes:**
 
@@ -487,7 +512,7 @@ TOOLS = [
 2. Restart the playground server (the tools are loaded at startup):
    ```bash
    # Stop with Ctrl+C, then restart
-   uv run playground_server.py
+   uv run python workspace/playground_server.py
    ```
 3. Test the same prompts in Weave Playground
 4. **Check Weave traces** - do you see better tool usage now?
@@ -562,7 +587,7 @@ I need to create a support ticket for authentication issues
 - If the tone is off, adjust the `purpose` statement
 - If parameters are wrong, improve parameter descriptions
 
-**💡 Want to see a polished example?** Compare your work with `examples/step-3-complete/` - but remember, your version might be different, and that's okay! There's no single "right" way to write these descriptions.
+**💡 Want to see a polished example?** Compare your work with `examples/step-3/` - but remember, your version might be different, and that's okay! There's no single "right" way to write these descriptions.
 
 ---
 
@@ -583,7 +608,7 @@ Moving from "it feels right" to "it's provably ready for production" by building
 
 > **⏭️ Want to skip ahead?** 
 > ```bash
-> cp examples/step-4-complete/* .
+> cp examples/step-4/* workspace/
 > ```
 > 
 > ⚠️ **But you'll miss the learning!** This step teaches evaluation thinking - a critical skill for production agents.
@@ -618,18 +643,18 @@ Moving from "it feels right" to "it's provably ready for production" by building
 
 > **⏭️ Want to skip ahead?** 
 > ```bash
-> cp examples/step-4-complete/* .
+> cp examples/step-4/* workspace/
 > ```
 
 ---
 
 ### Part A: Review the Evaluation Dataset
 
-The example dataset in `examples/step-4-complete/dataset.py` contains **64 carefully crafted test cases**:
+The example dataset in `examples/step-4/dataset.py` contains **64 carefully crafted test cases**:
 
 ```bash
 # View the complete dataset
-cat examples/step-4-complete/dataset.py
+cat examples/step-4/dataset.py
 ```
 
 **Dataset Coverage:**
@@ -661,7 +686,7 @@ Each test case includes:
 Publishing provides versioning, reproducibility, and team collaboration:
 
 ```bash
-uv run python examples/step-4-complete/publish_dataset.py
+uv run python examples/step-4/publish_dataset.py
 ```
 
 This script:
@@ -728,7 +753,7 @@ def safety_scorer(input: dict, output: dict) -> dict:
 **View the complete scorers:**
 
 ```bash
-cat examples/step-4-complete/scorers.py
+cat examples/step-4/scorers.py
 ```
 
 ---
@@ -741,7 +766,7 @@ cat examples/step-4-complete/scorers.py
 
 ```bash
 # Test on 10 random cases first
-uv run python examples/step-4-complete/run_evaluation.py --sample 10
+uv run python examples/step-4/run_evaluation.py --sample 10
 ```
 
 **Understanding the EvaluationLogger Pattern:**
@@ -785,14 +810,14 @@ eval_logger.log_summary()
 
 ```bash
 # Full evaluation on all 64 cases
-uv run python examples/step-4-complete/run_evaluation.py
+uv run python examples/step-4/run_evaluation.py
 ```
 
 **Or skip LLM judges to save money:**
 
 ```bash
 # Only run tool correctness scorer (free!)
-uv run python examples/step-4-complete/run_evaluation.py --no-llm-judges
+uv run python examples/step-4/run_evaluation.py --no-llm-judges
 ```
 
 ---
@@ -876,7 +901,7 @@ After Step 4, you can confidently say:
 **Files Created:**
 
 ```
-examples/step-4-complete/
+examples/step-4/
 ├── dataset.py                    # 64 test cases
 ├── publish_dataset.py            # Publish to Weave
 ├── scorers.py                    # Rule-based + LLM judges
@@ -919,7 +944,7 @@ The judges use **Llama-3.1-8B-Instruct via W&B Inference** by default (fast and 
 Edit the judge config files to use different models:
 
 ```yaml
-# examples/step-4-complete/accuracy-judge-config.yaml
+# examples/step-4/accuracy-judge-config.yaml
 model_name: "meta-llama/Llama-3.1-8B-Instruct"  # Default
 base_url: "https://api.inference.wandb.ai/v1"
 api_key: "${WANDB_API_KEY}"
@@ -941,14 +966,16 @@ Both `accuracy-judge-config.yaml` and `safety-judge-config.yaml` use the same Ll
 
 ```
 .
-├── examples/               # Complete reference files for skip-ahead
-│   ├── step-2b-with-tools/
-│   ├── step-3-complete/
-│   └── step-4-complete/
-├── tyler-chat-config.yaml  # Agent configuration (starter)
-├── tools.py                # Custom tool implementations (starter)
-├── playground_server.py    # API server for Weave Playground
-├── main.py                 # Programmatic agent execution
+├── workspace/              # 🎯 Your working directory - all tutorial work happens here
+│   ├── main.py             # Programmatic agent execution (starter)
+│   ├── tools.py            # Custom tool implementations (starter)
+│   ├── tyler-chat-config.yaml  # Agent configuration (starter)
+│   └── playground_server.py    # API server for Weave Playground (added in Step 3)
+├── examples/               # Complete reference implementations for each step
+│   ├── step-1/             # Basic agent setup
+│   ├── step-2/             # Tools and MCP configuration
+│   ├── step-3/             # Improved purpose and tool descriptions
+│   └── step-4/             # Evaluation dataset and scorers
 ├── tests/                  # Test suite
 ├── directive/              # Spec and implementation docs
 ├── pyproject.toml         # Project dependencies
@@ -964,10 +991,10 @@ Both `accuracy-judge-config.yaml` and `safety-judge-config.yaml` use the same Ll
 ### Configuration Issues
 
 **Problem**: `Configuration file not found`  
-**Solution**: Run commands from the project root directory where `tyler-chat-config.yaml` is located.
+**Solution**: Run commands from the project root directory and ensure `workspace/tyler-chat-config.yaml` exists.
 
 **Problem**: `Failed to load tool from path`  
-**Solution**: Verify `tools.py` exists and exports a `TOOLS` list. Run `uv run pytest` to validate.
+**Solution**: Verify `workspace/tools.py` exists and exports a `TOOLS` list. Run `uv run pytest` to validate.
 
 ### Environment Variable Issues
 
@@ -980,7 +1007,7 @@ Both `accuracy-judge-config.yaml` and `safety-judge-config.yaml` use the same Ll
 **Problem**: `OpenAI API authentication error`  
 **Solution**:
 1. Verify `OPENAI_API_KEY` is set in `.env`
-2. Or use a different LLM provider in `tyler-chat-config.yaml`
+2. Or use a different LLM provider in `workspace/tyler-chat-config.yaml`
 3. Ensure the API key has sufficient credits
 
 ### Tool Execution Issues
@@ -988,7 +1015,7 @@ Both `accuracy-judge-config.yaml` and `safety-judge-config.yaml` use the same Ll
 **Problem**: Tools aren't being called  
 **Solution**: 
 1. Make requests that clearly need tool usage
-2. Check `tools.py` is referenced in `tyler-chat-config.yaml`
+2. Check `workspace/tools.py` is referenced in `workspace/tyler-chat-config.yaml`
 3. View Weave traces at [wandb.ai/agentic-support-bot-demo](https://wandb.ai) to see what the agent is doing
 4. Check tool docstrings - agent needs clear descriptions to know when to use tools!
 
@@ -998,7 +1025,7 @@ Both `accuracy-judge-config.yaml` and `safety-judge-config.yaml` use the same Ll
 ### Debug Mode
 
 ```bash
-TYLER_DEBUG=1 uv run tyler chat --config tyler-chat-config.yaml
+TYLER_DEBUG=1 uv run tyler chat --config workspace/tyler-chat-config.yaml
 ```
 
 ---

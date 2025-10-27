@@ -37,7 +37,7 @@ def main():
     
     # Create Tyler agent with custom tools
     # Get custom tools (for backward compatibility with programmatic API)
-    from tools import create_issue, get_issue
+    from workspace.tools import create_issue, get_issue
     tools = [
         {
             "definition": {

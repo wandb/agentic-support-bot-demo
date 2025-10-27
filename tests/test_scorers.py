@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 # Add examples directory to path to import scorers
-examples_dir = Path(__file__).parent.parent / "examples" / "step-4-complete"
+examples_dir = Path(__file__).parent.parent / "examples" / "step-4"
 sys.path.insert(0, str(examples_dir))
 
 from scorers import tool_usage_scorer, get_all_scorers
