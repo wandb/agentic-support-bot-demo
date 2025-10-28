@@ -2,7 +2,7 @@
 
 ## Goal
 
-Using our own products regularly helps us better empathize with and understand our users' needs. Testing alone doesn't reveal real-world issues. To truly evaluate our product, we need to apply it to actual AI application development scenarios. Since creating projects from scratch takes too much time, this document provides a streamlined approach. 
+Using our own products regularly helps us better empathize with and understand our users' needs. To truly evaluate our product, we need to apply it to actual AI application development scenarios. Since creating projects from scratch takes a lot of time, this repo provides a streamlined guide. 
 
 **In under 30 minutes, you'll experience how Weave works in a typical use case.**
 
@@ -28,7 +28,7 @@ Going from 0 to demo is fairly easy, but can you build an agent ready to face re
 
 Currently there is a need to write and run code, so to get started you will need:
 
-- **Python environment** (3.13+ recommended; if you don't have one, we'll walk you through it)
+- **Python environment** (3.12+ recommended; if you don't have one, we'll walk you through it)
 - **GitHub** to clone the repo
 - **Terminal access** to run commands
 - **Weights & Biases account** ([sign up free](https://wandb.ai/authorize))
@@ -88,7 +88,6 @@ cp examples/step-1/* workspace/
 
 This populates your workspace with:
 - `main.py` - Basic agent execution  
-- `tools.py` - Starter tool stubs
 - `tyler-chat-config.yaml` - Minimal agent configuration
 
 **Note:** The `workspace/` directory is gitignored - you can experiment freely and reset anytime by copying from `examples/`.
@@ -180,9 +179,19 @@ The agent should respond conversationally to all prompts. Now **check Weave**:
 > cp examples/step-2/* workspace/
 > ```
 
-**Step 1: Update Your Config to Enable Tools**
+**1. Copy Tools to Your Workspace**
 
-Update your `workspace/tyler-chat-config.yaml` to include tools and MCP (your `tools.py` from Step 1 is already ready):
+Copy the starter tools file:
+
+```bash
+cp examples/step-2/tools.py workspace/
+```
+
+This provides your agent with two basic tools for support ticket management (`create_issue` and `get_issue`). In the next step, you'll also configure an MCP (Model Context Protocol) server that gives your agent access to Weights & Biases documentation search, allowing it to answer product questions accurately.
+
+**2. Update Your Config to Enable Tools**
+
+Update your `workspace/tyler-chat-config.yaml` to include tools and MCP:
 
 ```yaml
 name: "agent"
@@ -209,31 +218,29 @@ mcp:
       url: "https://docs.wandb.ai/mcp"
 ```
 
-**Step 2: Check Your Tools**
-
-Your `workspace/tools.py` should have two functions and a `TOOLS` export:
-- `create_issue(*, title, description, priority)` - Creates a support ticket  
-- `get_issue(*, issue_id)` - Retrieves a ticket
-- `TOOLS` - A list of tool definitions in JSON format
-
 **Notice:** The tool definitions in `TOOLS` have NO descriptions or parameter details - just the function names! This is intentional - you'll add descriptions and parameters in Step 3 to teach the agent when and how to use each tool!
 
-**Step 3: Test in Weave Playground**
+**3. Test in Weave Playground**
+
+First, copy the playground server to your workspace:
+
+```bash
+cp examples/step-3/playground_server.py workspace/
+```
+
+This gives you an OpenAI-compatible API server that works with Weave Playground.
 
 **Set up API key authentication:**
 
-The playground server requires an API key for authentication. You need to:
+The playground server requires an API key for authentication. You need to create a team secret in W&B:
 
 1. **Set the API key locally** (in your `.env` file):
    ```bash
-   # Copy the example file
-   cp .env.example .env
-   
-   # Edit .env and set your API key (for the purpose of this demo, you can just use "dummy" as your secret)
+   # Edit your existing .env file and add (for the purpose of this demo, you can just use "dummy" as your secret)
    PLAYGROUND_API_KEY=your_secret_key_here
    ```
 
-2. **Create a team secret in W&B** (for Weave Playground to authenticate):
+2. **Create a team secret** (for Weave Playground to authenticate):
    
    **Note:** Only W&B Admins can create, edit, or delete secrets.
    
@@ -251,13 +258,6 @@ For more details on W&B secrets, see the [Secrets documentation](https://docs.wa
 uv run python workspace/playground_server.py
 ```
 
-**Tip**: You can specify a different config file with the `--config` flag:
-```bash
-uv run python workspace/playground_server.py --config examples/step-3/tyler-chat-config.yaml
-```
-
-Run `uv run python workspace/playground_server.py --help` to see all available options.
-
 In a **new terminal**, expose via ngrok:
 
 ```bash
@@ -268,17 +268,19 @@ Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
 
 **Connect Weave Playground:**
 
-1. Go to [Weave Playground](https://wandb.ai/playground)
-2. Click **Select a model** → **+ Add AI provider** -> **Custom provider**
+1. Go to your project in W&B and navigate to the playground
+2. In the model dropdown select **+ Add AI provider** -> **Custom provider**
 3. Fill in:
    - **Provider name**: `buzz_agent`
-   - **Base URL**: `https://abc123.ngrok-free.app/v1` (your ngrok URL + `/v1`, no trailing slash)
-   - **API key**: `BUZZ_API_KEY`
+   - **API key**: `PLAYGROUND_API_KEY`
+   - **Base URL**: y\Your ngrok URL + `/v1` (no trailing slash)
    - **Models**: Click "Add model" and enter `buzz`
 4. Click **Add provider**
 5. Select `buzz_agent/buzz` from the model dropdown
 
 **Try these prompts to test your agent:**
+
+Now select `buzz_agent/buzz` as your model, delete the default system message in the messages, and ask the model these questions:
 
 ```
 How do I initialize Weave in my Python code?
@@ -302,8 +304,8 @@ I need to create a support ticket for authentication issues
 
 **Check your traces in Weave:**
 
-1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
-2. Click **Traces** to see your Playground interactions
+1. Navigate to the Traces page in your project
+2. 
 
 **What to notice in Weave dashboard:**
 - Some traces show tool calls, others don't
