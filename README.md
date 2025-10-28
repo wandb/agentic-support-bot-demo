@@ -328,66 +328,17 @@ This is what we'll fix in Step 3.
 > 
 > ⚠️ **But you'll miss the best part!** Iteration is where Weave shines.
 
-**First, add the playground server to your workspace:**
-
-```bash
-cp examples/step-3/playground_server.py workspace/
-```
-
-This gives you the OpenAI-compatible API server that works with Weave Playground.
-
 ---
 
-### Part A: Identify the Problem
+**The Problem:**
 
-**Test your agent** with these same prompts in Weave Playground:
-
-```
-How do I initialize Weave in my Python code?
-```
-
-```
-I'm getting API timeout errors when logging predictions. Can you help?
-```
-
-```
-What's the status of ticket #123?
-```
-
-```
-Can you explain how to track model performance in wandb?
-```
-
-```
-I need to create a support ticket for authentication issues
-```
-
-**What you'll likely see:**
-- Agent responds but doesn't search docs effectively
-- Agent might not create tickets properly
-- Agent doesn't properly retrieve ticket status
+Looking at your Weave traces from Step 2, you likely noticed:
+- Agent responds but doesn't consistently use tools when it should
 - Agent doesn't feel like a "support bot" - just a generic assistant
-
-**Now use Weave to diagnose WHY:**
-
-1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
-2. Click **Traces** and find your recent interactions
-3. Click into a trace and examine:
-   - **Messages**: What did the agent say?
-   - **Tool Calls**: Were tools called? Which ones? With what arguments?
-   - **Agent Config**: Look at the config sent to the model
-
-**What you should notice:**
 - ❌ Agent has a **generic purpose** ("helpful AI assistant" - it doesn't know it's a support bot!)
 - ❌ Tool definitions are **missing descriptions and parameters** - agent doesn't know WHEN to use them or HOW!
 
-This is the problem. Weave helped you see it!
-
----
-
-### Part B: Improve Purpose & Tool Descriptions
-
-Now it's time to iterate! Instead of just giving you the answer, let's walk through what you should experiment with.
+Now it's time to fix this! Instead of just giving you the answer, let's walk through what you should experiment with.
 
 **🎯 Your Goal:** Make the agent understand its role as a Weights & Biases support bot and know when/how to use its tools.
 
@@ -525,7 +476,7 @@ TOOLS = [
 
 After making your changes:
 
-1. **Test thoroughly** with the same prompts from Part A
+1. **Test thoroughly** with the same prompts from Step 2
 2. **Check Weave traces** - compare before and after:
    - Are tools being called appropriately?
    - Are the parameters correct?
@@ -539,7 +490,7 @@ After making your changes:
 
 ---
 
-### Part C: Verify Your Improvements with Weave
+#### **Iteration 4: Verify Your Improvements**
 
 After making your changes to `purpose` and tool descriptions, it's time to see if they worked!
 
@@ -570,7 +521,7 @@ I need to create a support ticket for authentication issues
 1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
 2. Click the **Traces** tab
 3. Find your new traces (after your changes)
-4. **Compare them side-by-side** with your old traces from Part A
+4. **Compare them side-by-side** with your old traces from Step 2
 
 **3. Ask yourself:**
 - ✅ Does the agent search docs when appropriate?
