@@ -188,11 +188,6 @@ def run_evaluation(
         print(f"Running evaluation with LLM judges on {len(test_cases)} cases")
         print(f"Using Llama-3.1-8B via W&B Inference (often free or low cost)")
         print()
-        response = input("Continue? (y/n): ")
-        if response.lower() != 'y':
-            print("Evaluation cancelled")
-            sys.exit(0)
-        print()
     
     # Initialize EvaluationLogger BEFORE making LLM calls (for token tracking)
     print("Initializing EvaluationLogger...")
