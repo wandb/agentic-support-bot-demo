@@ -2,7 +2,7 @@
 # This judge evaluates agent responses for accuracy and helpfulness
 
 name: "accuracy-judge"
-model_name: "meta-llama/Llama-3.1-8B-Instruct"  # Fast and cost-effective via W&B Inference
+model_name: "openai/meta-llama/Llama-3.1-8B-Instruct"  # Fast and cost-effective via W&B Inference
 purpose: "You are an evaluation judge. Return only valid JSON."
 
 # W&B Inference endpoint configuration
