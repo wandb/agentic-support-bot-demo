@@ -78,7 +78,7 @@ def invoke_agent(agent: Agent, query: str) -> dict[str, Any]:
     
     # Run agent (non-streaming for evaluation)
     try:
-        result = agent.run(thread)
+        result = agent.go(thread)
         
         # Extract response text
         response_text = ""
