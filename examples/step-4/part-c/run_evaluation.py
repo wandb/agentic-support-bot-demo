@@ -57,7 +57,7 @@ def create_agent_from_config(config_path: str) -> Agent:
     return agent
 
 
-def invoke_agent(agent: Agent, query: str) -> dict[str, Any]:
+async def invoke_agent(agent: Agent, query: str) -> dict[str, Any]:
     """
     Invoke the agent with a single query and return structured output.
     
@@ -78,7 +78,7 @@ def invoke_agent(agent: Agent, query: str) -> dict[str, Any]:
     
     # Run agent (non-streaming for evaluation)
     try:
-        result = agent.go(thread)
+        result = await agent.go(thread)
         
         # Extract response text
         response_text = ""
@@ -119,7 +119,7 @@ def invoke_agent(agent: Agent, query: str) -> dict[str, Any]:
 # Evaluation Execution
 # ====================
 
-def run_evaluation(
+async def run_evaluation(
     dataset_name: str = "support-bot-eval-dataset",
     agent_config_path: str = "workspace/tyler-chat-config.yaml",
     sample_size: int = None,
@@ -211,7 +211,7 @@ def run_evaluation(
         
         # Invoke agent
         try:
-            output = invoke_agent(agent, test_case["input"])
+            output = await invoke_agent(agent, test_case["input"])
         except Exception as e:
             print(f"  ❌ Agent invocation failed: {e}")
             continue
@@ -322,12 +322,13 @@ Examples:
     
     args = parser.parse_args()
     
-    run_evaluation(
+    # Run the async evaluation
+    asyncio.run(run_evaluation(
         dataset_name=args.dataset,
         agent_config_path=args.config,
         sample_size=args.sample,
         use_llm_judges=not args.no_llm_judges
-    )
+    ))
 
 
 if __name__ == "__main__":
