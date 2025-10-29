@@ -78,18 +78,6 @@ Edit `.env` and add your API key and project:
 
 **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `workspace/tyler-chat-config.yaml`.
 
-4. **Set up your workspace**
-
-Copy the starter files to begin:
-
-```bash
-cp examples/step-1/* workspace/
-```
-
-This populates your workspace with:
-- `main.py` - Basic agent execution  
-- `tyler-chat-config.yaml` - Minimal agent configuration
-
 **Note:** The `workspace/` directory is gitignored - you can experiment freely and reset anytime by copying from `examples/`.
 
 ---
@@ -106,7 +94,17 @@ We'll build your agent incrementally, starting simple and adding complexity. You
 
 **Instructions:**
 
-Your `workspace/tyler-chat-config.yaml` is already set up with a minimal configuration:
+Copy the basic agent files to your workspace directory:
+
+```bash
+cp examples/step-2/part-a/* workspace/
+```
+
+This gives you:
+- `main.py` - Basic agent execution script
+- `tyler-chat-config.yaml` - Minimal agent configuration
+
+Your `workspace/tyler-chat-config.yaml` is configured with a minimal setup:
 
 ```yaml
 name: "agent"
@@ -153,16 +151,20 @@ Can you explain how to track model performance in wandb?
 I need to create a support ticket for authentication issues
 ```
 
-The agent should respond conversationally to all prompts. Now **check Weave**:
+The agent should respond conversationally to all prompts. Now **explore Weave to answer these questions**:
 
 1. Navigate to your Weave project at [agentic-support-bot-demo](https://wandb.ai) (look for `agentic-support-bot-demo` in your projects)
-2. Click **Traces** - you should see your conversation!
-3. Click into the trace to see the full interaction captured
+2. Click **Traces** - and look for the `Agent.stream` operation
+3. Click into a trace to see the full interaction captured
 
-**What to notice:**
-- ✅ Agent works and can converse
-- ✅ Weave automatically captured everything
-- ❌ Agent can't DO anything (no tools yet)
+**Answer these by exploring the Weave UI:**
+- ❓ How many traces do you see? (one per chat message?)
+- ❓ What information does Weave automatically capture about each interaction?
+- ❓ Look at the trace timeline - what steps did the agent go through to respond?
+- ❓ Can you find where the agent's response is stored in the trace?
+- ❓ Did the agent call any tools? Why or why not?
+
+**Key insight:** The agent works and Weave captured everything automatically, but the agent can't DO anything yet - it has no tools!
 
 **Chat Commands:**
 - `/quit` or `/exit` - Exit the chat
@@ -172,26 +174,24 @@ The agent should respond conversationally to all prompts. Now **check Weave**:
 
 ### Part B: Add Tools and MCP Server
 
-**What You're Accomplishing:** Give your agent capabilities (local tools + documentation search) and test in Weave Playground.
+**What You're Accomplishing:** Give your agent capabilities (local tools + documentation search) so your agent can start being more useful.
 
-> **⏭️ Want to skip ahead?** 
-> ```bash
-> cp examples/step-2/* workspace/
-> ```
-
-**1. Copy Tools to Your Workspace**
-
-Copy the starter tools file:
+**Copy the new files with tools and MCP enabled:**
 
 ```bash
-cp examples/step-2/tools.py workspace/
+cp examples/step-2/part-b/* workspace/
 ```
 
-This provides your agent with two basic tools for support ticket management (`create_issue` and `get_issue`). In the next step, you'll also configure an MCP (Model Context Protocol) server that gives your agent access to Weights & Biases documentation search, allowing it to answer product questions accurately.
+This adds to your workspace:
+- `tools.py` - Two basic tools for support ticket management (`create_issue` and `get_issue`)
+- `tyler-chat-config.yaml` - Updated config with tools and MCP enabled (replaces the one from Part A)
+- `playground_server.py` - OpenAI-compatible API server for Weave Playground testing
 
-**2. Update Your Config to Enable Tools**
+**Take a moment to open `workspace/tools.py` and look at the TOOLS list** (around line 54). Notice anything missing?
 
-Update your `workspace/tyler-chat-config.yaml` to include tools and MCP:
+**Key observation:** The tool definitions in `TOOLS` have NO descriptions or parameter details - just the function names! This is intentional - you'll add descriptions and parameters in Step 3 to teach the agent when and how to use each tool!
+
+Your updated `workspace/tyler-chat-config.yaml` now includes tools and MCP:
 
 ```yaml
 name: "agent"
@@ -218,17 +218,9 @@ mcp:
       url: "https://docs.wandb.ai/mcp"
 ```
 
-**Notice:** The tool definitions in `TOOLS` have NO descriptions or parameter details - just the function names! This is intentional - you'll add descriptions and parameters in Step 3 to teach the agent when and how to use each tool!
-
 **3. Test in Weave Playground**
 
-First, copy the playground server to your workspace:
-
-```bash
-cp examples/step-3/playground_server.py workspace/
-```
-
-This gives you an OpenAI-compatible API server that works with Weave Playground.
+Your workspace now has `playground_server.py` (copied in the previous step) - an OpenAI-compatible API server that's necessary to connect your agent to Weave Playground. This server acts as a bridge, translating between the Playground's OpenAI-format requests and your Tyler agent.
 
 **Set up API key authentication:**
 
@@ -304,7 +296,7 @@ I need to create a support ticket for authentication issues
 
 **Check your traces in Weave:**
 
-Navigate to the Traces page in your project and filter for Agent-go_stream ops (this is the function our agent uses for completions).
+Navigate to the Traces page in your project and filter for Agent.stream ops (this is the function our agent uses for completions).
 
 **What to notice in Weave dashboard:**
 - Some traces show tool calls, others don't
@@ -931,30 +923,6 @@ api_key: "${WANDB_API_KEY}"
 ```
 
 Both `workspace/accuracy-judge-config.yaml` and `workspace/safety-judge-config.yaml` use the same Llama model by default.
-
----
-
-## Project Structure
-
-```
-.
-├── workspace/              # 🎯 Your working directory - all tutorial work happens here
-│   ├── main.py             # Programmatic agent execution (starter)
-│   ├── tools.py            # Custom tool implementations (starter)
-│   ├── tyler-chat-config.yaml  # Agent configuration (starter)
-│   └── playground_server.py    # API server for Weave Playground (added in Step 3)
-├── examples/               # Complete reference implementations for each step
-│   ├── step-1/             # Basic agent setup
-│   ├── step-2/             # Tools and MCP configuration
-│   ├── step-3/             # Improved purpose and tool descriptions
-│   └── step-4/             # Evaluation dataset and scorers
-├── tests/                  # Test suite
-├── directive/              # Spec and implementation docs
-├── pyproject.toml         # Project dependencies
-└── README.md              # This file
-```
-
-**Weave Project**: All traces go to `agentic-support-bot-demo` project at [wandb.ai](https://wandb.ai)
 
 ---
 

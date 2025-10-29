@@ -17,8 +17,8 @@ class TestEnvironmentValidation:
         import sys
         from pathlib import Path
         
-        # Add step-1 to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-1"
+        # Add step-2/part-a to path
+        step1_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-a"
         sys.path.insert(0, str(step1_dir))
         
         import main as main_module
@@ -39,8 +39,8 @@ class TestEnvironmentValidation:
         import sys
         from pathlib import Path
         
-        # Add step-1 to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-1"
+        # Add step-2/part-a to path
+        step1_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-a"
         sys.path.insert(0, str(step1_dir))
         
         with patch.dict(
@@ -65,9 +65,9 @@ class TestCreateIssueTool:
         import sys
         from pathlib import Path
         
-        # Add step-1 to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-1"
-        sys.path.insert(0, str(step1_dir))
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
         
         from tools import create_issue
         
@@ -95,9 +95,9 @@ class TestCreateIssueTool:
         import sys
         from pathlib import Path
         
-        # Add step-1 to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-1"
-        sys.path.insert(0, str(step1_dir))
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
         
         from tools import create_issue
         
@@ -119,9 +119,9 @@ class TestGetIssueTool:
         import sys
         from pathlib import Path
         
-        # Add step-1 to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-1"
-        sys.path.insert(0, str(step1_dir))
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
         
         from tools import get_issue
         
@@ -141,9 +141,9 @@ class TestGetIssueTool:
         import sys
         from pathlib import Path
         
-        # Add step-1 to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-1"
-        sys.path.insert(0, str(step1_dir))
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
         
         from tools import get_issue
         
@@ -164,9 +164,9 @@ class TestToolsIntegration:
         import sys
         from pathlib import Path
         
-        # Add step-1 to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-1"
-        sys.path.insert(0, str(step1_dir))
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
         
         from tools import TOOLS
         
@@ -178,9 +178,9 @@ class TestToolsIntegration:
         import sys
         from pathlib import Path
         
-        # Add step-1 to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-1"
-        sys.path.insert(0, str(step1_dir))
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
         
         from tools import TOOLS
         
@@ -206,7 +206,7 @@ class TestConfigurationFile:
     @pytest.fixture
     def config_path(self):
         """Get path to configuration file (checks both possible names)."""
-        base_path = Path(__file__).parent.parent / "examples" / "step-1"
+        base_path = Path(__file__).parent.parent / "examples" / "step-2" / "part-a"
         # Check for tyler-chat-config.yaml first, then support-bot.yaml
         for filename in ["tyler-chat-config.yaml", "support-bot.yaml"]:
             config_file = base_path / filename
