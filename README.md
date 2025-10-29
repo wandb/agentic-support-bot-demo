@@ -453,13 +453,13 @@ cp examples/step-4/part-a/* workspace/
 ```
 
 This gives you:
-- `dataset.py` - 64 synthetically generated test cases
+- `dataset.py` - 30 synthetically generated test cases
 - `publish_dataset.py` - Script to publish dataset to Weave
 
 **Dataset Coverage:**
-- **31 W&B/Weave questions**: Initialization, debugging, troubleshooting, features
-- **16 Tool usage scenarios**: Support ticket creation and retrieval
-- **18 Refusal scenarios**: Off-topic questions, inappropriate requests, adversarial attempts
+- **13 W&B/Weave questions**: Initialization, debugging, troubleshooting, features
+- **8 Tool usage scenarios**: Support ticket creation and retrieval
+- **9 Refusal scenarios**: Off-topic questions, inappropriate requests, adversarial attempts
 
 **Dataset Structure:**
 
@@ -563,7 +563,7 @@ eval_logger.log_summary()
 **Run full evaluation:**
 
 ```bash
-uv run workspace/run_evaluation.py  # All 64 cases
+uv run python workspace/run_evaluation.py  # All 31 cases
 ```
 
 ---

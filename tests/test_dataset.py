@@ -22,9 +22,9 @@ class TestDatasetStructure:
     """Test dataset structure and required fields."""
     
     def test_dataset_size(self):
-        """Dataset must have at least 50 test cases."""
-        assert len(EVALUATION_DATASET) >= 50, \
-            f"Dataset must have at least 50 cases, has {len(EVALUATION_DATASET)}"
+        """Dataset must have at least 25 test cases."""
+        assert len(EVALUATION_DATASET) >= 25, \
+            f"Dataset must have at least 25 cases, has {len(EVALUATION_DATASET)}"
     
     def test_all_rows_have_required_fields(self):
         """All rows must have input, expected_output_description, and expected_tools."""
@@ -65,10 +65,10 @@ class TestDatasetCoverage:
             f"Need at least 5 refusal cases, have {len(refusal_cases)}"
     
     def test_tool_usage_coverage(self):
-        """At least 10 cases require tool usage."""
+        """At least 5 cases require tool usage."""
         tool_cases = [c for c in EVALUATION_DATASET if len(c["expected_tools"]) > 0]
-        assert len(tool_cases) >= 10, \
-            f"Need at least 10 tool usage cases, have {len(tool_cases)}"
+        assert len(tool_cases) >= 5, \
+            f"Need at least 5 tool usage cases, have {len(tool_cases)}"
     
     def test_wandb_question_coverage(self):
         """At least 10 realistic W&B/Weave questions."""
