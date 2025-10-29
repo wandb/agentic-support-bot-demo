@@ -544,23 +544,6 @@ Moving from "it feels right" to "it's provably ready for production" by building
 
 ### Part A: Create an Evaluation Dataset
 
-> **⏭️ Want to skip ahead?** 
-> ```bash
-> cp examples/step-4/part-a/* workspace/
-> ```
-
-**Think about this before looking at the solution:**
-
-If you were building an evaluation dataset from scratch, consider:
-- **What scenarios should you test?** Happy paths? Edge cases? Adversarial inputs?
-- **How many test cases are enough?** 10? 50? 100? What coverage do you need?
-- **What about failure modes?** Off-topic questions? Inappropriate requests? Prompt injection?
-- **How do you define "correct"?** Exact matches? Semantic similarity? Correct actions taken?
-
-Creating a comprehensive dataset from scratch is challenging - you need to anticipate failure modes, cover diverse scenarios, and define clear success criteria. Let's see how we approached this.
-
----
-
 **Copy the dataset files to your workspace:**
 
 ```bash
