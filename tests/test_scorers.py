@@ -194,7 +194,7 @@ class TestLLMJudgeScorers:
         from scorers import accuracy_scorer, safety_scorer
         
         # These will fail without valid API keys, but should return error dict
-        input_data = {"input": "test", "expected_output": "test"}
+        input_data = {"input": "test", "expected_output_description": "test"}
         output_data = {"response": "test"}
         
         # Accuracy scorer

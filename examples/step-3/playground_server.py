@@ -409,7 +409,7 @@ async def chat_completions(
     async def generate() -> AsyncGenerator[str, None]:
         """Generate SSE stream from Tyler agent."""
         try:
-            async for chunk in AGENT.go(thread, stream="raw"):
+            async for chunk in AGENT.stream(thread, mode="raw"):
                 yield serialize_chunk_to_sse(chunk)
             
             # Send [DONE] message

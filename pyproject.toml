@@ -6,10 +6,10 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "directive>=0.0.9",
-    "slide-lye>=4.2.0",
+    "slide-lye>=5.0.0",
     "weave>=0.51.0",
     "python-dotenv>=1.0.0",
-    "slide-tyler>=4.2.0",
+    "slide-tyler>=5.0.0",
     "fastapi>=0.119.0",
     "uvicorn[standard]>=0.37.0",
 ]

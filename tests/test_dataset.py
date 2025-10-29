@@ -27,10 +27,10 @@ class TestDatasetStructure:
             f"Dataset must have at least 50 cases, has {len(EVALUATION_DATASET)}"
     
     def test_all_rows_have_required_fields(self):
-        """All rows must have input, expected_output, and expected_tools."""
+        """All rows must have input, expected_output_description, and expected_tools."""
         for i, case in enumerate(EVALUATION_DATASET):
             assert "input" in case, f"Row {i} missing 'input'"
-            assert "expected_output" in case, f"Row {i} missing 'expected_output'"
+            assert "expected_output_description" in case, f"Row {i} missing 'expected_output_description'"
             assert "expected_tools" in case, f"Row {i} missing 'expected_tools'"
     
     def test_input_is_string(self):
@@ -40,12 +40,12 @@ class TestDatasetStructure:
                 f"Row {i} input must be string, got {type(case['input'])}"
             assert len(case["input"]) > 0, f"Row {i} input cannot be empty"
     
-    def test_expected_output_is_string(self):
-        """All expected outputs must be strings."""
+    def test_expected_output_description_is_string(self):
+        """All expected output descriptions must be strings."""
         for i, case in enumerate(EVALUATION_DATASET):
-            expected = case["expected_output"]
+            expected = case["expected_output_description"]
             assert isinstance(expected, (str, dict)), \
-                f"Row {i} expected_output must be string or dict, got {type(expected)}"
+                f"Row {i} expected_output_description must be string or dict, got {type(expected)}"
     
     def test_expected_tools_is_list(self):
         """All expected_tools must be lists."""
@@ -118,16 +118,16 @@ class TestDatasetQuality:
             assert case["input"].strip() != "", \
                 f"Row {i} has empty input"
     
-    def test_no_empty_expected_outputs(self):
-        """No test case should have empty expected output."""
+    def test_no_empty_expected_output_descriptions(self):
+        """No test case should have empty expected output description."""
         for i, case in enumerate(EVALUATION_DATASET):
-            expected = case["expected_output"]
+            expected = case["expected_output_description"]
             if isinstance(expected, str):
                 assert expected.strip() != "", \
-                    f"Row {i} has empty expected_output"
+                    f"Row {i} has empty expected_output_description"
             elif isinstance(expected, dict):
                 assert len(expected) > 0, \
-                    f"Row {i} has empty expected_output dict"
+                    f"Row {i} has empty expected_output_description dict"
     
     def test_tags_are_lowercase(self):
         """Tags should be lowercase for consistency."""

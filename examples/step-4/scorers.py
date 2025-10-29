@@ -70,7 +70,7 @@ def accuracy_scorer(input: dict[str, Any], output: dict[str, Any]) -> dict[str, 
     based on the expected output described in the test case.
     
     Args:
-        input: Test case containing 'input' and 'expected_output'
+        input: Test case containing 'input' and 'expected_output_description'
         output: Agent response containing 'response'
         
     Returns:
@@ -79,7 +79,7 @@ def accuracy_scorer(input: dict[str, Any], output: dict[str, Any]) -> dict[str, 
             - explanation (str): Judge's reasoning
     """
     user_question = input.get("input", "")
-    expected_content = input.get("expected_output", "")
+    expected_content = input.get("expected_output_description", "")
     actual_response = output.get("response", "")
     
     # Construct judge prompt

@@ -304,8 +304,7 @@ I need to create a support ticket for authentication issues
 
 **Check your traces in Weave:**
 
-1. Navigate to the Traces page in your project
-2. 
+Navigate to the Traces page in your project and filter for Agent-go_stream ops (this is the function our agent uses for completions).
 
 **What to notice in Weave dashboard:**
 - Some traces show tool calls, others don't
@@ -486,8 +485,6 @@ After making your changes:
    - If the agent passes wrong values, improve parameter descriptions
    - If the tone is off, refine the `purpose` statement
 
-**This is real agent development** - observe, diagnose, fix, verify, repeat!
-
 ---
 
 #### **Iteration 4: Verify Your Improvements**
@@ -518,10 +515,9 @@ I need to create a support ticket for authentication issues
 
 **2. Use Weave to compare before and after:**
 
-1. Navigate to [wandb.ai/agentic-support-bot-demo](https://wandb.ai) (`agentic-support-bot-demo` project)
-2. Click the **Traces** tab
-3. Find your new traces (after your changes)
-4. **Compare them side-by-side** with your old traces from Step 2
+Navigate to the Traces page again and filter for Agent-go_stream ops (this is the function our agent uses for completions).
+
+Find your new traces (after your changes) and **compare them side-by-side** with your old traces from Step 2
 
 **3. Ask yourself:**
 - ✅ Does the agent search docs when appropriate?
@@ -544,16 +540,9 @@ I need to create a support ticket for authentication issues
 
 ---
 
-**🎉 You just learned a core Weave workflow:**
-
-1. 🔍 **Observe** - Run your agent and examine traces
-2. 🩺 **Diagnose** - Identify what's wrong by looking at tool calls, responses, and config
-3. ✏️ **Fix** - Improve purpose, tool descriptions, or other config
-4. ✅ **Verify** - Test again and compare traces to see if it improved
-
----
-
 ## Step 4: Dataset & Evaluation - From Vibes to Production-Ready
+
+After Step 3, you have a support agent that works well in demos. But can you confidently deploy it to real users especially concidering the non deterministic nature of LLMs?
 
 **What You're Really Accomplishing:**
 
@@ -568,47 +557,41 @@ Moving from "it feels right" to "it's provably ready for production" by building
 
 ---
 
-### The Challenge: What Makes a Bot "Production-Ready"?
+### Part A: Create an Evaluation Dataset
 
-After Step 3, you have a support bot that works well in demos. But can you confidently deploy it to real users? Consider these questions:
+**Think about this before looking at the solution:**
 
-**Dataset Design Questions:**
+If you were building an evaluation dataset from scratch, consider:
 - **What scenarios should you test?** Happy paths? Edge cases? Adversarial inputs?
 - **How many test cases are enough?** 10? 50? 100? What coverage do you need?
 - **What about failure modes?** Off-topic questions? Inappropriate requests? Prompt injection?
 - **How do you define "correct"?** Exact matches? Semantic similarity? Correct actions taken?
 
-**Evaluation Questions:**
-- **How do you measure quality?** Tool usage? Answer accuracy? Tone and safety?
-- **Should you use LLM-as-judge?** What are the trade-offs vs. simple rules?
-- **What about costs?** Running 50+ test cases with LLM judges isn't free!
-- **How do you track improvements?** Compare runs? Identify regressions?
-
-**Think about this for a moment before seeing the solution.**
-
-What test cases would YOU create? What would you measure?
+Creating a comprehensive dataset from scratch is challenging - you need to anticipate failure modes, cover diverse scenarios, and define clear success criteria. Let's see how we approached this.
 
 ---
 
-**What You're Really Accomplishing:**
-
-Moving from "it feels right" to "it's provably ready for production" by building systematic evaluation. You'll create a comprehensive test dataset with 64 diverse cases and implement automated scoring to validate your agent's behavior across realistic scenarios, edge cases, and adversarial inputs.
-
-> **⏭️ Want to skip ahead?** 
-> ```bash
-> cp examples/step-4/* workspace/
-> ```
-
----
-
-### Part A: Review the Evaluation Dataset
-
-The example dataset in `examples/step-4/dataset.py` contains **64 carefully crafted test cases**:
+First, copy the dataset to your workspace:
 
 ```bash
-# View the complete dataset
-cat examples/step-4/dataset.py
+cp examples/step-4/dataset.py workspace/
 ```
+
+The dataset in `workspace/dataset.py` contains **64 synthetically generated test cases**.
+
+**How This Dataset Was Created:**
+
+For this tutorial, we used an LLM to synthetically generate diverse test cases based on common support scenarios, edge cases, and adversarial inputs. This approach is fast and helps you get started quickly with evaluation.
+
+**In Production:**
+
+In a real-world scenario, you'll want to collaborate with **subject matter experts (SMEs)** - people who deeply understand your product and customer needs. Working with SMEs has its own challenges:
+- **Time-intensive**: SMEs need to review, validate, and create test cases alongside their regular work
+- **Alignment needed**: You'll need to agree on what "good" looks like and how to measure it
+- **Iteration required**: Initial test cases often miss important scenarios that only emerge through testing
+- **Domain expertise**: SMEs bring critical knowledge about edge cases, common user mistakes, and failure modes
+
+The synthetic approach works for learning, but real production datasets benefit from human expertise and real user interactions.
 
 **Dataset Coverage:**
 - **31 W&B/Weave questions**: Initialization, debugging, troubleshooting, features
@@ -621,11 +604,13 @@ Each test case includes:
 ```python
 {
     "input": "How do I initialize Weave in Python?",
-    "expected_output": "Call weave.init() with your project name",
+    "expected_output_description": "Call weave.init() with your project name. Should mention importing weave and the basic syntax.",
     "expected_tools": [],  # Tools that should be called
     "tags": ["weave", "initialization", "factual"]
 }
 ```
+
+Note: `expected_output_description` is a description of what a good answer should contain, not an exact string to match. This is used by LLM-based scorers to evaluate response quality.
 
 **Key Insights:**
 - **Coverage matters**: 64 diverse cases reveal more issues than 200 similar ones
@@ -636,10 +621,16 @@ Each test case includes:
 
 ### Part B: Publish Dataset to Weave
 
+Copy the publish script to your workspace:
+
+```bash
+cp examples/step-4/publish_dataset.py workspace/
+```
+
 Publishing provides versioning, reproducibility, and team collaboration:
 
 ```bash
-uv run python examples/step-4/publish_dataset.py
+uv run python workspace/publish_dataset.py
 ```
 
 This script:
@@ -656,7 +647,29 @@ This script:
 
 ---
 
-### Part C: Understanding the Scorers
+### Part C: Build Evaluation Scorers
+
+Now you have a dataset, but how do you measure if the agent's responses are good?
+
+**Think about this before looking at the solution:**
+
+If you were building scorers from scratch, consider:
+- **How do you measure quality?** Tool usage? Answer accuracy? Tone and safety?
+- **Should you use LLM-as-judge?** What are the trade-offs vs. simple rules?
+- **What about costs?** Running 50+ test cases with LLM judges isn't free!
+- **How do you track improvements?** Compare runs? Identify regressions?
+
+Designing effective scorers is tricky - you need to balance accuracy, cost, and reliability. Simple rules are fast but limited; LLM judges are flexible but expensive and probabilistic. Let's see how we combined both approaches.
+
+---
+
+Copy the scorers and judge configurations to your workspace:
+
+```bash
+cp examples/step-4/scorers.py workspace/
+cp examples/step-4/accuracy-judge-config.yaml workspace/
+cp examples/step-4/safety-judge-config.yaml workspace/
+```
 
 The evaluation uses **three types of scorers** to measure different aspects:
 
@@ -706,12 +719,18 @@ def safety_scorer(input: dict, output: dict) -> dict:
 **View the complete scorers:**
 
 ```bash
-cat examples/step-4/scorers.py
+cat workspace/scorers.py
 ```
 
 ---
 
 ### Part D: Run the Evaluation
+
+Copy the evaluation script to your workspace:
+
+```bash
+cp examples/step-4/run_evaluation.py workspace/
+```
 
 ⚠️ **COST WARNING**: Full evaluation with LLM judges may incur costs depending on your W&B Inference tier (often free for reasonable usage).
 
@@ -719,7 +738,7 @@ cat examples/step-4/scorers.py
 
 ```bash
 # Test on 10 random cases first
-uv run python examples/step-4/run_evaluation.py --sample 10
+uv run python workspace/run_evaluation.py --sample 10
 ```
 
 **Understanding the EvaluationLogger Pattern:**
@@ -763,14 +782,14 @@ eval_logger.log_summary()
 
 ```bash
 # Full evaluation on all 64 cases
-uv run python examples/step-4/run_evaluation.py
+uv run python workspace/run_evaluation.py
 ```
 
 **Or skip LLM judges to save money:**
 
 ```bash
 # Only run tool correctness scorer (free!)
-uv run python examples/step-4/run_evaluation.py --no-llm-judges
+uv run python workspace/run_evaluation.py --no-llm-judges
 ```
 
 ---
@@ -851,21 +870,21 @@ After Step 4, you can confidently say:
 
 ---
 
-**Files Created:**
+**Files in Your Workspace:**
+
+After completing Step 4, your workspace should contain:
 
 ```
-examples/step-4/
+workspace/
 ├── dataset.py                    # 64 test cases
 ├── publish_dataset.py            # Publish to Weave
 ├── scorers.py                    # Rule-based + LLM judges
 ├── accuracy-judge-config.yaml    # Accuracy judge configuration
 ├── safety-judge-config.yaml      # Safety judge configuration
 └── run_evaluation.py             # EvaluationLogger workflow
-
-tests/
-├── test_dataset.py         # 18 dataset validation tests
-└── test_scorers.py         # 20 scorer unit tests
 ```
+
+These files are also available in `examples/step-4/` for reference.
 
 **Run Tests:**
 
@@ -897,7 +916,7 @@ The judges use **Llama-3.1-8B-Instruct via W&B Inference** by default (fast and 
 Edit the judge config files to use different models:
 
 ```yaml
-# examples/step-4/accuracy-judge-config.yaml
+# workspace/accuracy-judge-config.yaml
 model_name: "meta-llama/Llama-3.1-8B-Instruct"  # Default
 base_url: "https://api.inference.wandb.ai/v1"
 api_key: "${WANDB_API_KEY}"
@@ -911,7 +930,7 @@ api_key: "${WANDB_API_KEY}"
 # model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
 ```
 
-Both `accuracy-judge-config.yaml` and `safety-judge-config.yaml` use the same Llama model by default.
+Both `workspace/accuracy-judge-config.yaml` and `workspace/safety-judge-config.yaml` use the same Llama model by default.
 
 ---
 

@@ -131,7 +131,7 @@ def main():
     async def run_with_streaming():
         print("Assistant: ", end="", flush=True)
         
-        async for event in agent.go(thread, stream=True):
+        async for event in agent.stream(thread):
             if event.type == EventType.LLM_STREAM_CHUNK:
                 # Stream LLM response chunks
                 chunk = event.data.get("content_chunk", "")
