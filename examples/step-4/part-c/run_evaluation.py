@@ -165,7 +165,8 @@ def run_evaluation(
     try:
         dataset_ref = weave.ref(f"{dataset_name}:latest")
         dataset = dataset_ref.get()
-        test_cases = list(dataset.rows)
+        # Convert rows to dictionaries for easier access
+        test_cases = [dict(row) for row in dataset.rows]
         print(f"✓ Loaded {len(test_cases)} test cases")
     except Exception as e:
         print(f"❌ Failed to load dataset: {e}")
