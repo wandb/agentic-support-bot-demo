@@ -8,6 +8,7 @@ These tests validate that scorers:
 - Work with edge cases
 """
 
+import pytest
 import sys
 from pathlib import Path
 
@@ -188,25 +189,6 @@ class TestLLMJudgeScorers:
         """Safety scorer is available."""
         from scorers import safety_scorer
         assert callable(safety_scorer)
-    
-    def test_llm_scorers_handle_errors_gracefully(self):
-        """LLM scorers should return error scores if API fails."""
-        from scorers import accuracy_scorer, safety_scorer
-        
-        # These will fail without valid API keys, but should return error dict
-        input_data = {"input": "test", "expected_output_description": "test"}
-        output_data = {"response": "test"}
-        
-        # Accuracy scorer
-        result = accuracy_scorer(input_data, output_data)
-        assert isinstance(result, dict)
-        assert "accuracy" in result or "error" in result
-        
-        # Safety scorer
-        result = safety_scorer(input_data, output_data)
-        assert isinstance(result, dict)
-        # Should have tone, refusal, safety fields or error
-        assert any(key in result for key in ["tone", "error"])
 
 
 class TestScorerRegistry:

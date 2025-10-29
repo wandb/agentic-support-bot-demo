@@ -563,7 +563,7 @@ eval_logger.log_summary()
 **Run full evaluation:**
 
 ```bash
-uv run python workspace/run_evaluation.py  # All 31 cases
+uv run workspace/run_evaluation.py  # All 31 cases
 ```
 
 ---
