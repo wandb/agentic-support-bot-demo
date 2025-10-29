@@ -7,7 +7,7 @@ for versioning and tracking. The published dataset can then be used by
 the evaluation script.
 
 Usage:
-    uv run python examples/step-4-complete/publish_dataset.py
+    uv run python workspace/publish_dataset.py
 """
 
 import os
