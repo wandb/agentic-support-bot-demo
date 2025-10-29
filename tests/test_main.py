@@ -5,6 +5,19 @@ import pytest
 import yaml
 from pathlib import Path
 from unittest.mock import patch
+import importlib.util
+import tempfile
+from tinydb import TinyDB
+
+
+def load_tools_module_for_test(db_path):
+    """Load tools module with a specific DB path for testing."""
+    os.environ["TICKETS_DB_PATH"] = str(db_path)
+    tools_path = Path(__file__).parent.parent / "examples" / "step-2" / "part-b" / "tools.py"
+    spec = importlib.util.spec_from_file_location("tools_test", tools_path)
+    tools = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tools)
+    return tools
 
 
 class TestEnvironmentValidation:
@@ -62,98 +75,103 @@ class TestCreateIssueTool:
 
     def test_create_issue_returns_required_fields(self):
         """AC-2: Test that create_issue returns all required fields."""
-        import sys
-        from pathlib import Path
-        
-        # Add step-2/part-b to path (tools.py is in part-b)
-        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
-        sys.path.insert(0, str(step2_partb_dir))
-        
-        from tools import create_issue
-        
-        result = create_issue(
-            title="Test Issue",
-            description="This is a test issue"
-        )
-        
-        # Verify all required fields are present
-        assert "id" in result
-        assert "title" in result
-        assert "description" in result
-        assert "status" in result
-        assert "priority" in result
-        assert "created_at" in result
-        
-        # Verify values
-        assert result["title"] == "Test Issue"
-        assert result["description"] == "This is a test issue"
-        assert result["status"] == "open"
-        assert result["priority"] == "medium"  # default
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "test_tickets.json"
+            # Create empty DB
+            TinyDB(str(db_path)).close()
+            
+            tools = load_tools_module_for_test(db_path)
+            
+            result = tools.create_issue(
+                title="Test Issue",
+                description="This is a test issue"
+            )
+            
+            # Verify all required fields are present
+            assert "id" in result
+            assert "title" in result
+            assert "description" in result
+            assert "status" in result
+            assert "priority" in result
+            assert "created_at" in result
+            
+            # Verify values
+            assert result["title"] == "Test Issue"
+            assert result["description"] == "This is a test issue"
+            assert result["status"] == "open"
+            assert result["priority"] == "medium"  # default
 
     def test_create_issue_with_priority_parameter(self):
         """AC-2: Test that create_issue accepts priority parameter."""
-        import sys
-        from pathlib import Path
-        
-        # Add step-2/part-b to path (tools.py is in part-b)
-        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
-        sys.path.insert(0, str(step2_partb_dir))
-        
-        from tools import create_issue
-        
-        result = create_issue(
-            title="Urgent Bug",
-            description="Critical bug needs fixing",
-            priority="high"
-        )
-        
-        assert result["priority"] == "high"
-        assert result["title"] == "Urgent Bug"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "test_tickets.json"
+            # Create empty DB
+            TinyDB(str(db_path)).close()
+            
+            tools = load_tools_module_for_test(db_path)
+            
+            result = tools.create_issue(
+                title="Urgent Bug",
+                description="Critical bug needs fixing",
+                priority="high"
+            )
+            
+            assert result["priority"] == "high"
+            assert result["title"] == "Urgent Bug"
 
 
 class TestGetIssueTool:
-    """Test get_issue tool stub."""
+    """Test get_issue tool with persistence."""
 
     def test_get_issue_returns_required_fields(self):
-        """AC-3: Test that get_issue returns all required fields."""
-        import sys
-        from pathlib import Path
-        
-        # Add step-2/part-b to path (tools.py is in part-b)
-        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
-        sys.path.insert(0, str(step2_partb_dir))
-        
-        from tools import get_issue
-        
-        result = get_issue(issue_id="test-123")
-        
-        # Verify all required fields are present
-        assert "id" in result
-        assert "title" in result
-        assert "description" in result
-        assert "status" in result
-        assert "priority" in result
-        assert "created_at" in result
-        assert "updated_at" in result
+        """AC-3: Test that get_issue returns all required fields for existing ticket."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "test_tickets.json"
+            # Create empty DB
+            TinyDB(str(db_path)).close()
+            
+            tools = load_tools_module_for_test(db_path)
+            
+            # Create a ticket first
+            created = tools.create_issue(
+                title="Test Issue",
+                description="This is a test issue"
+            )
+            
+            # Now retrieve it
+            result = tools.get_issue(issue_id=created["id"])
+            
+            # Verify all required fields are present
+            assert "id" in result
+            assert "title" in result
+            assert "description" in result
+            assert "status" in result
+            assert "priority" in result
+            assert "created_at" in result
+            assert "updated_at" in result
 
     def test_get_issue_with_valid_id(self):
         """AC-3: Test that get_issue accepts issue_id parameter."""
-        import sys
-        from pathlib import Path
-        
-        # Add step-2/part-b to path (tools.py is in part-b)
-        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
-        sys.path.insert(0, str(step2_partb_dir))
-        
-        from tools import get_issue
-        
-        test_id = "issue-456"
-        result = get_issue(issue_id=test_id)
-        
-        # For stub, it should return mock data for any ID
-        assert result["id"] == test_id
-        assert isinstance(result["title"], str)
-        assert isinstance(result["description"], str)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "test_tickets.json"
+            # Create empty DB
+            TinyDB(str(db_path)).close()
+            
+            tools = load_tools_module_for_test(db_path)
+            
+            # Create a ticket
+            created = tools.create_issue(
+                title="Test Issue",
+                description="This is a test issue"
+            )
+            
+            # Retrieve it
+            result = tools.get_issue(issue_id=created["id"])
+            
+            # Should return the created ticket
+            assert result["id"] == created["id"]
+            assert isinstance(result["title"], str)
+            assert isinstance(result["description"], str)
 
 
 class TestToolsIntegration:
@@ -161,43 +179,40 @@ class TestToolsIntegration:
 
     def test_tools_module_exports_tools_list(self):
         """Test that tools.py exports a TOOLS list for tyler chat."""
-        import sys
-        from pathlib import Path
-        
-        # Add step-2/part-b to path (tools.py is in part-b)
-        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
-        sys.path.insert(0, str(step2_partb_dir))
-        
-        from tools import TOOLS
-        
-        assert isinstance(TOOLS, list)
-        assert len(TOOLS) == 2  # create_issue, get_issue
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "test_tickets.json"
+            # Create empty DB
+            TinyDB(str(db_path)).close()
+            
+            tools = load_tools_module_for_test(db_path)
+            
+            assert hasattr(tools, "TOOLS")
+            assert isinstance(tools.TOOLS, list)
+            assert len(tools.TOOLS) == 2  # create_issue, get_issue
 
     def test_tools_are_callable_functions(self):
         """Test that TOOLS contains callable functions or proper tool definitions."""
-        import sys
-        from pathlib import Path
-        
-        # Add step-2/part-b to path (tools.py is in part-b)
-        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
-        sys.path.insert(0, str(step2_partb_dir))
-        
-        from tools import TOOLS
-        
-        for tool in TOOLS:
-            # Support both direct function exports and Slide framework format
-            if isinstance(tool, dict):
-                # Slide framework format with definition and implementation
-                assert "definition" in tool
-                assert "implementation" in tool
-                assert callable(tool["implementation"])
-                # Verify the function has metadata
-                impl = tool["implementation"]
-                assert hasattr(impl, '__name__')
-            else:
-                # Direct function export
-                assert callable(tool)
-                assert hasattr(tool, '__name__')
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "test_tickets.json"
+            # Create empty DB
+            TinyDB(str(db_path)).close()
+            
+            tools = load_tools_module_for_test(db_path)
+            
+            for tool in tools.TOOLS:
+                # Support both direct function exports and Slide framework format
+                if isinstance(tool, dict):
+                    # Slide framework format with definition and implementation
+                    assert "definition" in tool
+                    assert "implementation" in tool
+                    assert callable(tool["implementation"])
+                    # Verify the function has metadata
+                    impl = tool["implementation"]
+                    assert hasattr(impl, '__name__')
+                else:
+                    # Direct function export
+                    assert callable(tool)
+                    assert hasattr(tool, '__name__')
 
 
 class TestConfigurationFile:
