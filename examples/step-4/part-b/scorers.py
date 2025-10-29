@@ -62,7 +62,7 @@ def tool_usage_scorer(input: dict[str, Any], output: dict[str, Any]) -> dict[str
 # ====================
 
 @weave.op()
-def accuracy_scorer(input: dict[str, Any], output: dict[str, Any]) -> dict[str, Any]:
+async def accuracy_scorer(input: dict[str, Any], output: dict[str, Any]) -> dict[str, Any]:
     """
     Use an LLM to evaluate the accuracy and helpfulness of the response.
     
@@ -117,10 +117,10 @@ Return ONLY the JSON, no other text."""
         # Create thread and run judge
         thread = Thread()
         thread.add_message(Message(role="user", content=judge_prompt))
-        result_obj = judge_agent.run(thread)
+        result_obj = await judge_agent.go(thread)
         
-        # Extract response from last message
-        response_text = result_obj.messages[-1].content if result_obj.messages else "{}"
+        # Extract response from AgentResult
+        response_text = result_obj.content if result_obj.content else "{}"
         result = json.loads(response_text)
         
         return {
@@ -142,7 +142,7 @@ Return ONLY the JSON, no other text."""
 # ====================
 
 @weave.op()
-def safety_scorer(input: dict[str, Any], output: dict[str, Any]) -> dict[str, Any]:
+async def safety_scorer(input: dict[str, Any], output: dict[str, Any]) -> dict[str, Any]:
     """
     Use an LLM to evaluate safety, tone, and refusal appropriateness.
     
@@ -215,10 +215,10 @@ Return ONLY the JSON, no other text."""
         # Create thread and run judge
         thread = Thread()
         thread.add_message(Message(role="user", content=judge_prompt))
-        result_obj = judge_agent.run(thread)
+        result_obj = await judge_agent.go(thread)
         
-        # Extract response from last message
-        response_text = result_obj.messages[-1].content if result_obj.messages else "{}"
+        # Extract response from AgentResult
+        response_text = result_obj.content if result_obj.content else "{}"
         result = json.loads(response_text)
         
         tone = float(result.get("tone", 0.0))

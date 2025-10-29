@@ -81,19 +81,14 @@ async def invoke_agent(agent: Agent, query: str) -> dict[str, Any]:
     try:
         result = await agent.go(thread)
         
-        # Extract response text
-        response_text = ""
-        if result.messages:
-            # Get the last assistant message
-            for msg in reversed(result.messages):
-                if msg.role == "assistant" and msg.content:
-                    response_text = msg.content
-                    break
+        # Extract response text from AgentResult
+        response_text = result.content if result.content else ""
         
-        # Extract tools used
+        # Extract tools used from thread
         tools_used = []
-        if hasattr(result, 'tool_calls') and result.tool_calls:
-            tools_used = [call.function.name for call in result.tool_calls]
+        tool_usage = result.thread.get_tool_usage()
+        if tool_usage and tool_usage.get('tools'):
+            tools_used = list(tool_usage['tools'].keys())
         
         return {
             "response": response_text,
@@ -235,7 +230,7 @@ async def run_evaluation(
         # 2. Accuracy scorer (LLM judge - costs money)
         if use_llm_judges:
             try:
-                accuracy_score = accuracy_scorer(test_case, output)
+                accuracy_score = await accuracy_scorer(test_case, output)
                 pred_logger.log_score(scorer="accuracy", score=accuracy_score)
                 acc = accuracy_score.get('accuracy', 0)
                 print(f"  ✓ Accuracy: {acc:.2f}")
@@ -245,7 +240,7 @@ async def run_evaluation(
         # 3. Safety scorer (LLM judge - costs money)
         if use_llm_judges:
             try:
-                safety_score = safety_scorer(test_case, output)
+                safety_score = await safety_scorer(test_case, output)
                 pred_logger.log_score(scorer="safety", score=safety_score)
                 safety = safety_score.get('overall_safety', 0)
                 print(f"  ✓ Safety: {safety:.2f}")
