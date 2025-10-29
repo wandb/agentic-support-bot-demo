@@ -534,22 +534,20 @@ Find your new traces (after your changes) and **compare them side-by-side** with
 
 ## Step 4: Dataset & Evaluation - From Vibes to Production-Ready
 
-After Step 3, you have a support agent that works well in demos. But can you confidently deploy it to real users especially concidering the non deterministic nature of LLMs?
+After Step 3, you have a support agent that works well in demos. But can you confidently deploy it to real users, especially considering the non-deterministic nature of LLMs?
 
 **What You're Really Accomplishing:**
 
 Moving from "it feels right" to "it's provably ready for production" by building systematic evaluation. You'll create a comprehensive test dataset and implement automated scoring to validate your agent's behavior across diverse scenarios - including edge cases and adversarial inputs you haven't tested yet.
 
-> **⏭️ Want to skip ahead?** 
-> ```bash
-> cp examples/step-4/* workspace/
-> ```
-> 
-> ⚠️ **But you'll miss the learning!** This step teaches evaluation thinking - a critical skill for production agents.
-
 ---
 
 ### Part A: Create an Evaluation Dataset
+
+> **⏭️ Want to skip ahead?** 
+> ```bash
+> cp examples/step-4/part-a/* workspace/
+> ```
 
 **Think about this before looking at the solution:**
 
@@ -563,13 +561,17 @@ Creating a comprehensive dataset from scratch is challenging - you need to antic
 
 ---
 
-First, copy the dataset to your workspace:
+**Copy the dataset files to your workspace:**
 
 ```bash
-cp examples/step-4/dataset.py workspace/
+cp examples/step-4/part-a/* workspace/
 ```
 
-The dataset in `workspace/dataset.py` contains **64 synthetically generated test cases**.
+This gives you:
+- `dataset.py` - 64 synthetically generated test cases
+- `publish_dataset.py` - Script to publish dataset to Weave
+
+The `workspace/dataset.py` contains **64 synthetically generated test cases**.
 
 **How This Dataset Was Created:**
 
@@ -613,13 +615,7 @@ Note: `expected_output_description` is a description of what a good answer shoul
 
 ### Part B: Publish Dataset to Weave
 
-Copy the publish script to your workspace:
-
-```bash
-cp examples/step-4/publish_dataset.py workspace/
-```
-
-Publishing provides versioning, reproducibility, and team collaboration:
+Your workspace already has `publish_dataset.py` (copied in Part A). Publishing provides versioning, reproducibility, and team collaboration:
 
 ```bash
 uv run python workspace/publish_dataset.py
@@ -655,13 +651,21 @@ Designing effective scorers is tricky - you need to balance accuracy, cost, and 
 
 ---
 
-Copy the scorers and judge configurations to your workspace:
+> **⏭️ Want to skip ahead?** 
+> ```bash
+> cp examples/step-4/part-b/* workspace/
+> ```
+
+**Copy the scorers and judge configurations to your workspace:**
 
 ```bash
-cp examples/step-4/scorers.py workspace/
-cp examples/step-4/accuracy-judge-config.yaml workspace/
-cp examples/step-4/safety-judge-config.yaml workspace/
+cp examples/step-4/part-b/* workspace/
 ```
+
+This gives you:
+- `scorers.py` - Rule-based and LLM-based scorers
+- `accuracy-judge-config.yaml` - Configuration for accuracy judge
+- `safety-judge-config.yaml` - Configuration for safety judge
 
 The evaluation uses **three types of scorers** to measure different aspects:
 
@@ -718,11 +722,19 @@ cat workspace/scorers.py
 
 ### Part D: Run the Evaluation
 
-Copy the evaluation script to your workspace:
+> **⏭️ Want to skip ahead?** 
+> ```bash
+> cp examples/step-4/part-c/* workspace/
+> ```
+
+**Copy the evaluation script to your workspace:**
 
 ```bash
-cp examples/step-4/run_evaluation.py workspace/
+cp examples/step-4/part-c/* workspace/
 ```
+
+This gives you:
+- `run_evaluation.py` - Complete evaluation runner using EvaluationLogger
 
 ⚠️ **COST WARNING**: Full evaluation with LLM judges may incur costs depending on your W&B Inference tier (often free for reasonable usage).
 
@@ -868,15 +880,15 @@ After completing Step 4, your workspace should contain:
 
 ```
 workspace/
-├── dataset.py                    # 64 test cases
-├── publish_dataset.py            # Publish to Weave
-├── scorers.py                    # Rule-based + LLM judges
-├── accuracy-judge-config.yaml    # Accuracy judge configuration
-├── safety-judge-config.yaml      # Safety judge configuration
-└── run_evaluation.py             # EvaluationLogger workflow
+├── dataset.py                    # Part A: 64 test cases
+├── publish_dataset.py            # Part A: Publish to Weave
+├── scorers.py                    # Part C: Rule-based + LLM judges
+├── accuracy-judge-config.yaml    # Part C: Accuracy judge configuration
+├── safety-judge-config.yaml      # Part C: Safety judge configuration
+└── run_evaluation.py             # Part D: EvaluationLogger workflow
 ```
 
-These files are also available in `examples/step-4/` for reference.
+These files are organized in `examples/step-4/part-a/`, `part-b/`, and `part-c/` for reference.
 
 **Run Tests:**
 
