@@ -97,7 +97,7 @@ Both the starter tools (step-2) and polished tools (step-3) will share the same 
 **TinyDB schema** (enforced by code, not TinyDB):
 ```python
 {
-    "id": str,           # UUID4 as string
+    "id": str,           # 5-digit random integer as string (10000-99999)
     "title": str,        # User-provided
     "description": str,  # User-provided
     "status": str,       # Always "open" for new tickets

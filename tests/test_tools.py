@@ -1,9 +1,8 @@
 """Tests for support ticket tools with TinyDB persistence."""
 
-import pytest
-import os
 from pathlib import Path
 from tinydb import TinyDB, Query
+from unittest.mock import patch
 import sys
 
 
@@ -11,7 +10,7 @@ class TestCreateIssue:
     """Tests for create_issue function."""
     
     def test_create_issue_generates_valid_id(self, temp_db_path, monkeypatch):
-        """AC: Created ticket should have a valid UUID."""
+        """AC: Created ticket should have a valid ID."""
         # Set the environment variable before import
         monkeypatch.setenv("TICKETS_DB_PATH", temp_db_path)
         
