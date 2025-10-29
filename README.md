@@ -190,7 +190,7 @@ mcp:
 
 **Test in Weave Playground**
 
-The `playground_server.py` acts as a bridge between Weave Playground (OpenAI format) and your Tyler agent.
+In order to use this agent in the playground we need to start a server locally and expose it. `playground_server.py` acts as a bridge between Weave Playground (OpenAI format) and your Tyler agent.
 
 **Set up API key authentication:**
 
@@ -637,32 +637,6 @@ uv run workspace/run_evaluation.py  # All 31 cases
 ```bash
 TYLER_DEBUG=1 uv run tyler chat --config workspace/tyler-chat-config.yaml
 ```
-
----
-
-## Testing Your Changes
-
-```bash
-# Run all tests
-uv run pytest tests/ -v
-
-# Run specific test categories
-uv run pytest tests/test_main.py::TestConfigurationFile -v
-uv run pytest tests/test_main.py::TestCreateIssueTool -v
-```
-
----
-
-## Share Your Feedback! 💬
-
-As you go through this project, please note:
-
-✅ **What worked well** - Where did Weave make your life easier?  
-⚠️ **What was confusing** - Where did you get stuck?  
-❌ **What was frustrating** - What slowed you down?  
-💡 **What's missing** - What features would have helped?
-
-Your feedback helps us build better products for AI developers.
 
 ---
 
