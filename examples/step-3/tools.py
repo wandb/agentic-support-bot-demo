@@ -1,10 +1,12 @@
 """Custom tools for the W&B support bot - Final polished version."""
 
 import os
+import random
 from datetime import datetime, timezone
-from uuid import uuid4
+from pathlib import Path
 from dotenv import load_dotenv
 import weave
+from tinydb import TinyDB, Query
 
 # Load environment variables
 load_dotenv()
@@ -16,6 +18,41 @@ if os.getenv("WANDB_API_KEY"):
         weave.init(project)
     except Exception as e:
         print(f"Warning: Failed to initialize Weave: {e}")
+
+# Database configuration
+PROJECT_ROOT = Path(__file__).parent.parent
+DB_DIR = PROJECT_ROOT / "db"
+DB_PATH = os.getenv("TICKETS_DB_PATH", str(DB_DIR / "tickets.json"))
+
+# Initialize database
+def _init_database():
+    """Initialize the ticket database, ensuring it exists."""
+    db_path = Path(DB_PATH)
+    sample_path = DB_DIR / "tickets.sample.json"
+    
+    # Ensure db directory exists
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Check if database exists
+    if not db_path.exists():
+        raise FileNotFoundError(
+            f"\n{'='*70}\n"
+            f"❌ Ticket database not found at: {db_path}\n\n"
+            f"Please set up the database by copying the sample data:\n"
+            f"  cp {sample_path} {db_path}\n\n"
+            f"This will give you 15 realistic sample tickets to work with.\n"
+            f"{'='*70}\n"
+        )
+    
+    print(f"Using ticket database at {db_path}")
+
+# Initialize on module load
+_init_database()
+
+# Get database instance
+def _get_db():
+    """Get a TinyDB instance for the ticket database."""
+    return TinyDB(DB_PATH)
 
 
 def create_issue(*, title: str, description: str, priority: str = "medium") -> dict:
@@ -49,17 +86,30 @@ def create_issue(*, title: str, description: str, priority: str = "medium") -> d
         - priority: Priority level
         - created_at: ISO timestamp of creation
     """
-    issue_id = str(uuid4())
+    # Validate priority
+    if priority not in ["low", "medium", "high"]:
+        priority = "medium"
+    
+    # Generate a simple 5-digit ticket ID
+    issue_id = str(random.randint(10000, 99999))
     created_at = datetime.now(timezone.utc).isoformat()
     
-    return {
+    ticket = {
         "id": issue_id,
         "title": title,
         "description": description,
         "status": "open",
         "priority": priority,
         "created_at": created_at,
+        "updated_at": created_at,
     }
+    
+    # Persist to database
+    db = _get_db()
+    db.insert(ticket)
+    db.close()
+    
+    return ticket
 
 
 def get_issue(*, issue_id: str) -> dict:
@@ -88,20 +138,27 @@ def get_issue(*, issue_id: str) -> dict:
         - priority: Priority level
         - created_at: When the ticket was created
         - updated_at: Last update timestamp
+        
+        Or if not found:
+        - error: Error message
+        - id: The requested ticket ID
     """
-    # Mock issue retrieval for demo purposes
-    created_at = datetime.now(timezone.utc).isoformat()
-    updated_at = datetime.now(timezone.utc).isoformat()
+    # Query database for ticket
+    db = _get_db()
+    TicketQuery = Query()
+    results = db.search(TicketQuery.id == issue_id)
+    db.close()
     
-    return {
-        "id": issue_id,
-        "title": f"Mock Issue {issue_id}",
-        "description": f"This is a mock issue retrieved for ID: {issue_id}",
-        "status": "in_progress",
-        "priority": "medium",
-        "created_at": created_at,
-        "updated_at": updated_at,
-    }
+    if results:
+        # Return the first (and should be only) matching ticket
+        return results[0]
+    else:
+        # Ticket not found
+        print(f"Ticket not found: {issue_id}")
+        return {
+            "error": "Ticket not found",
+            "id": issue_id
+        }
 
 
 # Export tools for Slide framework

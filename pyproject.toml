@@ -12,6 +12,7 @@ dependencies = [
     "slide-tyler>=5.0.0",
     "fastapi>=0.119.0",
     "uvicorn[standard]>=0.37.0",
+    "tinydb>=4.8.0",
 ]
 
 [dependency-groups]

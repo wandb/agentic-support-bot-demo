@@ -66,6 +66,9 @@ tyler_chat.db
 chat.db
 *.db-journal
 
+# Support ticket database (working copy - sample is tracked)
+db/tickets.json
+
 # Flask stuff:
 instance/
 .webassets-cache

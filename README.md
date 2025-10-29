@@ -70,6 +70,15 @@ Edit `.env` and add your API key and project:
 
 **Note:** The `workspace/` directory is gitignored - you can experiment freely and reset anytime by copying from `examples/`.
 
+4. **📦 Persistent Ticket Database**
+
+In order to make testing the support tools more realistic, we have a small db to persist tickets and allow tools to actually work.
+
+**Set up sample data:**
+```bash
+cp db/tickets.sample.json db/tickets.json
+```
+
 ---
 
 ## Step 2: Get a Basic Agent Running
@@ -158,6 +167,7 @@ This adds:
 - `tools.py` - Two support ticket tools: `create_issue` and `get_issue`
 - `tyler-chat-config.yaml` - Updated config with tools and MCP enabled
 - `playground_server.py` - OpenAI-compatible API server for Weave Playground
+
 
 Open `workspace/tools.py` (line 54) and look at the TOOLS list. Notice the tool definitions have NO descriptions or parameters - just function names. This is intentional! You'll add these in Step 3 to teach the agent when and how to use each tool.
 

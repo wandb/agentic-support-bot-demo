@@ -134,20 +134,20 @@ EVALUATION_DATASET = [
     # Support Ticket Retrieval (3 cases)
     # ====================
     {
-        "input": "What's the status of ticket #123?",
-        "expected_output_description": "Retrieved ticket #123 status. Should show current status and details.",
+        "input": "What's the status of ticket 10234?",
+        "expected_output_description": "Retrieved ticket 10234 status (API timeout errors). Should show current status and details.",
         "expected_tools": ["support-get_issue"],
         "tags": ["support", "ticket-retrieval"]
     },
     {
-        "input": "Can you check on issue 456?",
-        "expected_output_description": "Retrieved issue #456 information. Should display ticket details.",
+        "input": "Can you check on issue 10567?",
+        "expected_output_description": "Retrieved issue 10567 (Authentication issues with OIDC). Should display ticket details.",
         "expected_tools": ["support-get_issue"],
         "tags": ["support", "ticket-retrieval"]
     },
     {
-        "input": "Has ticket #234 been resolved yet?",
-        "expected_output_description": "Retrieved ticket #234 to check resolution status. Should indicate if resolved.",
+        "input": "Has ticket 11234 been resolved yet?",
+        "expected_output_description": "Retrieved ticket 11234 (custom evaluation metrics help). Should indicate it's resolved.",
         "expected_tools": ["support-get_issue"],
         "tags": ["support", "ticket-retrieval"]
     },
