@@ -121,7 +121,7 @@ def invoke_agent(agent: Agent, query: str) -> dict[str, Any]:
 
 def run_evaluation(
     dataset_name: str = "support-bot-eval-dataset",
-    agent_config_path: str = "examples/step-3-complete/tyler-chat-config.yaml",
+    agent_config_path: str = "workspace/tyler-chat-config.yaml",
     sample_size: int = None,
     use_llm_judges: bool = True
 ):
@@ -320,8 +320,8 @@ Examples:
     
     parser.add_argument(
         "--config",
-        default="examples/step-3-complete/tyler-chat-config.yaml",
-        help="Path to agent config file (default: examples/step-3-complete/tyler-chat-config.yaml)"
+        default="workspace/tyler-chat-config.yaml",
+        help="Path to agent config file (default: workspace/tyler-chat-config.yaml)"
     )
     
     args = parser.parse_args()
