@@ -1,0 +1,16 @@
+# Accuracy Judge Configuration
+# This judge evaluates agent responses for accuracy and helpfulness
+
+name: "accuracy-judge"
+model_name: "openai/meta-llama/Llama-3.1-8B-Instruct"  # Fast and cost-effective via W&B Inference
+purpose: "You are an evaluation judge. Return only valid JSON."
+
+# W&B Inference endpoint configuration
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
+
+# Judge behavior
+temperature: 0.0  # Deterministic evaluation for consistency
+response_format:
+  type: "json_object"  # Enforce JSON responses
+

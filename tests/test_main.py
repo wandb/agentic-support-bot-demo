@@ -14,6 +14,13 @@ class TestEnvironmentValidation:
     def test_missing_wandb_key_raises_error(self):
         """AC-4: Test that missing WANDB_API_KEY raises clear error."""
         import importlib
+        import sys
+        from pathlib import Path
+        
+        # Add step-2/part-a to path
+        step1_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-a"
+        sys.path.insert(0, str(step1_dir))
+        
         import main as main_module
         
         with patch.dict(os.environ, {}, clear=True):
@@ -23,9 +30,19 @@ class TestEnvironmentValidation:
                 main_module.validate_environment()
             
             assert "WANDB_API_KEY" in str(exc_info.value)
+        
+        # Clean up
+        sys.path.remove(str(step1_dir))
 
     def test_all_keys_present_succeeds(self):
         """AC-4: Test that validation succeeds when required keys present."""
+        import sys
+        from pathlib import Path
+        
+        # Add step-2/part-a to path
+        step1_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-a"
+        sys.path.insert(0, str(step1_dir))
+        
         with patch.dict(
             os.environ,
             {"WANDB_API_KEY": "test-wandb-key"},
@@ -35,6 +52,9 @@ class TestEnvironmentValidation:
             
             # Should not raise any exception
             validate_environment()
+        
+        # Clean up
+        sys.path.remove(str(step1_dir))
 
 
 class TestCreateIssueTool:
@@ -42,6 +62,13 @@ class TestCreateIssueTool:
 
     def test_create_issue_returns_required_fields(self):
         """AC-2: Test that create_issue returns all required fields."""
+        import sys
+        from pathlib import Path
+        
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
+        
         from tools import create_issue
         
         result = create_issue(
@@ -65,6 +92,13 @@ class TestCreateIssueTool:
 
     def test_create_issue_with_priority_parameter(self):
         """AC-2: Test that create_issue accepts priority parameter."""
+        import sys
+        from pathlib import Path
+        
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
+        
         from tools import create_issue
         
         result = create_issue(
@@ -82,6 +116,13 @@ class TestGetIssueTool:
 
     def test_get_issue_returns_required_fields(self):
         """AC-3: Test that get_issue returns all required fields."""
+        import sys
+        from pathlib import Path
+        
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
+        
         from tools import get_issue
         
         result = get_issue(issue_id="test-123")
@@ -97,6 +138,13 @@ class TestGetIssueTool:
 
     def test_get_issue_with_valid_id(self):
         """AC-3: Test that get_issue accepts issue_id parameter."""
+        import sys
+        from pathlib import Path
+        
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
+        
         from tools import get_issue
         
         test_id = "issue-456"
@@ -113,6 +161,13 @@ class TestToolsIntegration:
 
     def test_tools_module_exports_tools_list(self):
         """Test that tools.py exports a TOOLS list for tyler chat."""
+        import sys
+        from pathlib import Path
+        
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
+        
         from tools import TOOLS
         
         assert isinstance(TOOLS, list)
@@ -120,6 +175,13 @@ class TestToolsIntegration:
 
     def test_tools_are_callable_functions(self):
         """Test that TOOLS contains callable functions or proper tool definitions."""
+        import sys
+        from pathlib import Path
+        
+        # Add step-2/part-b to path (tools.py is in part-b)
+        step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+        sys.path.insert(0, str(step2_partb_dir))
+        
         from tools import TOOLS
         
         for tool in TOOLS:
@@ -144,7 +206,7 @@ class TestConfigurationFile:
     @pytest.fixture
     def config_path(self):
         """Get path to configuration file (checks both possible names)."""
-        base_path = Path(__file__).parent.parent
+        base_path = Path(__file__).parent.parent / "examples" / "step-2" / "part-a"
         # Check for tyler-chat-config.yaml first, then support-bot.yaml
         for filename in ["tyler-chat-config.yaml", "support-bot.yaml"]:
             config_file = base_path / filename

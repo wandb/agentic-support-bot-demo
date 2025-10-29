@@ -1,4 +1,4 @@
-"""Custom tools for the agent - Step 2b with good docstrings."""
+"""Starter tools - You'll improve these through the tutorial."""
 
 import os
 from datetime import datetime, timezone
@@ -71,4 +71,5 @@ TOOLS = [
         "implementation": get_issue
     }
 ]
+
 

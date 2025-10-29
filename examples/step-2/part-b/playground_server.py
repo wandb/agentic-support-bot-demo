@@ -68,7 +68,7 @@ class HealthResponse(BaseModel):
 
 def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict]:
     """
-    Load Tyler agent from configuration file.
+    Load Tyler agent from configuration file using Agent.from_config().
     
     Args:
         config_path: Path to the Tyler configuration YAML file
@@ -80,90 +80,7 @@ def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict
         FileNotFoundError: If config file doesn't exist
         ValueError: If config is invalid or tools can't be loaded
     """
-    
-    # Load config file
-    try:
-        with open(config_path) as f:
-            config = yaml.safe_load(f)
-        logger.info(f"Loaded configuration from {config_path}")
-    except FileNotFoundError:
-        logger.error(f"Config file not found: {config_path}")
-        raise FileNotFoundError(
-            f"Configuration file '{config_path}' not found. "
-            "Please run the server from the project root directory."
-        )
-    except yaml.YAMLError as e:
-        logger.error(f"Invalid YAML in config file: {e}")
-        raise ValueError(f"Failed to parse config file: {e}")
-    
-    # Extract agent config (handle nested structure)
-    agent_config = config.get("agent", config)  # Support both nested and flat
-    
-    # Validate required fields
-    required_fields = ["name", "model_name", "purpose"]
-    missing_fields = [f for f in required_fields if f not in agent_config]
-    if missing_fields:
-        raise ValueError(f"Missing required config fields: {', '.join(missing_fields)}")
-    
-    # Load tools dynamically
-    tools = []
-    if "tools" in config and config["tools"]:
-        tool_path = config["tools"][0]  # Get first tool path
-        logger.info(f"Loading tools from {tool_path}")
-        
-        try:
-            # Import tools module
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("custom_tools", tool_path)
-            if spec is None or spec.loader is None:
-                raise ImportError(f"Failed to load module from {tool_path}")
-            
-            tools_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(tools_module)
-            
-            # Get TOOLS list
-            if hasattr(tools_module, 'TOOLS'):
-                tools = tools_module.TOOLS
-                # Validate dict-based tool specs only
-                if not isinstance(tools, list):
-                    raise TypeError("TOOLS must be a list of dict-based tool definitions")
-                validated_tools = []
-                tool_names = []
-                for idx, t in enumerate(tools):
-                    if not isinstance(t, dict):
-                        raise TypeError(
-                            f"TOOLS[{idx}] must be a dict with 'definition' and 'implementation'"
-                        )
-                    definition = t.get('definition')
-                    implementation = t.get('implementation')
-                    if not isinstance(definition, dict):
-                        raise ValueError(
-                            f"TOOLS[{idx}].definition must be a dict"
-                        )
-                    if implementation is None:
-                        raise ValueError(
-                            f"TOOLS[{idx}] missing 'implementation'"
-                        )
-                    # Extract function name for logging
-                    name = (
-                        definition.get('function', {})
-                                  .get('name')
-                    )
-                    if not name:
-                        raise ValueError(
-                            f"TOOLS[{idx}].definition.function.name is required"
-                        )
-                    validated_tools.append(t)
-                    tool_names.append(name)
-                tools = validated_tools
-                logger.info(f"Loaded {len(tools)} tools: {tool_names}")
-            else:
-                logger.warning(f"No TOOLS list found in {tool_path}")
-        except Exception as e:
-            logger.error(f"Failed to load tools from {tool_path}: {e}")
-            raise ValueError(f"Failed to load tools: {e}")
-    
-    # Initialize Weave
+    # Initialize Weave before loading agent
     try:
         project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
         weave.init(project)
@@ -171,47 +88,27 @@ def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict
     except Exception as e:
         logger.warning(f"Weave initialization failed: {e} (observability degraded)")
     
-    # Create agent with all config fields
-    agent_kwargs = {
-        "name": agent_config["name"],
-        "model_name": agent_config["model_name"],
-        "purpose": agent_config["purpose"],
-        "tools": tools,
-        "temperature": config.get("temperature", 0.7),
-        "max_tool_iterations": config.get("max_tool_iterations", 10)
-    }
-    
-    # Add optional fields if present
-    if "base_url" in config:
-        agent_kwargs["base_url"] = config["base_url"]
-        logger.info(f"Using base_url: {config['base_url']}")
-    
-    if "api_key" in config:
-        # Support environment variable expansion (e.g., ${WANDB_API_KEY})
-        api_key = config["api_key"]
-        if api_key.startswith("${") and api_key.endswith("}"):
-            env_var = api_key[2:-1]
-            api_key = os.getenv(env_var)
-            if not api_key:
-                logger.warning(f"Environment variable {env_var} not set")
-        agent_kwargs["api_key"] = api_key
-    
-    if "reasoning" in config:
-        agent_kwargs["reasoning"] = config["reasoning"]
-        logger.info(f"Reasoning enabled: {config['reasoning']}")
-    
-    if "notes" in agent_config:
-        agent_kwargs["notes"] = agent_config["notes"]
-    
-    # Add MCP configuration if present
-    if "mcp" in config:
-        agent_kwargs["mcp"] = config["mcp"]
-        logger.info(f"MCP configuration detected: {len(config['mcp'].get('servers', []))} server(s)")
-    
-    agent = Agent(**agent_kwargs)
-    
-    logger.info(f"Agent initialized: {agent_config['name']} ({agent_config['model_name']})")
-    return agent, config
+    # Use new Agent.from_config() helper from Slide 4.2.0
+    try:
+        agent = Agent.from_config(config_path)
+        logger.info(f"Agent loaded from {config_path}")
+        
+        # Load config dict for reference
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+        
+        logger.info(f"Agent initialized: {config.get('name')} ({config.get('model_name')})")
+        return agent, config
+        
+    except FileNotFoundError:
+        logger.error(f"Config file not found: {config_path}")
+        raise FileNotFoundError(
+            f"Configuration file '{config_path}' not found. "
+            "Please run the server from the project root directory."
+        )
+    except Exception as e:
+        logger.error(f"Failed to load agent: {e}")
+        raise ValueError(f"Failed to initialize agent from config: {e}")
 
 
 # Global agent variables (initialized conditionally below)
@@ -224,7 +121,11 @@ AGENT_CONFIG = None
 if __name__ != "__main__":
     try:
         # Check for config path in environment variable
-        config_path = os.getenv("TYLER_CONFIG", "tyler-chat-config.yaml")
+        # Default to workspace directory
+        import pathlib
+        workspace_dir = pathlib.Path(__file__).parent
+        default_config = workspace_dir / "tyler-chat-config.yaml"
+        config_path = os.getenv("TYLER_CONFIG", str(default_config))
         AGENT, CONFIG = load_agent(config_path)
         AGENT_CONFIG = CONFIG.get("agent", CONFIG)
     except Exception as e:
@@ -508,7 +409,7 @@ async def chat_completions(
     async def generate() -> AsyncGenerator[str, None]:
         """Generate SSE stream from Tyler agent."""
         try:
-            async for chunk in AGENT.go(thread, stream="raw"):
+            async for chunk in AGENT.stream(thread, mode="raw"):
                 yield serialize_chunk_to_sse(chunk)
             
             # Send [DONE] message
@@ -544,6 +445,11 @@ async def chat_completions(
 
 if __name__ == "__main__":
     import uvicorn
+    import pathlib
+    
+    # Default config path is in the workspace directory
+    workspace_dir = pathlib.Path(__file__).parent
+    default_config_path = str(workspace_dir / "tyler-chat-config.yaml")
     
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
@@ -552,8 +458,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="tyler-chat-config.yaml",
-        help="Path to Tyler configuration YAML file (default: tyler-chat-config.yaml)"
+        default=default_config_path,
+        help=f"Path to Tyler configuration YAML file (default: {default_config_path})"
     )
     parser.add_argument(
         "--host",

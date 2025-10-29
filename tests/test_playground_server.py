@@ -7,7 +7,11 @@ from fastapi.testclient import TestClient
 
 # Import server components
 import sys
-sys.path.insert(0, '.')
+from pathlib import Path
+
+# Add step-2/part-b to path (where playground_server.py lives)
+step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
+sys.path.insert(0, str(step2_partb_dir))
 
 from playground_server import (
     app,
