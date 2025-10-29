@@ -247,7 +247,7 @@ For more details on W&B secrets, see the [Secrets documentation](https://docs.wa
 **Start the playground server:**
 
 ```bash
-uv run python workspace/playground_server.py
+uv run workspace/playground_server.py
 ```
 
 In a **new terminal**, expose via ngrok:
@@ -365,7 +365,7 @@ purpose: "You are a helpful AI assistant."
 **Test your changes:**
 ```bash
 # Restart the playground server
-uv run python workspace/playground_server.py
+uv run workspace/playground_server.py
 ```
 
 Try your test prompts again in Weave Playground. Does it feel more like a support bot? Check the traces to see if the purpose is helping.
@@ -456,7 +456,7 @@ TOOLS = [
 2. Restart the playground server (the tools are loaded at startup):
    ```bash
    # Stop with Ctrl+C, then restart
-   uv run python workspace/playground_server.py
+   uv run workspace/playground_server.py
    ```
 3. Test the same prompts in Weave Playground
 4. **Check Weave traces** - do you see better tool usage now?
@@ -596,12 +596,12 @@ Note: `expected_output_description` is a description of what a good answer shoul
 
 ---
 
-### Part B: Publish Dataset to Weave
+**Publish Dataset to Weave**
 
-Your workspace already has `publish_dataset.py` (copied in Part A). Publishing provides versioning, reproducibility, and team collaboration:
+Now that we have a dataset we will publish it to Weave. Publishing provides versioning, reproducibility, and team collaboration:
 
 ```bash
-uv run python workspace/publish_dataset.py
+uv run workspace/publish_dataset.py
 ```
 
 This script:
@@ -611,14 +611,12 @@ This script:
 4. Creates version history (each publish = new version)
 
 **Verify in Weave UI:**
-1. Go to https://wandb.ai/
-2. Open project: `agentic-support-bot-demo`
-3. Click **Datasets** tab
-4. Browse all 64 test cases
+
+Go to your project, find the Dataset (support-bot-eval-dataset), and browse the rows.
 
 ---
 
-### Part C: Build Evaluation Scorers
+### Part B: Build Evaluation Scorers
 
 Now you have a dataset, but how do you measure if the agent's responses are good?
 
@@ -634,11 +632,6 @@ Designing effective scorers is tricky - you need to balance accuracy, cost, and 
 
 ---
 
-> **⏭️ Want to skip ahead?** 
-> ```bash
-> cp examples/step-4/part-b/* workspace/
-> ```
-
 **Copy the scorers and judge configurations to your workspace:**
 
 ```bash
@@ -650,7 +643,7 @@ This gives you:
 - `accuracy-judge-config.yaml` - Configuration for accuracy judge
 - `safety-judge-config.yaml` - Configuration for safety judge
 
-The evaluation uses **three types of scorers** to measure different aspects:
+The evaluation uses **three types of scorers** to measure different aspects.  Open the `scorers.py` file to review them:
 
 **1. Rule-Based Scorer: Tool Correctness** (Fast, Free, Deterministic)
 
@@ -670,7 +663,7 @@ def tool_usage_scorer(input: dict, output: dict) -> dict:
 ✅ **Use for**: Objective checks (tools called, format correct)  
 ❌ **Don't use for**: Subjective quality (helpfulness, tone)
 
-**2. LLM-as-Judge: Accuracy Scorer** (Flexible, Often Free)
+**2. LLM-as-Judge: Accuracy Scorer** (Flexible)
 
 ```python
 @weave.op()
@@ -695,20 +688,9 @@ def safety_scorer(input: dict, output: dict) -> dict:
 
 ✅ **Use for**: Detecting toxic content, measuring tone, validating refusals
 
-**View the complete scorers:**
-
-```bash
-cat workspace/scorers.py
-```
-
 ---
 
-### Part D: Run the Evaluation
-
-> **⏭️ Want to skip ahead?** 
-> ```bash
-> cp examples/step-4/part-c/* workspace/
-> ```
+### Part C: Run the Evaluation
 
 **Copy the evaluation script to your workspace:**
 
@@ -719,13 +701,13 @@ cp examples/step-4/part-c/* workspace/
 This gives you:
 - `run_evaluation.py` - Complete evaluation runner using EvaluationLogger
 
-⚠️ **COST WARNING**: Full evaluation with LLM judges may incur costs depending on your W&B Inference tier (often free for reasonable usage).
+⚠️ **COST WARNING**: Full evaluation with LLM judges may incur costs as they will be making real API calls.
 
 **Start with a sample to test:**
 
 ```bash
 # Test on 10 random cases first
-uv run python workspace/run_evaluation.py --sample 10
+uv run workspace/run_evaluation.py --sample 5
 ```
 
 **Understanding the EvaluationLogger Pattern:**
@@ -769,19 +751,12 @@ eval_logger.log_summary()
 
 ```bash
 # Full evaluation on all 64 cases
-uv run python workspace/run_evaluation.py
-```
-
-**Or skip LLM judges to save money:**
-
-```bash
-# Only run tool correctness scorer (free!)
-uv run python workspace/run_evaluation.py --no-llm-judges
+uv run workspace/run_evaluation.py
 ```
 
 ---
 
-### Part E: Analyze Results in Weave UI
+**Now Analyze Results in Weave UI**
 
 After running the evaluation:
 
@@ -820,104 +795,49 @@ Group failures by tag to find:
 
 ---
 
-### What You Learned
+### What's Next: From Baseline to Better
 
-**Key Takeaways:**
+**You now have a baseline!** This is where the real work begins. With quantitative metrics, you can now iterate systematically to improve your agent.
 
-1. **Manual testing ≠ Production readiness**
-   - Ad-hoc testing misses edge cases
-   - Systematic evaluation reveals blind spots
+**Levers to Adjust:**
 
-2. **Dataset quality > Dataset size**
-   - 64 diverse cases beat 200 similar ones
-   - Refusal scenarios are critical
-   - Adversarial inputs test robustness
+**1. Purpose and Notes** (`workspace/tyler-chat-config.yaml`)
+- Make the `purpose` more specific about handling edge cases
+- Add examples of good vs bad responses in `notes`
+- Refine tone guidance (when to be technical vs. conversational)
 
-3. **Multiple scorer types work together**
-   - Rule-based: Fast, cheap, objective
-   - LLM judges: Flexible, semantic, subjective
+**2. Tool Descriptions** (`workspace/tools.py`)
+- Add examples of when to create tickets vs. just answer questions
+- Clarify priority levels with specific examples
+- Add guidance about what makes a good ticket title vs description
 
-4. **Evaluation is iterative**
-   - Run eval → identify failures → improve → re-eval
-   - Track metrics over time
+**3. Model Selection** (`workspace/tyler-chat-config.yaml`)
+- Try different models: `gpt-4.1` for better accuracy
+- Adjust `temperature` (lower for consistency, higher for creativity)
+- Experiment with `reasoning` levels for thinking tokens
 
-5. **Cost management matters**
-   - Sample first (--sample 10)
-   - Skip expensive scorers in dev
-   - Use cheaper judge models
+**4. MCP Search Strategy**
+- Review traces where docs search failed
+- Consider if the MCP server needs different queries
+- Check if agent is searching when it should just answer from knowledge
 
-**Production Readiness Checklist:**
+**Iteration Workflow:**
 
-After Step 4, you can confidently say:
-- ✅ Bot handles diverse realistic questions
-- ✅ Bot appropriately refuses off-topic/harmful requests
-- ✅ Bot uses tools correctly (measurable)
-- ✅ You have quantitative metrics
-- ✅ You can test changes systematically
+1. **Run baseline evaluation** → Identify lowest-scoring categories
+2. **Pick ONE thing to improve** → Make targeted changes
+3. **Re-run evaluation** → Compare metrics with baseline
+4. **Analyze in Weave** → Did the change help? Hurt anything else?
+5. **Repeat** → Iterate on the next weakness
 
----
+**Example Iteration:**
 
-**Files in Your Workspace:**
+If tool usage score is low (e.g., 60%):
+- Review traces where tools weren't called when they should be
+- Improve tool `description` to explain WHEN to use each tool
+- Add examples in parameter descriptions
+- Re-run eval and check if tool score improved
 
-After completing Step 4, your workspace should contain:
-
-```
-workspace/
-├── dataset.py                    # Part A: 64 test cases
-├── publish_dataset.py            # Part A: Publish to Weave
-├── scorers.py                    # Part C: Rule-based + LLM judges
-├── accuracy-judge-config.yaml    # Part C: Accuracy judge configuration
-├── safety-judge-config.yaml      # Part C: Safety judge configuration
-└── run_evaluation.py             # Part D: EvaluationLogger workflow
-```
-
-These files are organized in `examples/step-4/part-a/`, `part-b/`, and `part-c/` for reference.
-
-**Run Tests:**
-
-```bash
-uv run pytest tests/test_dataset.py tests/test_scorers.py -v
-# All 38 tests should pass ✅
-```
-
----
-
-**Cost Breakdown:**
-
-| Component | Cost per Run | Notes |
-|-----------|--------------|-------|
-| Agent calls (64 cases) | Free-$1.00 | DeepSeek via W&B Inference |
-| Accuracy judges (64) | Free-$0.50 | Llama-3.1-8B via W&B Inference |
-| Safety judges (64) | Free-$0.50 | Llama-3.1-8B via W&B Inference |
-| **Total** | **Free-$2** | Full evaluation (W&B Inference may be free) |
-
-**Cost-saving tips:**
-- Sample first: `--sample 10` to test quickly
-- Skip LLM judges: `--no-llm-judges` if you only want tool correctness
-- W&B Inference: Using Llama via W&B Inference is often free or very cheap
-
-**Customize Judge Models:**
-
-The judges use **Llama-3.1-8B-Instruct via W&B Inference** by default (fast and cost-effective).
-
-Edit the judge config files to use different models:
-
-```yaml
-# workspace/accuracy-judge-config.yaml
-model_name: "meta-llama/Llama-3.1-8B-Instruct"  # Default
-base_url: "https://api.inference.wandb.ai/v1"
-api_key: "${WANDB_API_KEY}"
-
-# Or use gpt-4.1 for higher accuracy:
-# model_name: "gpt-4.1"
-# base_url: "https://api.openai.com/v1"
-# api_key: "${OPENAI_API_KEY}"
-
-# Or use DeepSeek (same as main agent):
-# model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
-```
-
-Both `workspace/accuracy-judge-config.yaml` and `workspace/safety-judge-config.yaml` use the same Llama model by default.
+**Remember:** Evaluation is not a one-time task. As your product evolves, your dataset and scoring criteria should evolve too!
 
 ---
 
