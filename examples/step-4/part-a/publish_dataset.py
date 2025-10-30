@@ -53,10 +53,11 @@ def main():
         sys.exit(1)
     
     # Initialize Weave
+    weave_project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
     print("Initializing Weave...")
     try:
-        weave.init("agentic-support-bot-demo")
-        print("✓ Connected to Weave project: agentic-support-bot-demo")
+        weave.init(weave_project)
+        print(f"✓ Connected to Weave project: {weave_project}")
         print()
     except Exception as e:
         print(f"❌ Failed to initialize Weave: {e}")
@@ -92,7 +93,7 @@ def main():
         print("=" * 60)
         print("1. View dataset in Weave UI:")
         print("   https://wandb.ai/")
-        print("   Navigate to: agentic-support-bot-demo → Datasets tab")
+        print(f"   Navigate to: {weave_project} → Datasets tab")
         print()
         print("2. Run evaluation:")
         print("   uv run python examples/step-4-complete/run_evaluation.py")
