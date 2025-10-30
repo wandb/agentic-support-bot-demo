@@ -518,10 +518,12 @@ if __name__ == "__main__":
     logger.info(f"Authentication: Required (Bearer token)")
     logger.info("="*60)
     logger.info("")
-    logger.info("🌐 NGROK TUNNEL ACTIVE")
-    logger.info(f"   Use this Base URL in Weave Playground: {tunnel_url}/v1")
-    logger.info("")
-    logger.info("="*60)
+    
+    # Start the server
+    print("\n" + "="*60)
+    print("🌐 NGROK TUNNEL ACTIVE")
+    print(f"   Use this Base URL in Weave Playground: {tunnel_url}/v1")
+    print("="*60 + "\n")
     
     uvicorn.run(
         "playground_server:app",
