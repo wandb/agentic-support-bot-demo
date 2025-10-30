@@ -25,6 +25,8 @@ Build a support bot for Weights & Biases that can:
 - **Python 3.12+** environment
 - **GitHub** to clone the repo
 - **Terminal access** to run commands
+- **ngrok account** (free) to expose local server ([sign up here](https://dashboard.ngrok.com/signup))
+  - After signup, get your auth token from [your ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken)
 - **Weights & Biases account** ([sign up free](https://wandb.ai/authorize))
   - Your W&B API key is used for both Weave observability AND the LLM API (we use W&B Inference with DeepSeek)
 
@@ -39,7 +41,7 @@ This repo includes dependencies, configuration files, and example code so you ca
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/your-org/agentic-support-bot-demo.git
+git clone https://github.com/wandb/agentic-support-bot-demo.git
 cd agentic-support-bot-demo
 ```
 
@@ -73,10 +75,17 @@ cp .env.example .env
   - This is the Weave project where your traces, datasets, and evaluations will appear
   - **Important:** Multiple people using the same project name will overwrite each other's datasets and evaluations
 
+**c) Add your ngrok auth token:**
+- `NGROK_AUTHTOKEN` - Get your token from [ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken)
+  - Used to expose your local playground server so Weave Playground can connect to it
+  - **Note:** You need a free ngrok account to get this token
+
 Example `.env`:
 ```bash
 WANDB_API_KEY=your_api_key_here
 WANDB_PROJECT=agentic-support-bot-demo-alice  # ← Add your name here!
+NGROK_AUTHTOKEN=your_ngrok_token_here
+# PLAYGROUND_API_KEY=your_secret_key_here  # Not needed until Step 2 Part B
 ```
 
 **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `workspace/tyler-chat-config.yaml`.
@@ -109,6 +118,7 @@ Build your agent incrementally, starting simple and adding complexity. Use **Wea
 Copy the basic agent files to your workspace:
 
 ```bash
+mkdir -p workspace
 cp examples/step-2/part-a/* workspace/
 ```
 
@@ -222,28 +232,32 @@ In order to use this agent in the playground we need to start a server locally a
    PLAYGROUND_API_KEY=your_secret_key_here  # Can use "dummy" for this demo
    ```
 
-2. **Create team secret** (W&B Admins only):
-   - Navigate to team **Settings** → **Team Secrets**
+2. **Create team secret in W&B** (W&B Admins only):
+   - Navigate to your W&B project → team **Settings** → **Team Secrets**
    - Click **New secret**
    - Name: `PLAYGROUND_API_KEY`
    - Value: Same as your `.env` file
    - Click **Add secret**
 
+   **Note:** If your team already has `PLAYGROUND_API_KEY` set as a team secret, you can use any value in your `.env` file (e.g., "dummy") - the team secret takes precedence.
+
    See [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets) for details.
 
 **Start the playground server:**
+
+The server will automatically create an ngrok tunnel and display the public URL:
 
 ```bash
 uv run workspace/playground_server.py
 ```
 
-In a **new terminal**, expose via ngrok:
-
-```bash
-ngrok http 8000
+You'll see output like:
+```
+🌐 NGROK TUNNEL ACTIVE
+   Use this Base URL in Weave Playground: https://abc123.ngrok-free.app/v1
 ```
 
-Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
+Copy the URL (e.g., `https://abc123.ngrok-free.app/v1`) for the next step.
 
 **Connect Weave Playground:**
 
@@ -252,8 +266,8 @@ Copy the `https://` URL (e.g., `https://abc123.ngrok-free.app`)
 3. Fill in:
    - **Provider name**: `buzz_agent`
    - **API key**: `PLAYGROUND_API_KEY`
-   - **Base URL**: Your ngrok URL + `/v1` (no trailing slash)
-   - **Models**: Click "Add model" and enter `buzz`
+   - **Base URL**: Your ngrok URL from the server output (already includes `/v1`)
+   - **Models**: `buzz`
 4. Click **Add provider**
 5. Select `buzz_agent/buzz` from the model dropdown
 
@@ -664,6 +678,10 @@ uv run workspace/run_evaluation.py  # All 31 cases
 **Tool Execution:**
 - Tools aren't being called → Check tool descriptions, view traces in Weave to see what agent is doing
 - `Warning: Failed to initialize Weave` → Non-blocking, but check `WANDB_API_KEY` for full observability
+
+**Python Environment Issues:**
+- If you have `pyenv` or other Python version managers active, you may need to deactivate them first (`pyenv deactivate` or similar) before running `uv` commands
+- **macOS**: If you see import errors related to `magic`, install: `brew install libmagic`
 
 **Debug Mode:**
 ```bash

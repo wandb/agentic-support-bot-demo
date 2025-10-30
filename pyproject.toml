@@ -3,7 +3,7 @@ name = "agentic-support-bot"
 version = "0.1.0"
 description = "Agentic support bot powered by Tyler agent with issue management tools"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "directive>=0.0.9",
     "slide-lye>=5.0.0",
@@ -13,6 +13,7 @@ dependencies = [
     "fastapi>=0.119.0",
     "uvicorn[standard]>=0.37.0",
     "tinydb>=4.8.0",
+    "ngrok>=1.4.0",
 ]
 
 [dependency-groups]
