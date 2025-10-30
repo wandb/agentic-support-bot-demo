@@ -569,15 +569,24 @@ uv run workspace/run_evaluation.py --sample 5
 **The EvaluationLogger Pattern:**
 
 ```python
-# 1. Initialize
-eval_logger = EvaluationLogger(model="support-bot-v1", dataset="support-bot-eval-dataset")
+# 1. Load the published dataset
+dataset = weave.ref("support-bot-eval-dataset:latest").get()
 
-# 2. For each test case: invoke agent → log prediction → apply scorers
-pred_logger = eval_logger.log_prediction(inputs={"query": test_case["input"]}, output=output)
-pred_logger.log_score(scorer="tool_usage", score=tool_usage_scorer(...))
-pred_logger.finish()
+# 2. Initialize (before any LLM calls for token tracking)
+eval_logger = EvaluationLogger(
+    name="support-bot-eval",
+    model=agent.name,  # References the Weave-tracked Agent object
+    dataset=dataset  # Pass Dataset object to reference existing dataset
+)
 
-# 3. Log summary
+# 3. For each test case: invoke agent → log prediction → apply scorers
+for test_case in dataset.rows:
+    output = await invoke_agent(agent, test_case["input"])
+    pred_logger = eval_logger.log_prediction(inputs={"query": test_case["input"]}, output=output)
+    pred_logger.log_score(scorer="tool_usage", score=tool_usage_scorer(...))
+    pred_logger.finish()
+
+# 4. Log summary
 eval_logger.log_summary()
 ```
 
