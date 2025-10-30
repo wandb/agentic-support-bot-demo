@@ -22,7 +22,7 @@ Build a support bot for Weights & Biases that can:
 
 ## Prerequisites
 
-- **Python 3.13+** environment
+- **Python 3.12+** environment
 - **GitHub** to clone the repo
 - **Terminal access** to run commands
 - **ngrok account** (free) to expose local server ([sign up here](https://dashboard.ngrok.com/signup))
