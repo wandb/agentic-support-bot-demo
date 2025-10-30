@@ -446,6 +446,7 @@ async def chat_completions(
 if __name__ == "__main__":
     import uvicorn
     import pathlib
+    import ngrok
     
     # Default config path is in the workspace directory
     workspace_dir = pathlib.Path(__file__).parent
@@ -482,6 +483,12 @@ if __name__ == "__main__":
         logger.error("Example: export PLAYGROUND_API_KEY=your_secret_key")
         raise ValueError("Missing required environment variable: PLAYGROUND_API_KEY")
     
+    if not os.getenv("NGROK_AUTHTOKEN"):
+        logger.error("NGROK_AUTHTOKEN environment variable is required")
+        logger.error("Please set it in your .env file")
+        logger.error("Get your authtoken at: https://dashboard.ngrok.com/get-started/your-authtoken")
+        raise ValueError("Missing required environment variable: NGROK_AUTHTOKEN")
+    
     # Load the agent with the specified config
     try:
         AGENT, CONFIG = load_agent(args.config)
@@ -490,14 +497,30 @@ if __name__ == "__main__":
         logger.error(f"Failed to load agent with config {args.config}: {e}")
         raise
     
+    # Set up ngrok tunnel
+    logger.info("Setting up ngrok tunnel...")
+    try:
+        listener = ngrok.forward(args.port, authtoken_from_env=True)
+        tunnel_url = listener.url()
+        logger.info(f"✓ Ngrok tunnel established: {tunnel_url}")
+    except Exception as e:
+        logger.error(f"Failed to create ngrok tunnel: {e}")
+        logger.error("Make sure NGROK_AUTHTOKEN is set correctly")
+        raise
+    
     logger.info("="*60)
     logger.info("Tyler Playground API Server")
     logger.info("="*60)
     logger.info(f"Config: {args.config}")
     logger.info(f"Agent: {AGENT_CONFIG['name']} ({AGENT_CONFIG['model_name']})")
-    logger.info(f"Server: http://{args.host}:{args.port}")
+    logger.info(f"Local server: http://{args.host}:{args.port}")
     logger.info(f"Health check: http://{args.host}:{args.port}/health")
     logger.info(f"Authentication: Required (Bearer token)")
+    logger.info("="*60)
+    logger.info("")
+    logger.info("🌐 NGROK TUNNEL ACTIVE")
+    logger.info(f"   Use this Base URL in Weave Playground: {tunnel_url}/v1")
+    logger.info("")
     logger.info("="*60)
     
     uvicorn.run(
