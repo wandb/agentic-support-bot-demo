@@ -62,9 +62,22 @@ uv sync
 cp .env.example .env
 ```
 
-Edit `.env` and add your API key and project:
-- `WANDB_API_KEY` - **Required** for both Weave observability and LLM API (we use W&B Inference with DeepSeek)
-- `WANDB_PROJECT` - (Optional) Defaults to `agentic-support-bot-demo` - this is the Weave project where your traces will appear
+**Edit `.env` and configure:**
+
+**a) Add your W&B API key:**
+- `WANDB_API_KEY` - Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)
+  - Used for both Weave observability and LLM API (we use W&B Inference with DeepSeek)
+
+**b) Customize your project name:**
+- `WANDB_PROJECT` - Add a unique suffix to avoid conflicts (e.g., `agentic-support-bot-demo-yourname`)
+  - This is the Weave project where your traces, datasets, and evaluations will appear
+  - **Important:** Multiple people using the same project name will overwrite each other's datasets and evaluations
+
+Example `.env`:
+```bash
+WANDB_API_KEY=your_api_key_here
+WANDB_PROJECT=agentic-support-bot-demo-alice  # ← Add your name here!
+```
 
 **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `workspace/tyler-chat-config.yaml`.
 
@@ -135,7 +148,7 @@ The agent should respond conversationally but won't call any tools.
 
 **🔍 Explore Weave:**
 
-1. Navigate to your Weave project at [wandb.ai](https://wandb.ai) (look for `agentic-support-bot-demo`)
+1. Navigate to your Weave project at [wandb.ai](https://wandb.ai) (look for your `WANDB_PROJECT` name)
 2. Click **Traces** → filter for `Agent.stream` operations
 3. Click into a trace to see the full interaction
 
@@ -581,7 +594,7 @@ uv run workspace/run_evaluation.py  # All 31 cases
 **Analyze Results in Weave UI**
 
 **1. Navigate to Evals:**
-- Go to [wandb.ai](https://wandb.ai) → `agentic-support-bot-demo` → **Evals** tab
+- Go to [wandb.ai](https://wandb.ai) → your project (set via `WANDB_PROJECT`) → **Evals** tab
 
 **2. View aggregate metrics:**
 - Tool Usage: % correct

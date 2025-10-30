@@ -145,9 +145,10 @@ async def run_evaluation(
         sys.exit(1)
     
     # Initialize Weave (must be before EvaluationLogger for token tracking!)
+    weave_project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
     print("Initializing Weave...")
-    weave.init("agentic-support-bot-demo")
-    print("✓ Connected to Weave")
+    weave.init(weave_project)
+    print(f"✓ Connected to Weave project: {weave_project}")
     print()
     
     # Create agent
@@ -267,7 +268,7 @@ async def run_evaluation(
     print("View Results in Weave UI:")
     print("=" * 70)
     print("1. Navigate to: https://wandb.ai/")
-    print("2. Open project: agentic-support-bot-demo")
+    print(f"2. Open project: {weave_project}")
     print("3. Click 'Evals' tab to see this evaluation")
     print("4. Click into the eval to see per-prediction scores")
     print("5. Compare multiple eval runs side-by-side")
