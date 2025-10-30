@@ -165,6 +165,7 @@ async def run_evaluation(
         # Convert rows to dictionaries for easier access
         test_cases = [dict(row) for row in dataset.rows]
         print(f"✓ Loaded {len(test_cases)} test cases")
+        print(f"✓ Dataset version: {dataset_ref.uri()}")
     except Exception as e:
         print(f"❌ Failed to load dataset: {e}")
         print()
@@ -191,8 +192,8 @@ async def run_evaluation(
     print("Initializing EvaluationLogger...")
     eval_logger = EvaluationLogger(
         name="support-bot-eval",
-        model=f"{agent.name}-{agent.model_name}",
-        dataset=dataset_name
+        model=agent.name,  # References the Weave-tracked Agent object
+        dataset=dataset  # Pass the loaded Dataset object to reference existing dataset
     )
     print("✓ EvaluationLogger initialized")
     print()
