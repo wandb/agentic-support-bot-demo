@@ -117,7 +117,7 @@ Return ONLY the JSON, no other text."""
         # Create thread and run judge
         thread = Thread()
         thread.add_message(Message(role="user", content=judge_prompt))
-        result_obj = await judge_agent.go(thread)
+        result_obj = await judge_agent.run(thread)
         
         # Extract response from AgentResult
         response_text = result_obj.content if result_obj.content else "{}"
@@ -215,7 +215,7 @@ Return ONLY the JSON, no other text."""
         # Create thread and run judge
         thread = Thread()
         thread.add_message(Message(role="user", content=judge_prompt))
-        result_obj = await judge_agent.go(thread)
+        result_obj = await judge_agent.run(thread)
         
         # Extract response from AgentResult
         response_text = result_obj.content if result_obj.content else "{}"
