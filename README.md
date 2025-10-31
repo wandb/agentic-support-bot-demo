@@ -27,8 +27,15 @@ Build a support bot for Weights & Biases that can:
 - **Terminal access** to run commands
 - **ngrok account** (free) to expose local server ([sign up here](https://dashboard.ngrok.com/signup))
   - After signup, get your auth token from [your ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken)
+  - Used for Step 2 (Playground)
 - **Weights & Biases account** ([sign up free](https://wandb.ai/authorize))
   - Your W&B API key is used for both Weave observability AND the LLM API (we use W&B Inference with DeepSeek)
+- **Modal account** (free) for production deployment ([sign up](https://modal.com))
+  - Used for Step 5 (Production Deployment)
+  - Free tier: $30/month credits
+- **Slack workspace** (free) or access to create Slack apps ([create workspace](https://slack.com/get-started))
+  - Used for Step 5 (Production Deployment)
+  - Can create a free workspace if needed
 
 ---
 
@@ -680,20 +687,274 @@ Continue to **Step 5** to deploy your agent where it matters - in front of real 
 
 ## Step 5: Production Deployment 🚀
 
-> **🚧 COMING SOON**  
-> This step is currently under development. Check back soon for the full guide on deploying your agent to production!
+**Goal:** Deploy your agent to production on Modal as a Slack bot.
 
-**Goal:** Deploy your agent as a production service where real users can interact with it.
+After building confidence through systematic evaluation, it's time to deploy to production! You'll deploy your agent to Modal's cloud platform and connect it to Slack, where team members can @ mention it for help. All production conversations automatically flow to Weave traces.
 
-After iterating in the playground and building confidence through systematic evaluation, it's time to deploy your agent where it matters - in front of actual users. This step will show you how to deploy the support bot to a real communication channel like Slack where team members can interact with it.
+**Prerequisites:**
+- Completed Steps 1-4 (you have a working agent in `workspace/`)
+- Free Modal account ([sign up](https://modal.com))
+- Free Slack workspace or access to create a Slack app ([create workspace](https://slack.com/get-started))
 
-**What You'll Accomplish:**
-- Deploy your agent to a production environment (e.g., Slack, web API, or chat interface)
-- See how Weave automatically traces production conversations with zero additional code
-- Experience the same observability in production that you had in development
-- Understand the deployment patterns and infrastructure considerations
+---
 
-**Key Insight:** With Weave, your production traces look identical to your playground traces - no separate instrumentation needed. This means you can debug production issues with the same tools you used during development.
+### Part A: Deploy to Modal
+
+**Step 1: Install Modal**
+
+```bash
+pip install modal
+```
+
+**Step 2: Authenticate with Modal**
+
+```bash
+modal setup
+```
+
+This opens a browser to authenticate. Follow the prompts.
+
+**Step 3: Copy the Production Server**
+
+```bash
+cp examples/step-5/server.py workspace/
+```
+
+**Step 4: Configure Modal Secrets**
+
+Set your W&B and Playground API keys as Modal secrets:
+
+```bash
+modal secret create wandb-secrets \
+  WANDB_API_KEY=<your-wandb-api-key> \
+  PLAYGROUND_API_KEY=<your-playground-api-key>
+```
+
+Replace placeholders with your actual keys:
+- Get `WANDB_API_KEY` from [wandb.ai/authorize](https://wandb.ai/authorize)
+- Use the same `PLAYGROUND_API_KEY` from your `.env` file (or set a new one)
+
+**Step 5: Deploy to Modal**
+
+```bash
+modal deploy workspace/server.py
+```
+
+You'll see output like:
+```
+✓ Created objects.
+├── 🔨 Created mount /Users/you/project/workspace
+└── 🔨 Created tyler-production-server.fastapi_app
+✓ App deployed! 🎉
+
+View Deployment: https://modal.com/apps/...
+```
+
+**Step 6: Get Your Deployment URL**
+
+```bash
+modal app list
+```
+
+Look for `tyler-production-server` and note the URL. It will look like:
+```
+https://username--tyler-production-server-fastapi-app.modal.run
+```
+
+**Step 7: Test the Health Endpoint**
+
+```bash
+curl https://your-modal-url/health
+```
+
+You should see:
+```json
+{"status":"healthy","timestamp":"2025-10-31T12:00:00Z"}
+```
+
+✅ **Your agent is now deployed to Modal!** Next, connect it to Slack.
+
+---
+
+### Part B: Create Slack App
+
+**Step 1: Create a New Slack App**
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps)
+2. Click **Create New App**
+3. Choose **From scratch**
+4. App Name: `W&B Support Bot` (or your choice)
+5. Workspace: Select your workspace
+6. Click **Create App**
+
+**Step 2: Configure Bot Token Scopes**
+
+1. In your app settings, go to **OAuth & Permissions** (left sidebar)
+2. Scroll to **Scopes** → **Bot Token Scopes**
+3. Click **Add an OAuth Scope** and add these scopes:
+   - `app_mentions:read` - Read @ mentions
+   - `chat:write` - Post messages as the bot
+   - `channels:history` - Read channel messages (optional)
+   - `im:history` - Read DM history (optional)
+
+**Step 3: Enable Event Subscriptions**
+
+1. Go to **Event Subscriptions** (left sidebar)
+2. Toggle **Enable Events** to **On**
+3. In **Request URL**, enter:
+   ```
+   https://your-modal-url/slack/events
+   ```
+   Replace `your-modal-url` with your actual Modal deployment URL from Part A, Step 6.
+
+4. Wait for Slack to verify the URL (it will show a green checkmark ✓ if successful)
+
+5. Scroll to **Subscribe to bot events**
+6. Click **Add Bot User Event** and add:
+   - `app_mention` - When someone @ mentions your bot
+
+7. Click **Save Changes** at the bottom
+
+**Step 4: Install App to Workspace**
+
+1. Go to **Install App** (left sidebar)
+2. Click **Install to Workspace**
+3. Review permissions and click **Allow**
+4. You'll see **Bot User OAuth Token** - copy this token (starts with `xoxb-`)
+
+**Step 5: Get App Credentials**
+
+You need two credentials from your Slack app:
+
+**a) Bot Token** (from step 4 above):
+- Go to **OAuth & Permissions**
+- Copy **Bot User OAuth Token** (starts with `xoxb-`)
+
+**b) Signing Secret**:
+- Go to **Basic Information**
+- Scroll to **App Credentials**
+- Copy **Signing Secret**
+
+**Step 6: Add Slack Credentials to Modal**
+
+```bash
+modal secret create slack-secrets \
+  SLACK_BOT_TOKEN=xoxb-your-bot-token \
+  SLACK_SIGNING_SECRET=your-signing-secret
+```
+
+Replace with your actual values from Step 5.
+
+**Step 7: Redeploy with Slack Credentials**
+
+```bash
+modal deploy workspace/server.py
+```
+
+The server will now load with Slack integration enabled.
+
+---
+
+### Part C: Test Your Production Bot
+
+**Step 1: Invite Bot to a Channel**
+
+1. In Slack, go to any channel (or create a test channel)
+2. Type `/invite @W&B Support Bot`
+3. The bot will join the channel
+
+**Step 2: @ Mention the Bot**
+
+Type a message like:
+```
+@W&B Support Bot how do I initialize Weave in Python?
+```
+
+**Step 3: Get Response**
+
+The bot should respond in a thread within a few seconds!
+
+**Step 4: Check Weave Traces**
+
+1. Go to your W&B project → **Weave** → **Traces**
+2. Filter for recent traces
+3. Click into a trace to see:
+   - User's Slack message
+   - Agent reasoning
+   - Tool calls
+   - LLM requests
+   - Full conversation context
+
+✅ **Your agent is live in production!**
+
+---
+
+### Part D: Test Weave Playground (Optional)
+
+You can also use Weave Playground to chat with your production deployment:
+
+1. Go to your W&B project → **Weave** → **Playground**
+2. In model dropdown: **+ Add AI provider** → **Custom provider**
+3. Fill in:
+   - **Provider name**: `production-bot`
+   - **API key**: `PLAYGROUND_API_KEY` (team secret or your value)
+   - **Base URL**: `https://your-modal-url/v1`
+   - **Models**: `buzz`
+4. Select `production-bot/buzz` from dropdown
+5. Chat with your production agent!
+
+Both Slack and Playground conversations appear in the same Weave traces.
+
+---
+
+### Troubleshooting
+
+**Modal Deployment Issues:**
+
+- `Secret not found` → Run `modal secret list` to verify secrets are created
+- `Import error: tyler` → Make sure Modal image includes all dependencies (check server.py Modal config)
+- `Agent config not found` → Ensure `tyler-chat-config.yaml` is in workspace directory
+
+**Slack Webhook Verification Failed:**
+
+- Check your Modal URL is correct in Slack Event Subscriptions
+- Verify URL ends with `/slack/events`
+- Make sure deployment is running: `modal app list`
+- Check Modal logs: `modal app logs tyler-production-server`
+
+**Bot Not Responding:**
+
+1. Check Modal logs: `modal app logs tyler-production-server`
+2. Verify Slack secrets are set: `modal secret list`
+3. Test health endpoint: `curl https://your-modal-url/health`
+4. Check Weave traces for errors
+5. Make sure bot is invited to the channel
+
+**Viewing Logs:**
+
+```bash
+# View real-time logs
+modal app logs tyler-production-server --follow
+
+# View last 100 lines
+modal app logs tyler-production-server -n 100
+```
+
+**Cold Start (First Request Slow):**
+
+The first @ mention after idle may take 5-10 seconds while Modal starts the container. This is normal. Subsequent requests will be faster.
+
+---
+
+### What's Next: Production Monitoring
+
+**You now have a production agent!** Continue to **Step 6** to set up:
+- Real-time monitoring dashboards
+- User feedback collection (👍/👎 reactions)
+- Production performance metrics
+- Quality monitoring with Weave
+
+All production conversations are already flowing to Weave traces, ready for analysis in Step 6! 🎉
 
 ---
 
