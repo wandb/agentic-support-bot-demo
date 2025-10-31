@@ -676,8 +676,6 @@ Continue to **Step 5** to deploy your agent where it matters - in front of real 
 - Build datasets from production data
 - Create a continuous improvement loop
 
-The journey from playground to production is where Weave truly shines! ⚡
-
 ---
 
 ## Step 5: Production Deployment 🚀
@@ -714,8 +712,6 @@ Offline evaluations tell you how the agent *should* perform. Production monitori
 - Use Weave's feedback API to associate user reactions with specific traces
 - Identify patterns in failures by analyzing poorly-rated conversations
 - Optionally set up automated monitors that score production traffic in the background
-
-**Key Insight:** Weave's trace query API lets you build custom dashboards and analysis on top of your production data. User feedback gets linked directly to traces, so you can instantly see what went wrong in conversations that users disliked.
 
 ---
 
