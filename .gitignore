@@ -216,3 +216,6 @@ __marimo__/
 
 # Workspace - User's working directory for tutorial (not tracked)
 workspace/
+
+# macOS
+.DS_Store
