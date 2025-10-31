@@ -119,7 +119,7 @@ Copy the basic agent files to your workspace:
 
 ```bash
 mkdir -p workspace
-cp examples/step-2/part-a/* workspace/
+cp examples/step-2/part-a/*.{py,yaml} workspace/
 ```
 
 This gives you:
@@ -183,7 +183,7 @@ The agent should respond conversationally but won't call any tools.
 Copy the new files with tools and MCP enabled:
 
 ```bash
-cp examples/step-2/part-b/* workspace/
+cp examples/step-2/part-b/*.{py,yaml} workspace/
 ```
 
 This adds:
@@ -313,7 +313,7 @@ This is what we'll fix in Step 3.
 
 **What You're Learning:** The core Weave workflow - **observe → diagnose → fix → verify**.
 
-> **⏭️ Want to skip ahead?** `cp examples/step-3/* workspace/`  
+> **⏭️ Want to skip ahead?** `cp examples/step-3/*.{py,yaml} workspace/`  
 > ⚠️ **But you'll miss the best part!** Iteration is where Weave shines.
 
 **The Problem:**
@@ -486,7 +486,7 @@ After Step 3, your agent works well in demos. But can you confidently deploy it 
 Copy the dataset files to your workspace:
 
 ```bash
-cp examples/step-4/part-a/* workspace/
+cp examples/step-4/part-a/*.py workspace/
 ```
 
 This gives you:
@@ -542,7 +542,7 @@ We'll use a combination of **rule-based scorers** (fast, deterministic) and **LL
 Copy the scorers and judge configurations:
 
 ```bash
-cp examples/step-4/part-b/* workspace/
+cp examples/step-4/part-b/*.{py,yaml} workspace/
 ```
 
 This gives you:
@@ -567,7 +567,7 @@ Open `scorers.py` to see the implementation details.
 Copy the evaluation script:
 
 ```bash
-cp examples/step-4/part-c/* workspace/
+cp examples/step-4/part-c/*.py workspace/
 ```
 
 This gives you:

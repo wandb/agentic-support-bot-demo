@@ -79,7 +79,7 @@ async def invoke_agent(agent: Agent, query: str) -> dict[str, Any]:
     
     # Run agent (non-streaming for evaluation)
     try:
-        result = await agent.go(thread)
+        result = await agent.run(thread)
         
         # Extract response text from AgentResult
         response_text = result.content if result.content else ""
