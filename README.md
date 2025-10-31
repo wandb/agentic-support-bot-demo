@@ -4,7 +4,7 @@
 
 Using our own products regularly helps us better empathize with and understand our users' needs. This repo provides a streamlined guide to experience how Weave works in a typical AI development workflow.
 
-**In under 30 minutes, you'll go from zero to a production-ready support bot with systematic evaluation.**
+**Go from zero to a production-deployed support bot with systematic evaluation, real-time monitoring, and continuous improvement.**
 
 ## Project
 
@@ -662,6 +662,278 @@ uv run workspace/run_evaluation.py  # All 31 cases
 5. Repeat → Iterate on the next weakness
 
 **Example:** If tool usage is low (60%), review traces where tools weren't called → improve tool `description` → add examples → re-run eval.
+
+---
+
+### Ready for Production?
+
+At this point, your agent works well in the playground and you have confidence from systematic evaluation. **But the real test is production.** 
+
+Continue to **Step 5** to deploy your agent where it matters - in front of real users. You'll learn how to:
+- Deploy as a Slack bot (or other channels)
+- Monitor production performance in real-time
+- Collect user feedback to identify failures
+- Build datasets from production data
+- Create a continuous improvement loop
+
+The journey from playground to production is where Weave truly shines! ⚡
+
+---
+
+## Step 5: Production Deployment 🚀
+
+> **🚧 COMING SOON**  
+> This step is currently under development. Check back soon for the full guide on deploying your agent to production!
+
+**Goal:** Deploy your agent as a production service where real users can interact with it.
+
+After iterating in the playground and building confidence through systematic evaluation, it's time to deploy your agent where it matters - in front of actual users. In this step, you'll deploy the support bot as a **Slack bot** that your team can interact with in real channels.
+
+**What You'll Learn:**
+- How to deploy an agent as a Slack bot using the Slack Bolt SDK
+- How Weave automatically traces production conversations without code changes
+- How to maintain the same agent configuration from playground to production
+- How to handle production errors and rate limiting
+
+---
+
+### Part A: Slack Bot Deployment
+
+**Goal:** Get your agent running in Slack where team members can @ mention it for help.
+
+Copy the deployment files to your workspace:
+
+```bash
+cp examples/step-5/part-a/*.{py,yaml} workspace/
+```
+
+This gives you:
+- `slack_bot.py` - Slack bot server using Slack Bolt SDK
+- `slack-config.yaml` - Environment configuration for Slack integration
+
+**Set up Slack app:**
+
+1. Create a new Slack app at [api.slack.com/apps](https://api.slack.com/apps)
+2. Configure bot permissions and event subscriptions
+3. Add required environment variables to `.env`
+4. Install the app to your workspace
+
+**Deploy and test:**
+
+```bash
+uv run workspace/slack_bot.py
+```
+
+> **Detailed instructions coming soon!**
+
+**🔍 Check Weave:**
+- Navigate to Traces → filter for production conversations
+- Notice: Same trace structure as playground, but now from real Slack messages
+- Click into traces to see full context of user questions and bot responses
+
+---
+
+### Part B: Alternative Deployment Options
+
+**Goal:** Understand other deployment patterns for different use cases.
+
+> **Details coming soon!**
+
+Options covered:
+- **FastAPI endpoint** - REST API for web/mobile apps
+- **Chat widget** - Embeddable widget for websites
+- **Teams/Discord** - Other messaging platforms
+
+---
+
+## Step 6: Online Monitoring & Feedback Collection 📊
+
+> **🚧 COMING SOON**  
+> This step is currently under development. Check back soon for the full guide on production monitoring!
+
+**Goal:** Monitor how your agent performs with real users and collect feedback to identify areas for improvement.
+
+Offline evaluations tell you how the agent *should* perform. Production monitoring tells you how it *actually* performs. In this step, you'll set up real-time monitoring and capture user feedback to close the loop between deployment and improvement.
+
+---
+
+### Part A: Real-time Production Monitoring
+
+**Goal:** Build a custom dashboard to track agent performance in production.
+
+Copy the monitoring files to your workspace:
+
+```bash
+cp examples/step-6/part-a/*.py workspace/
+```
+
+This gives you:
+- `monitoring_dashboard.py` - Streamlit dashboard for production metrics
+- `dashboard_queries.py` - Weave API queries for fetching trace data
+
+**Run the dashboard:**
+
+```bash
+uv run workspace/monitoring_dashboard.py
+```
+
+> **Detailed instructions coming soon!**
+
+**Dashboard features:**
+- **Latency over time** - Track response time trends
+- **Token usage & costs** - Monitor spending patterns
+- **Tool call frequency** - See which tools are being used
+- **Volume metrics** - Conversations per hour/day
+- **Error rates** - Track failures and exceptions
+
+**🔍 Weave Integration:**
+- Uses Weave's trace query API to fetch production data
+- Automatic cost tracking from LLM calls
+- Filter by time range, user, or conversation type
+
+---
+
+### Part B: User Feedback Collection
+
+**Goal:** Capture user reactions to improve the agent systematically.
+
+Copy the feedback files to your workspace:
+
+```bash
+cp examples/step-6/part-b/*.py workspace/
+```
+
+This gives you:
+- Updated `slack_bot.py` with reaction handlers
+- `feedback_analysis.py` - Scripts to analyze feedback patterns
+
+**Feedback features:**
+- Add 👍/👎 emoji reactions in Slack
+- Automatically logged to Weave using the feedback API
+- View feedback alongside traces in Weave UI
+- Filter traces by feedback score to find failures
+
+> **Detailed instructions coming soon!**
+
+**🔍 Analyze in Weave:**
+- Navigate to Traces → add Feedback column
+- Filter for 👎 reactions to identify problems
+- Group by topic/tool to spot patterns
+- Export poorly-rated conversations to dataset
+
+---
+
+### Part C: Automated Quality Monitoring (Optional)
+
+**Goal:** Use Weave monitors to automatically score production conversations.
+
+> **Details coming soon!**
+
+**What are monitors?**
+- Background process that watches your production traces
+- Automatically applies LLM-as-judge scorers to a subset of conversations
+- No manual scoring needed - runs continuously
+- Alerts when quality drops below threshold
+
+**Use cases:**
+- Track accuracy drift over time
+- Catch safety issues in production
+- Identify when tool usage degrades
+- Monitor specific conversation types
+
+---
+
+## Step 7: Continuous Improvement Loop 🔄
+
+> **🚧 COMING SOON**  
+> This step is currently under development. Check back soon for the full guide on continuous improvement!
+
+**Goal:** Use production data to systematically improve your agent over time.
+
+This is where everything comes together: evaluation → deployment → monitoring → improvement. You'll learn how to build a dataset from real usage, run regression tests, and safely deploy improvements.
+
+---
+
+### Part A: Building Datasets from Production
+
+**Goal:** Turn production failures into test cases for continuous improvement.
+
+Copy the dataset building files to your workspace:
+
+```bash
+cp examples/step-7/part-a/*.py workspace/
+```
+
+This gives you:
+- `export_prod_cases.py` - Export poorly-rated conversations
+- `enrich_dataset.py` - Add production examples to evaluation dataset
+
+**Workflow:**
+
+1. **Identify failure cases:**
+   - Filter traces by 👎 feedback or low monitor scores
+   - Review conversations where agent struggled
+   - Export as new test cases
+
+2. **Enrich dataset:**
+   - Add production examples to `support-bot-eval-dataset`
+   - Tag by failure type (tool usage, accuracy, safety)
+   - Version dataset in Weave
+
+3. **Verify coverage:**
+   - Ensure dataset now covers real user patterns
+   - Check for edge cases from production
+
+> **Detailed instructions coming soon!**
+
+---
+
+### Part B: Regression Testing & Safe Deployment
+
+**Goal:** Ensure improvements don't break existing functionality.
+
+Copy the regression testing files to your workspace:
+
+```bash
+cp examples/step-7/part-b/*.py workspace/
+```
+
+This gives you:
+- `regression_check.py` - Run evals before deploying changes
+- `deploy_checklist.md` - Pre-deployment verification steps
+
+**Deployment workflow:**
+
+1. **Make agent improvements** (based on production insights)
+2. **Run full evaluation** on updated dataset (now includes prod cases)
+3. **Compare metrics** with baseline using leaderboard
+4. **Verify:**
+   - ✅ Target metrics improved?
+   - ✅ No regressions in other areas?
+   - ✅ All prod failure cases now pass?
+5. **Deploy with confidence**
+
+> **Detailed instructions coming soon!**
+
+---
+
+### Part C: A/B Testing in Production (Bonus)
+
+**Goal:** Safely test agent improvements with real users.
+
+> **Details coming soon!**
+
+**What you'll learn:**
+- Deploy two agent versions simultaneously
+- Route traffic based on user/channel
+- Compare production metrics in Weave
+- Promote winning variant automatically
+
+**Use cases:**
+- Test prompt variations
+- Compare different models
+- Validate tool description changes
+- Experiment with temperature/reasoning settings
 
 ---
 
