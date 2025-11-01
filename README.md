@@ -196,7 +196,7 @@ cp examples/step-2/part-b/*.{py,yaml} workspace/
 This adds:
 - `tools.py` - Two support ticket tools: `create_issue` and `get_issue`
 - `tyler-chat-config.yaml` - Updated config with tools and MCP enabled
-- `playground_server.py` - OpenAI-compatible API server for Weave Playground
+- `server.py` - OpenAI-compatible API server for Weave Playground
 
 
 Open `workspace/tools.py` (line 54) and look at the TOOLS list. Notice the tool definitions have NO descriptions or parameters - just function names. This is intentional! You'll add these in Step 3 to teach the agent when and how to use each tool.
@@ -230,7 +230,7 @@ mcp:
 
 **Test in Weave Playground**
 
-In order to use this agent in the playground we need to start a server locally and expose it. `playground_server.py` acts as a bridge between Weave Playground (OpenAI format) and your Tyler agent.
+In order to use this agent in the playground we need to start a server locally and expose it. `server.py` acts as a bridge between Weave Playground (OpenAI format) and your Tyler agent.
 
 **Set up API key authentication:**
 
@@ -255,7 +255,7 @@ In order to use this agent in the playground we need to start a server locally a
 The server will automatically create an ngrok tunnel and display the public URL:
 
 ```bash
-uv run workspace/playground_server.py
+uv run workspace/server.py
 ```
 
 You'll see output like:
@@ -351,7 +351,7 @@ Open `workspace/tyler-chat-config.yaml` - the `purpose` field is currently `"You
 
 💡 **Stuck?** See `examples/step-3/tyler-chat-config.yaml` for inspiration, but try your own first!
 
-**Test:** Restart playground server (`uv run workspace/playground_server.py`) and try the test prompts.
+**Test:** Restart playground server (`uv run workspace/server.py`) and try the test prompts.
 
 **🔍 Observe in Weave:** Does it feel more like a support bot? Check traces to see how `purpose` influences behavior.
 
@@ -414,7 +414,7 @@ Open `tools.py` (line 54). The `TOOLS` list currently has no descriptions or par
 
 💡 **Stuck?** See `examples/step-3/tools.py` for fully documented definitions, but try your own first!
 
-**Test:** Save `tools.py` → restart playground server (`uv run workspace/playground_server.py`) → test the prompts.
+**Test:** Save `tools.py` → restart playground server (`uv run workspace/server.py`) → test the prompts.
 
 **🔍 Observe in Weave:** Do you see better tool usage now?
 
@@ -714,13 +714,7 @@ modal setup
 
 This opens a browser to authenticate. Follow the prompts.
 
-**Step 3: Copy the Production Server**
-
-```bash
-cp examples/step-5/server.py workspace/
-```
-
-**Step 4: Configure Modal Secrets**
+**Step 3: Configure Modal Secrets**
 
 Set your W&B and Playground API keys as Modal secrets:
 
@@ -734,7 +728,9 @@ Replace placeholders with your actual keys:
 - Get `WANDB_API_KEY` from [wandb.ai/authorize](https://wandb.ai/authorize)
 - Use the same `PLAYGROUND_API_KEY` from your `.env` file (or set a new one)
 
-**Step 5: Deploy to Modal**
+**Step 4: Deploy to Modal**
+
+Deploy the same `server.py` you've been using locally:
 
 ```bash
 modal deploy workspace/server.py
@@ -750,7 +746,7 @@ You'll see output like:
 View Deployment: https://modal.com/apps/...
 ```
 
-**Step 6: Get Your Deployment URL**
+**Step 5: Get Your Deployment URL**
 
 ```bash
 modal app list
@@ -761,7 +757,7 @@ Look for `tyler-production-server` and note the URL. It will look like:
 https://username--tyler-production-server-fastapi-app.modal.run
 ```
 
-**Step 7: Test the Health Endpoint**
+**Step 6: Test the Health Endpoint**
 
 ```bash
 curl https://your-modal-url/health
@@ -772,7 +768,7 @@ You should see:
 {"status":"healthy","timestamp":"2025-10-31T12:00:00Z"}
 ```
 
-✅ **Your agent is now deployed to Modal!** Next, connect it to Slack.
+✅ **Your agent is now deployed to Modal!** The same server that worked locally with ngrok now runs in the cloud. Next, connect it to Slack.
 
 ---
 
