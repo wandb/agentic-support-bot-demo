@@ -36,6 +36,7 @@ Attach this file + the feature spec to the agent for every build.
 - Add inline comments for non-obvious logic  
 
 ## Commit & PR Conventions
+- Only commit work when explicitly asked. Do not auto commit changes.
 - Conventional commits (`feat:`, `fix:`, `chore:`)  
 - Every PR must include a Spec Card (`directive/specs/feature-name.md`)  
 

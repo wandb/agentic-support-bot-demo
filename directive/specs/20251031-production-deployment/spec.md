@@ -174,14 +174,18 @@ The `server.py` (unified from Step 2) handles:
    - Only activates if SLACK_BOT_TOKEN is configured
    - Gracefully skipped if not configured
 
-### Modal Secrets Required
-**Core (required):**
+### Modal Secrets (buzz-secrets)
+All secrets stored in a single Modal secret group called `buzz-secrets`:
+
+**Required:**
 - `WANDB_API_KEY` - For Weave tracing and LLM API
 - `PLAYGROUND_API_KEY` - For OpenAI endpoint authentication
 
-**Optional (for Slack bonus):**
+**Optional (add later for Slack bonus):**
 - `SLACK_BOT_TOKEN` - For Slack bot API calls
 - `SLACK_SIGNING_SECRET` - For Slack webhook verification
+
+Users create with required secrets first, then update to add Slack credentials if desired.
 
 ### Weave Attributes for Environment Tagging
 All agent calls are automatically tagged with metadata using `weave.attributes()`:
@@ -218,9 +222,10 @@ This enables filtering in Weave UI:
 **Note**: All modal commands use `uv run` to execute in project's managed environment.
 
 **Optional Slack Bonus:**
-- User can add Slack secrets and configure webhook
+- User updates buzz-secrets to add SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET
+- User configures Slack webhook URL
+- User redeploys
 - Enables @ mentions in Slack channels
-- Same server supports both Playground and Slack
 
 ### File Structure
 ```

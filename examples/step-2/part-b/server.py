@@ -671,10 +671,10 @@ if MODAL_AVAILABLE:
     modal_app = modal.App("buzz-production-server", image=image)
     
     # Deploy FastAPI app to Modal
+    # All secrets (including optional Slack ones) are in buzz-secrets
     @modal_app.function(
         secrets=[
-            modal.Secret.from_name("buzz-secrets"),  # WANDB_API_KEY, PLAYGROUND_API_KEY
-            modal.Secret.from_name("slack-secrets", required=False),  # SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET (optional)
+            modal.Secret.from_name("buzz-secrets"),
         ],
         timeout=300,  # 5 minute timeout for long agent calls
         allow_concurrent_inputs=10,  # Handle multiple requests

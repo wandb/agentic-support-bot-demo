@@ -724,7 +724,6 @@ uv run modal secret create buzz-secrets \
 
 This reads directly from your `.env` file - no need to copy/paste keys!
 
-> **Note**: We call them `buzz-secrets` to match the `buzz-production-server` app name.
 
 **3. Deploy to Modal**
 
@@ -835,9 +834,11 @@ Want to chat with your agent via Slack @ mentions? The `server.py` already inclu
 2. Add bot scopes: `app_mentions:read`, `chat:write`
 3. Enable Event Subscriptions pointing to `https://your-modal-url/slack/events`
 4. Get Bot Token and Signing Secret
-5. Add to Modal:
+5. Update buzz-secrets to include Slack credentials:
    ```bash
-   uv run modal secret create slack-secrets \
+   uv run modal secret create buzz-secrets \
+     WANDB_API_KEY=$WANDB_API_KEY \
+     PLAYGROUND_API_KEY=$PLAYGROUND_API_KEY \
      SLACK_BOT_TOKEN=xoxb-... \
      SLACK_SIGNING_SECRET=...
    ```
