@@ -1,14 +1,13 @@
 """
-Universal server for Tyler agent.
+Production server for Tyler agent on Modal.
 
-Works in multiple contexts:
-- Step 2: Local development with ngrok (OpenAI endpoint for Weave Playground)
-- Step 5: Production deployment on Modal with Slack integration
+Works in two modes:
+- Step 2: Development with 'modal serve' (ephemeral, auto-reload)
+- Step 5: Production with 'modal deploy' (persistent, stable)
 
-The same server file works for both - it detects the environment and adapts.
+The same server file works for both - Modal handles the differences.
 """
 
-import argparse
 import asyncio
 import hashlib
 import hmac
@@ -28,22 +27,9 @@ from pydantic import BaseModel
 import weave
 from tyler import Agent, Thread, Message
 
-# Optional dependencies
-try:
-    import modal
-    MODAL_AVAILABLE = True
-except ImportError:
-    MODAL_AVAILABLE = False
-    modal = None
-
-try:
-    from slack_bolt.async_app import AsyncApp
-    from slack_sdk.errors import SlackApiError
-    SLACK_AVAILABLE = True
-except ImportError:
-    SLACK_AVAILABLE = False
-    AsyncApp = None
-    SlackApiError = None
+import modal
+from slack_bolt.async_app import AsyncApp
+from slack_sdk.errors import SlackApiError
 
 # Configure logging
 logging.basicConfig(
@@ -130,29 +116,13 @@ def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict
         raise ValueError(f"Failed to initialize agent from config: {e}")
 
 
-# Global agent variables
+# Global agent variables (initialized in lifespan)
 AGENT = None
 CONFIG = None
 AGENT_CONFIG = None
 
-# Slack app (initialized if SLACK_BOT_TOKEN is available in Step 5)
+# Slack app (initialized if SLACK_BOT_TOKEN is available)
 SLACK_APP = None
-
-# Initialize agent at module load time only if not running as main script
-# When running as main, command-line args will handle initialization
-if __name__ != "__main__":
-    try:
-        # Check for config path in environment variable
-        # Default to workspace directory
-        import pathlib
-        workspace_dir = pathlib.Path(__file__).parent
-        default_config = workspace_dir / "tyler-chat-config.yaml"
-        config_path = os.getenv("TYLER_CONFIG", str(default_config))
-        AGENT, CONFIG = load_agent(config_path)
-        AGENT_CONFIG = CONFIG.get("agent", CONFIG)
-    except Exception as e:
-        logger.error(f"Failed to initialize agent: {e}")
-        raise
 
 
 # ============================================================================
@@ -451,8 +421,8 @@ async def lifespan(app: FastAPI):
                 logger.error(f"Failed to connect to MCP servers: {e}")
                 logger.warning("Continuing without MCP integration")
         
-        # Initialize Slack app if credentials available (Step 5)
-        if SLACK_AVAILABLE and os.getenv("SLACK_BOT_TOKEN"):
+        # Initialize Slack app if credentials available (optional)
+        if os.getenv("SLACK_BOT_TOKEN"):
             logger.info("Initializing Slack integration...")
             SLACK_APP = AsyncApp(token=os.getenv("SLACK_BOT_TOKEN"))
             logger.info("✓ Slack app initialized")
@@ -654,154 +624,40 @@ async def slack_events(request: Request):
 
 
 # ============================================================================
-# Modal Deployment Configuration (Step 5 only)
+# Modal Deployment Configuration
 # ============================================================================
 
-if MODAL_AVAILABLE:
-    # Create Modal image with all dependencies
-    # Keep this list in sync with pyproject.toml dependencies
-    image = modal.Image.debian_slim(python_version="3.12").pip_install(
-        # Core dependencies (from pyproject.toml)
-        "directive>=0.0.9",
-        "slide-lye>=5.1.1",
-        "weave>=0.51.0",
-        "python-dotenv>=1.0.0",
-        "slide-tyler>=5.1.1",
-        "fastapi>=0.119.0",
-        "uvicorn[standard]>=0.37.0",
-        "tinydb>=4.8.0",
-        # Slack dependencies (optional, for bonus feature)
-        "slack-bolt>=1.21.0",
-        "slack-sdk>=3.35.0",
-        # Note: ngrok and modal not needed in container
-    )
-    
-    # Create Modal app (named 'app' so modal deploy finds it automatically)
-    app = modal.App("buzz-production-server", image=image)
-    
-    # Deploy FastAPI app to Modal
-    # All secrets (including optional Slack ones) are in buzz-secrets
-    @app.function(
-        secrets=[
-            modal.Secret.from_name("buzz-secrets"),
-        ],
-        timeout=300,  # 5 minute timeout for long agent calls
-    )
-    @modal.concurrent(max_inputs=10)  # Handle up to 10 concurrent requests
-    @modal.asgi_app()
-    def fastapi_app():
-        """Modal ASGI wrapper for FastAPI app."""
-        return web_app
+# Create Modal image with all dependencies
+# Keep this list in sync with pyproject.toml dependencies
+image = modal.Image.debian_slim(python_version="3.12").pip_install(
+    # Core dependencies (from pyproject.toml)
+    "directive>=0.0.9",
+    "slide-lye>=5.1.1",
+    "weave>=0.51.0",
+    "python-dotenv>=1.0.0",
+    "slide-tyler>=5.1.1",
+    "fastapi>=0.119.0",
+    "uvicorn[standard]>=0.37.0",
+    "tinydb>=4.8.0",
+    # Slack dependencies (optional, for bonus feature)
+    "slack-bolt>=1.21.0",
+    "slack-sdk>=3.35.0",
+    # Note: modal itself not needed in container
+)
 
+# Create Modal app (named 'app' so modal deploy/serve finds it automatically)
+app = modal.App("buzz-production-server", image=image)
 
-# ============================================================================
-# Local Development with ngrok (Step 2)
-# ============================================================================
-
-if __name__ == "__main__":
-    import uvicorn
-    import pathlib
-    
-    try:
-        from dotenv import load_dotenv
-        load_dotenv()
-    except ImportError:
-        pass
-    
-    # Try to import ngrok (Step 2)
-    try:
-        import ngrok as ngrok_lib
-        NGROK_AVAILABLE = True
-    except ImportError:
-        NGROK_AVAILABLE = False
-        ngrok_lib = None
-    
-    # Default config path is in the workspace directory
-    workspace_dir = pathlib.Path(__file__).parent
-    default_config_path = str(workspace_dir / "tyler-chat-config.yaml")
-    
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(
-        description="Tyler API Server - Works locally (Step 2) or on Modal (Step 5)"
-    )
-    parser.add_argument(
-        "--config",
-        type=str,
-        default=default_config_path,
-        help=f"Path to Tyler configuration YAML file (default: {default_config_path})"
-    )
-    parser.add_argument(
-        "--host",
-        type=str,
-        default=os.getenv("SERVER_HOST", "0.0.0.0"),
-        help="Host to bind the server to (default: 0.0.0.0)"
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=int(os.getenv("SERVER_PORT", "8000")),
-        help="Port to bind the server to (default: 8000)"
-    )
-    parser.add_argument(
-        "--no-ngrok",
-        action="store_true",
-        help="Disable ngrok tunnel (useful for Modal deployment testing)"
-    )
-    args = parser.parse_args()
-    
-    # Validate required environment variables
-    if not os.getenv("PLAYGROUND_API_KEY"):
-        logger.error("PLAYGROUND_API_KEY environment variable is required")
-        logger.error("Please set it in your .env file or environment")
-        raise ValueError("Missing required environment variable: PLAYGROUND_API_KEY")
-    
-    # Load the agent with the specified config
-    try:
-        AGENT, CONFIG = load_agent(args.config)
-        AGENT_CONFIG = CONFIG.get("agent", CONFIG)
-    except Exception as e:
-        logger.error(f"Failed to load agent with config {args.config}: {e}")
-        raise
-    
-    # Set up ngrok tunnel if available and not disabled
-    tunnel_url = None
-    if NGROK_AVAILABLE and not args.no_ngrok:
-        if not os.getenv("NGROK_AUTHTOKEN"):
-            logger.warning("NGROK_AUTHTOKEN not set - skipping ngrok tunnel")
-            logger.warning("Server will only be accessible locally")
-        else:
-            logger.info("Setting up ngrok tunnel...")
-            try:
-                listener = ngrok_lib.forward(args.port, authtoken_from_env=True)
-                tunnel_url = listener.url()
-                logger.info(f"✓ Ngrok tunnel established: {tunnel_url}")
-            except Exception as e:
-                logger.error(f"Failed to create ngrok tunnel: {e}")
-                logger.warning("Continuing without ngrok - server only accessible locally")
-    
-    logger.info("="*60)
-    logger.info("Tyler API Server")
-    logger.info("="*60)
-    logger.info(f"Config: {args.config}")
-    logger.info(f"Agent: {AGENT_CONFIG['name']} ({AGENT_CONFIG['model_name']})")
-    logger.info(f"Local server: http://{args.host}:{args.port}")
-    logger.info(f"Health check: http://{args.host}:{args.port}/health")
-    logger.info(f"Authentication: Required (Bearer token)")
-    if tunnel_url:
-        logger.info(f"Ngrok tunnel: {tunnel_url}")
-    logger.info("="*60)
-    
-    if tunnel_url:
-        print("\n" + "="*60)
-        print("🌐 NGROK TUNNEL ACTIVE")
-        print(f"   Use this Base URL in Weave Playground: {tunnel_url}/v1")
-        print("="*60 + "\n")
-    
-    uvicorn.run(
-        "server:web_app",
-        host=args.host,
-        port=args.port,
-        log_level="info",
-        reload=False  # Disable reload to prevent double initialization
-    )
-
+# Deploy FastAPI app to Modal
+# All secrets (including optional Slack ones) are in buzz-secrets
+@app.function(
+    secrets=[
+        modal.Secret.from_name("buzz-secrets"),
+    ],
+    timeout=300,  # 5 minute timeout for long agent calls
+)
+@modal.concurrent(max_inputs=10)  # Handle up to 10 concurrent requests
+@modal.asgi_app()
+def fastapi_app():
+    """Modal ASGI wrapper for FastAPI app."""
+    return web_app
