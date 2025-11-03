@@ -139,6 +139,12 @@ As a developer who has built and evaluated an agent locally, I want to deploy it
 - **Then** the Modal deployment is still running
 - **And** they can still chat with the agent via Playground
 
+### Environment Tagging
+- **Given** the user chats with the production agent via Playground
+- **When** they view the trace in Weave
+- **Then** the trace includes an `env: production` attribute
+- **And** they can filter traces by environment in Weave UI
+
 ## Non-Goals
 
 - Autoscaling or handling high traffic (this is a demo)
@@ -176,6 +182,17 @@ The `server.py` (unified from Step 2) handles:
 **Optional (for Slack bonus):**
 - `SLACK_BOT_TOKEN` - For Slack bot API calls
 - `SLACK_SIGNING_SECRET` - For Slack webhook verification
+
+### Weave Attributes for Environment Tagging
+All agent calls are automatically tagged with metadata using `weave.attributes()`:
+- **Local calls**: `{'env': 'local'}` - When running with ngrok
+- **Production calls**: `{'env': 'production'}` - When running on Modal
+- **Slack calls** (bonus): `{'env': 'production', 'channel': 'slack'}`
+
+This enables filtering in Weave UI:
+- Filter by `env = production` to see only production traffic
+- Filter by `env = local` to see only development traces
+- Compare metrics across environments
 
 ### Deployment Flow
 

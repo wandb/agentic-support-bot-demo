@@ -381,8 +381,12 @@ async def process_slack_event(event: dict) -> None:
         # Invoke agent (this will be traced by Weave)
         logger.info("Invoking Tyler agent...")
         response_text = ""
-        async for chunk in AGENT.stream(thread, mode="text"):
-            response_text += chunk
+        
+        # Add environment attribute (should always be 'production' for Slack on Modal)
+        env = "production" if os.getenv("MODAL_ENVIRONMENT") else "local"
+        with weave.attributes({'env': env, 'channel': 'slack'}):
+            async for chunk in AGENT.stream(thread, mode="text"):
+                response_text += chunk
         
         logger.info(f"Agent response length: {len(response_text)} chars")
         
@@ -562,8 +566,12 @@ async def chat_completions(
     async def generate() -> AsyncGenerator[str, None]:
         """Generate SSE stream from Tyler agent."""
         try:
-            async for chunk in AGENT.stream(thread, mode="raw"):
-                yield serialize_chunk_to_sse(chunk)
+            # Add environment attribute to distinguish local vs production
+            # Modal sets MODAL_ENVIRONMENT when running on Modal
+            env = "production" if os.getenv("MODAL_ENVIRONMENT") else "local"
+            with weave.attributes({'env': env}):
+                async for chunk in AGENT.stream(thread, mode="raw"):
+                    yield serialize_chunk_to_sse(chunk)
             
             yield "data: [DONE]\n\n"
             logger.info("Request completed")

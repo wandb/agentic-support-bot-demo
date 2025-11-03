@@ -139,6 +139,13 @@ This step is intentionally simple (~15 minutes) to avoid blockers and get users 
 - Weave initialization handled automatically
 - Same agent instance serves all requests
 
+**4. Weave Attributes**
+- All agent calls automatically tagged with `env` attribute
+- `env: 'production'` when running on Modal
+- `env: 'local'` when running locally
+- Enables filtering in Weave UI by environment
+- Slack calls also tagged with `channel: 'slack'` (bonus feature)
+
 ### Interfaces & Data Contracts:
 
 **Health Check** (GET /health):

@@ -819,10 +819,13 @@ The agent should respond just like it did locally in Step 2!
    - Tool calls (if applicable)
    - LLM requests
    - Full conversation context
+   - **Attributes**: `env: production` (automatically tagged!)
 
-**Key Observation**: The traces look identical to Step 2, but now they're from production! Same observability, just deployed to the cloud.
+**Key Observation**: The traces look identical to Step 2, but now they're from production! Notice the `env: production` attribute - you can filter by this in Weave to separate local development traces from production traces.
 
 ✅ **You're chatting with a production-deployed agent!**
+
+**💡 Pro Tip**: In Weave Traces, click "Add filter" and filter by `env = production` to see only production conversations, or `env = local` to see only local development.
 
 ---
 
@@ -890,13 +893,19 @@ The first request after idle may take 5-10 seconds while Modal starts the contai
 
 **You now have a production agent!** 
 
+All your production conversations are automatically tagged with `env: production` in Weave traces. This makes it easy to:
+- Filter production traffic vs local development
+- Monitor production performance separately
+- Identify production-specific issues
+- Build dashboards focused on production metrics
+
 Continue to **Step 6** to set up:
 - Real-time monitoring dashboards
 - User feedback collection
 - Production performance metrics
 - Quality monitoring with Weave
 
-All production conversations are already flowing to Weave traces, ready for analysis in Step 6! 🎉
+All production conversations are already flowing to Weave traces, ready for analysis! 🎉
 
 ---
 
