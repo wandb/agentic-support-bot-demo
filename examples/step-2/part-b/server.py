@@ -666,9 +666,12 @@ if MODAL_AVAILABLE:
         "python-dotenv",
         "pyyaml",
         "weave",
-        "tyler",
+        "slide-tyler",  # Tyler agent framework (not plain 'tyler')
+        "slide-lye",  # Tyler dependency
+        "directive",  # Tyler dependency
         "slack-bolt",
         "slack-sdk",
+        "tinydb",  # For ticket database
     )
     
     # Create Modal app (named 'app' so modal deploy finds it automatically)

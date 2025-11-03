@@ -874,11 +874,8 @@ Both Slack and Playground conversations appear in Weave traces.
 **Viewing Logs:**
 
 ```bash
-# View real-time logs
-uv run modal app logs buzz-production-server --follow
-
-# View last 100 lines
-uv run modal app logs buzz-production-server -n 100
+# View logs
+uv run modal app logs buzz-production-server
 ```
 
 **Cold Start (First Request Slow):**
