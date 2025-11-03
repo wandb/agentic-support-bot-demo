@@ -693,8 +693,6 @@ Continue to **Step 5** to deploy your agent where it matters - in front of real 
 
 After building confidence through systematic evaluation, it's time to deploy to the cloud! You'll deploy the same server you've been using locally to Modal, point Weave Playground at the production URL, and see that Weave traces work identically in production.
 
-**Key Insight:** The same `server.py` that ran locally in Step 2 now runs in the cloud. Same code, same traces, same observability - just deployed to production!
-
 **Prerequisites:**
 - Completed Steps 1-4 (you have a working agent in `workspace/`)
 - Free Modal account ([sign up](https://modal.com))
@@ -703,13 +701,13 @@ After building confidence through systematic evaluation, it's time to deploy to 
 
 ### Part A: Deploy to Modal
 
-**Step 1: Install Modal**
+**1. Install Modal**
 
 ```bash
 uv pip install modal
 ```
 
-**Step 2: Authenticate with Modal**
+**2. Authenticate with Modal**
 
 ```bash
 modal setup
@@ -717,7 +715,7 @@ modal setup
 
 This opens a browser to authenticate. Follow the prompts.
 
-**Step 3: Configure Modal Secrets**
+**3. Configure Modal Secrets**
 
 Set your W&B and Playground API keys as Modal secrets:
 
@@ -731,7 +729,7 @@ Replace placeholders with your actual keys:
 - Get `WANDB_API_KEY` from [wandb.ai/authorize](https://wandb.ai/authorize)
 - Use the same `PLAYGROUND_API_KEY` from your `.env` file
 
-**Step 4: Deploy to Modal**
+**4. Deploy to Modal**
 
 Deploy the same `server.py` you've been using locally:
 
@@ -743,24 +741,24 @@ You'll see output like:
 ```
 ✓ Created objects.
 ├── 🔨 Created mount /Users/you/project/workspace
-└── 🔨 Created tyler-production-server.fastapi_app
+└── 🔨 Created buzz-production-server.fastapi_app
 ✓ App deployed! 🎉
 
 View Deployment: https://modal.com/apps/...
 ```
 
-**Step 5: Get Your Deployment URL**
+**5. Get Your Deployment URL**
 
 ```bash
 modal app list
 ```
 
-Look for `tyler-production-server` and note the URL. It will look like:
+Look for `buzz-production-server` and note the URL. It will look like:
 ```
-https://username--tyler-production-server-fastapi-app.modal.run
+https://username--buzz-production-server-fastapi-app.modal.run
 ```
 
-**Step 6: Test the Health Endpoint**
+**6. Test the Health Endpoint**
 
 ```bash
 curl https://your-modal-url/health
@@ -779,7 +777,7 @@ You should see:
 
 Now let's chat with your production agent! In Step 2, you used Weave Playground with your local server (via ngrok). Now you'll point it to your Modal deployment.
 
-**Step 1: Update Weave Playground Provider**
+**1. Update Weave Playground Provider**
 
 1. Go to your W&B project → **Weave** → **Playground**
 2. Find the `buzz_agent` provider you created in Step 2
@@ -788,30 +786,30 @@ Now let's chat with your production agent! In Step 2, you used Weave Playground 
    ```
    https://your-modal-url/v1
    ```
-   (Replace `your-modal-url` with the URL from Part A, Step 5)
+   (Replace `your-modal-url` with the URL from Part A #5)
 5. Keep the same **API key**: `PLAYGROUND_API_KEY`
 6. Click **Save**
 
-Alternatively, create a new provider called `production-bot`:
-- **Provider name**: `production-bot`
+Alternatively, create a new provider called `production-agent`:
+- **Provider name**: `production-agent`
 - **API key**: `PLAYGROUND_API_KEY`
 - **Base URL**: `https://your-modal-url/v1`
 - **Models**: `buzz`
 
-**Step 2: Chat with Production Agent**
+**2. Chat with Production Agent**
 
-1. Select `buzz_agent/buzz` (or `production-bot/buzz`) from the model dropdown
+1. Select `buzz_agent/buzz` (or `production-agent/buzz`) from the model dropdown
 2. Delete the default system message
 3. Send a test message:
    ```
    How do I initialize Weave in Python?
    ```
 
-**Step 3: Verify Response**
+**3. Verify Response**
 
-The bot should respond just like it did locally in Step 2!
+The agent should respond just like it did locally in Step 2!
 
-**Step 4: Check Weave Traces**
+**4. Check Weave Traces**
 
 1. Go to **Traces** tab
 2. Filter for recent traces
@@ -828,31 +826,9 @@ The bot should respond just like it did locally in Step 2!
 
 ---
 
-### Part C: Verify Production Deployment
-
-Let's confirm your deployment persists even when your laptop is off.
-
-**Step 1: Close Your Laptop**
-
-Seriously! Close it for a few minutes.
-
-**Step 2: Open and Test**
-
-1. Open laptop
-2. Go to Weave Playground
-3. Send another message to your production agent
-4. It still works! ✅
-
-**Why this matters**: 
-- Your local server (Step 2) required your laptop running
-- Modal deployment is always-on in the cloud
-- Perfect for ongoing monitoring in Step 6
-
----
-
 ### Bonus: Slack Integration (Optional)
 
-Want to chat with your bot via Slack @ mentions? The `server.py` already includes Slack webhook support!
+Want to chat with your agent via Slack @ mentions? The `server.py` already includes Slack webhook support!
 
 **Quick Setup:**
 1. Create Slack app at [api.slack.com/apps](https://api.slack.com/apps)
@@ -866,7 +842,7 @@ Want to chat with your bot via Slack @ mentions? The `server.py` already include
      SLACK_SIGNING_SECRET=...
    ```
 6. Redeploy: `modal deploy workspace/server.py`
-7. @ mention your bot in Slack!
+7. @ mention your agent in Slack!
 
 Both Slack and Playground conversations appear in Weave traces.
 
@@ -889,7 +865,7 @@ Both Slack and Playground conversations appear in Weave traces.
 
 **Agent Not Responding:**
 
-1. Check Modal logs: `modal app logs tyler-production-server`
+1. Check Modal logs: `modal app logs buzz-production-server`
 2. Verify deployment is running: `modal app list`
 3. Check Weave traces for agent errors
 4. Try local test first: `uv run workspace/server.py --no-ngrok`
@@ -898,10 +874,10 @@ Both Slack and Playground conversations appear in Weave traces.
 
 ```bash
 # View real-time logs
-modal app logs tyler-production-server --follow
+modal app logs buzz-production-server --follow
 
 # View last 100 lines
-modal app logs tyler-production-server -n 100
+modal app logs buzz-production-server -n 100
 ```
 
 **Cold Start (First Request Slow):**

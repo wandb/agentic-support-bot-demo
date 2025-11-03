@@ -660,7 +660,7 @@ if MODAL_AVAILABLE:
     )
     
     # Create Modal app
-    modal_app = modal.App("tyler-production-server", image=image)
+    modal_app = modal.App("buzz-production-server", image=image)
     
     # Deploy FastAPI app to Modal
     @modal_app.function(

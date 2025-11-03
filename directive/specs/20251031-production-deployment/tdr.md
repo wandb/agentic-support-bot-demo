@@ -454,7 +454,7 @@ This achieves the goal (production deployment with Weave observability) with min
 
 **Deployment Failed**:
 ```
-1. Check Modal logs: modal app logs tyler-production-server
+1. Check Modal logs: modal app logs buzz-production-server
 2. Verify secrets are set: modal secret list
 3. Check image build logs in Modal dashboard
 4. Common issues:
@@ -466,7 +466,7 @@ This achieves the goal (production deployment with Weave observability) with min
 **Health Endpoint Returns Error**:
 ```
 1. Verify deployment is running: modal app list
-2. Check Modal logs: modal app logs tyler-production-server
+2. Check Modal logs: modal app logs buzz-production-server
 3. Test locally first: uv run workspace/server.py --no-ngrok
 4. Redeploy: modal deploy workspace/server.py
 ```
@@ -644,30 +644,35 @@ This achieves the goal (production deployment with Weave observability) with min
 ### Task 1: Verify Unified Server Works
 
 **Definition of Done**:
-- [ ] `server.py` in `examples/step-2/part-b/` includes Modal support
-- [ ] Server runs locally: `uv run workspace/server.py`
-- [ ] Server can run without ngrok: `uv run workspace/server.py --no-ngrok`
-- [ ] Modal decorators present but optional (graceful import)
-- [ ] Slack code present but optional (graceful import)
-- [ ] Lint passes, code formatted
+- [x] `server.py` in `examples/step-2/part-b/` includes Modal support
+- [x] Modal app name is `buzz-production-server`
+- [x] Server runs locally: `uv run workspace/server.py`
+- [x] Server can run without ngrok: `uv run workspace/server.py --no-ngrok`
+- [x] Modal decorators present but optional (graceful import)
+- [x] Slack code present but optional (gracefully skipped)
+- [x] Lint passes, code formatted
 
 **Dependencies**: None  
-**Owner**: Implementation team
+**Owner**: Implementation team  
+**Status**: ✅ Complete
 
 ---
 
 ### Task 2: Update Documentation for Simplified Flow
 
 **Definition of Done**:
-- [ ] README Step 5 updated to remove Slack from main path
-- [ ] Instructions focus on: Modal setup → Deploy → Playground → Traces
-- [ ] Slack documented as optional bonus section
-- [ ] Prerequisites updated (Modal required, Slack optional)
-- [ ] Time estimate updated to ~15 minutes
-- [ ] Spec, Impact, TDR updated to reflect simplified approach
+- [x] README Step 5 updated to focus on Modal + Playground
+- [x] Instructions: Modal setup → Deploy → Playground → Traces
+- [x] Slack documented as optional bonus section
+- [x] Prerequisites updated (Modal required, Slack optional)
+- [x] Time estimate updated to ~15 minutes
+- [x] Spec, Impact, TDR updated to reflect simplified approach
+- [x] Changed "Step 1" → "1." to avoid confusion
+- [x] Changed "production-bot" → "production-agent" for consistency
 
 **Dependencies**: Task 1  
-**Owner**: Documentation team
+**Owner**: Documentation team  
+**Status**: ✅ Complete
 
 ---
 
@@ -683,7 +688,8 @@ This achieves the goal (production deployment with Weave observability) with min
 - [ ] Sign-off from spec author
 
 **Dependencies**: Task 2  
-**Owner**: QA / Implementation team
+**Owner**: QA / Implementation team  
+**Status**: ⏳ Ready for Testing
 
 ---
 
