@@ -701,13 +701,7 @@ After building confidence through systematic evaluation, it's time to deploy to 
 
 ### Part A: Deploy to Modal
 
-**1. Install Modal**
-
-```bash
-uv pip install modal
-```
-
-**2. Authenticate with Modal**
+**1. Authenticate with Modal**
 
 ```bash
 modal setup
@@ -715,7 +709,9 @@ modal setup
 
 This opens a browser to authenticate. Follow the prompts.
 
-**3. Configure Modal Secrets**
+> **Note**: Modal is already installed via `uv sync` in Step 1 (it's in `pyproject.toml`).
+
+**2. Configure Modal Secrets**
 
 Set your W&B and Playground API keys as Modal secrets:
 
@@ -729,7 +725,7 @@ Replace placeholders with your actual keys:
 - Get `WANDB_API_KEY` from [wandb.ai/authorize](https://wandb.ai/authorize)
 - Use the same `PLAYGROUND_API_KEY` from your `.env` file
 
-**4. Deploy to Modal**
+**3. Deploy to Modal**
 
 Deploy the same `server.py` you've been using locally:
 
@@ -747,7 +743,7 @@ You'll see output like:
 View Deployment: https://modal.com/apps/...
 ```
 
-**5. Get Your Deployment URL**
+**4. Get Your Deployment URL**
 
 ```bash
 modal app list
@@ -758,7 +754,7 @@ Look for `buzz-production-server` and note the URL. It will look like:
 https://username--buzz-production-server-fastapi-app.modal.run
 ```
 
-**6. Test the Health Endpoint**
+**5. Test the Health Endpoint**
 
 ```bash
 curl https://your-modal-url/health
@@ -786,7 +782,7 @@ Now let's chat with your production agent! In Step 2, you used Weave Playground 
    ```
    https://your-modal-url/v1
    ```
-   (Replace `your-modal-url` with the URL from Part A #5)
+   (Replace `your-modal-url` with the URL from Part A #4)
 5. Keep the same **API key**: `PLAYGROUND_API_KEY`
 6. Click **Save**
 
