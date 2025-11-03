@@ -203,7 +203,7 @@ This enables filtering in Weave UI:
 4. User loads .env and sets Modal secrets:
    ```bash
    source .env
-   uv run modal secret create wandb-secrets \
+   uv run modal secret create buzz-secrets \
      WANDB_API_KEY=$WANDB_API_KEY \
      PLAYGROUND_API_KEY=$PLAYGROUND_API_KEY
    ```

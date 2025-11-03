@@ -465,7 +465,7 @@ This achieves the goal (production deployment with Weave observability) with min
 2. Verify secrets are set: uv run modal secret list
 3. Check image build logs in Modal dashboard
 4. Common issues:
-   - Missing secrets (wandb-secrets not created)
+   - Missing secrets (buzz-secrets not created)
    - Syntax error in server.py
    - Dependencies not in Modal image
 ```

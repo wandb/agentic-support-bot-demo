@@ -717,12 +717,14 @@ Since your keys are already in `.env`, load them and create Modal secrets:
 source .env
 
 # Create Modal secrets using the loaded variables
-uv run modal secret create wandb-secrets \
+uv run modal secret create buzz-secrets \
   WANDB_API_KEY=$WANDB_API_KEY \
   PLAYGROUND_API_KEY=$PLAYGROUND_API_KEY
 ```
 
 This reads directly from your `.env` file - no need to copy/paste keys!
+
+> **Note**: We call them `buzz-secrets` to match the `buzz-production-server` app name.
 
 **3. Deploy to Modal**
 
@@ -850,7 +852,7 @@ Both Slack and Playground conversations appear in Weave traces.
 
 **Modal Deployment Issues:**
 
-- `Secret not found` → Run `uv run modal secret list` to verify `wandb-secrets` is created
+- `Secret not found` → Run `uv run modal secret list` to verify `buzz-secrets` is created
 - `Import error: tyler` → Modal image should auto-install dependencies
 - `Agent config not found` → Ensure `tyler-chat-config.yaml` is in workspace directory
 

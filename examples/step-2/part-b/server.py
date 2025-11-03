@@ -673,7 +673,7 @@ if MODAL_AVAILABLE:
     # Deploy FastAPI app to Modal
     @modal_app.function(
         secrets=[
-            modal.Secret.from_name("wandb-secrets"),  # WANDB_API_KEY, PLAYGROUND_API_KEY
+            modal.Secret.from_name("buzz-secrets"),  # WANDB_API_KEY, PLAYGROUND_API_KEY
             modal.Secret.from_name("slack-secrets", required=False),  # SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET (optional)
         ],
         timeout=300,  # 5 minute timeout for long agent calls
