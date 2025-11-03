@@ -84,18 +84,11 @@ cp .env.example .env
   - Used to secure your Modal server endpoint
   - Will be configured as a Modal secret in Step 2
 
-Example `.env`:
-```bash
-WANDB_API_KEY=your_api_key_here
-WANDB_PROJECT=agentic-support-bot-demo-alice  # ← Add your name here!
-PLAYGROUND_API_KEY=your_secret_key_here  # Can use "dummy" for demo
-```
-
 **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `workspace/tyler-chat-config.yaml`.
 
 **Note:** The `workspace/` directory is gitignored - you can experiment freely and reset anytime by copying from `examples/`.
 
-4. **📦 Persistent Ticket Database**
+4. **📦 Support Ticket Database**
 
 In order to make testing the support tools more realistic, we have a small db to persist tickets and allow tools to actually work.
 
