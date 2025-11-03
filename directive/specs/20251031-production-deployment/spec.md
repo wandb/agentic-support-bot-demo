@@ -1,8 +1,8 @@
 # Spec (per PR)
 
 **Feature name**: Step 5: Production Deployment  
-**One-line summary**: Deploy the support bot to Modal as a Slack bot, enabling production monitoring with Weave  
-**Date**: 2025-10-31
+**One-line summary**: Deploy the support bot to Modal cloud platform, enabling production monitoring with Weave  
+**Date**: 2025-11-03
 
 ---
 
@@ -15,24 +15,24 @@ Users have built and evaluated their agent locally, but they haven't experienced
 - Can't demonstrate monitoring, feedback collection, and continuous improvement
 
 The deployment needs to be:
-- Simple enough to complete in ~20-30 minutes
+- Simple enough to complete in ~15 minutes
 - Actually deployed to the cloud (not just local with ngrok)
 - Cheap/free to run
-- Realistic for a support bot use case
+- No complex third-party integrations that could block users
 
 ## Goal
 
-Deploy the agent to Modal as a Slack bot. Users will see their agent handling real production traffic in a Slack workspace and experience Weave's automatic production tracing.
+Deploy the agent to Modal cloud platform and use Weave Playground to generate production traffic. Users will experience the same agent running in the cloud and see that Weave traces work identically in production.
 
 ## Success Criteria
 
-- [ ] Users can deploy their agent to Modal as a Slack bot in under 30 minutes
-- [ ] Users can @ mention the bot in Slack channels and get responses
+- [ ] Users can deploy their agent to Modal in under 15 minutes
+- [ ] Users can connect Weave Playground to production Modal deployment
+- [ ] Users can chat with production agent via Weave Playground
 - [ ] Production conversations appear in Weave Traces automatically
 - [ ] Same agent config from workspace works in production without changes
-- [ ] Server uses Slack signing secret for webhook authentication
 - [ ] Setup runs on Modal's free tier (no paid accounts required)
-- [ ] Bot responds asynchronously to avoid Slack's 3-second timeout
+- [ ] Deployment stays up even when user's laptop is closed
 
 ## User Story
 
@@ -43,51 +43,57 @@ As a developer who has built and evaluated an agent locally, I want to deploy it
 **Happy Path:**
 1. User completes Step 4 (has evaluated agent)
 2. User creates free Modal account at modal.com
-3. User creates free Slack workspace (or uses existing) at slack.com
-4. User creates Slack app and gets credentials (bot token, signing secret)
-5. User configures Modal secrets:
+3. User configures Modal secrets:
    - `WANDB_API_KEY`
-   - `SLACK_BOT_TOKEN`
-   - `SLACK_SIGNING_SECRET`
-6. User deploys server: `modal deploy workspace/server.py`
-7. User gets Modal deployment URL
-8. User configures Slack webhook URL to point to Modal deployment
-9. User installs Slack app to workspace
-10. User @ mentions bot in Slack channel: "@buzz help me with Weave"
-11. Bot responds in Slack thread with answer
-12. User sees conversation trace in Weave with full context
-13. User continues to Step 6 (monitoring and feedback)
+   - `PLAYGROUND_API_KEY`
+4. User deploys server: `modal deploy workspace/server.py`
+5. User gets Modal deployment URL from `modal app list`
+6. User tests health endpoint: `curl https://modal-url/health`
+7. User configures Weave Playground with Modal URL as custom provider
+8. User chats with production agent in Weave Playground
+9. User sees production conversation trace in Weave
+10. User continues to Step 6 (monitoring and feedback)
 
 **Edge Cases:**
 - **Modal deployment fails**: Check Modal logs, verify secrets are set
-- **Slack webhook fails**: Verify signing secret, check Modal URL is correct
-- **Bot doesn't respond**: Check Weave traces for errors, verify Modal deployment is running
+- **Health endpoint fails**: Verify deployment is running with `modal app list`
+- **Playground can't connect**: Check URL format, verify API key matches
+- **Agent errors**: Check Weave traces for errors, review Modal logs
+
+**Optional Bonus (Slack Integration):**
+- User can optionally set up Slack bot for additional production traffic
+- Requires Slack app creation, webhook configuration
+- Same server supports both Playground and Slack
+- Documented as bonus/advanced section
 
 ## UX Links
 
 - Modal Documentation: https://modal.com/docs
-- Slack Bolt SDK: https://slack.dev/bolt-python/
-- Slack API: Creating Apps: https://api.slack.com/start
+- Weave Playground: https://docs.wandb.ai/weave/playground
+- Modal Secrets: https://modal.com/docs/guide/secrets
 
 ## Requirements
 
 **Must:**
 - Deploy to Modal (cloud service, not local)
-- Rename `playground_server.py` → `server.py` and extend with Slack endpoints
-- Support Slack bot interaction (POST /slack/events endpoint)
-- Respond asynchronously to avoid Slack's 3-second timeout
+- Use unified `server.py` from Step 2 (works locally and on Modal)
 - Reuse same `tyler-chat-config.yaml` from workspace
-- Verify Slack requests using signing secret
 - Work on Modal's free tier
+- Support OpenAI-compatible endpoint for Weave Playground
 - Automatically trace all production conversations to Weave
-- Provide clear README instructions for Slack app setup
-- Keep existing Weave Playground compatibility (POST /v1/chat/completions)
+- Provide clear README instructions for Modal deployment
+- Health check endpoint for deployment verification
 
 **Must not:**
 - Require paid accounts or credit cards
 - Change the agent configuration between development and production
-- Create separate server files (extend existing playground_server.py)
-- Block synchronously waiting for agent response (Slack timeout)
+- Require Slack or other third-party services for main path
+- Create complexity that blocks users from reaching Step 6
+
+**Should:**
+- Keep Slack integration code in server (optional, gracefully skipped if not configured)
+- Document Slack setup as bonus/advanced option
+- Make deployment fast (<15 minutes)
 
 ## Acceptance Criteria
 
@@ -96,30 +102,23 @@ As a developer who has built and evaluated an agent locally, I want to deploy it
 - **When** they run `modal deploy workspace/server.py`
 - **Then** the server deploys successfully and returns a public URL
 
-### Slack Bot Interaction
-- **Given** a user has configured Slack app with webhook URL pointing to Modal
-- **When** they @ mention the bot in a Slack channel: "@buzz how do I initialize Weave?"
-- **Then** the bot responds in the thread within Slack with a relevant answer
-- **And** the conversation appears in Weave Traces with full context and tool calls
+### Health Check Works
+- **Given** the server is deployed to Modal
+- **When** the user accesses the `/health` endpoint
+- **Then** they receive a healthy status with timestamp
+- **And** can confirm the deployment is running
 
-### Asynchronous Response
-- **Given** the agent response takes longer than 3 seconds
-- **When** a user @ mentions the bot
-- **Then** Slack receives acknowledgment within 3 seconds
-- **And** the bot posts the response asynchronously when ready
-- **And** no timeout errors occur
-
-### Weave Playground Compatibility
+### Weave Playground Connection
 - **Given** the server is deployed to Modal
 - **When** a user configures Weave Playground with the Modal URL + API key
 - **Then** they can chat with the production deployment via Playground UI
-- **And** traces appear in Weave
+- **And** the agent responds correctly
 
-### Slack Authentication
-- **Given** the server receives a Slack webhook request
-- **When** the signing secret is verified
-- **Then** the request is processed
-- **And** requests with invalid signatures are rejected
+### Production Conversation
+- **Given** Weave Playground is connected to Modal deployment
+- **When** a user sends a message: "How do I initialize Weave?"
+- **Then** the agent responds with relevant answer
+- **And** the conversation appears in Weave Traces
 
 ### Same Configuration Works
 - **Given** a user has `workspace/tyler-chat-config.yaml` working locally
@@ -128,11 +127,17 @@ As a developer who has built and evaluated an agent locally, I want to deploy it
 - **And** no config changes are needed
 
 ### Production Traces Visible
-- **Given** a user has sent messages to the production bot
+- **Given** a user has chatted with production bot via Playground
 - **When** they navigate to Weave Traces
-- **Then** they can filter for production conversations
+- **Then** they can see production conversations
 - **And** traces include full conversation context, tool calls, and timing
-- **And** traces are distinguishable from local/playground traces
+- **And** traces show the same detail as local development
+
+### Deployment Persistence
+- **Given** the user closes their laptop
+- **When** they open it again later
+- **Then** the Modal deployment is still running
+- **And** they can still chat with the agent via Playground
 
 ## Non-Goals
 
@@ -143,75 +148,80 @@ As a developer who has built and evaluated an agent locally, I want to deploy it
 - Custom domain setup
 - Production hardening (rate limiting, DDoS protection, etc.)
 - Cost optimization beyond using free tier
-- Discord, Teams, or other messaging platforms (Slack only)
-- Alternative chat interfaces (Slack bot only)
+- Custom chat UI (Weave Playground is sufficient)
+- Slack integration as required path (bonus only)
 
 ## Technical Notes
 
 ### Server Architecture
-The `server.py` should handle:
-1. **OpenAI-compatible endpoint** (existing from playground_server.py)
+The `server.py` (unified from Step 2) handles:
+1. **OpenAI-compatible endpoint** (core)
    - POST /v1/chat/completions
-   - Used by Weave Playground
+   - Used by Weave Playground (local in Step 2, production in Step 5)
    - Requires PLAYGROUND_API_KEY authentication
-2. **Slack webhook endpoint** (new)
-   - POST /slack/events
-   - Handles Slack events (app_mention, message)
-   - Verifies Slack signing secret
-   - Acknowledges within 3 seconds
-   - Responds asynchronously via chat.postMessage API
-3. **Health check** (new)
+2. **Health check** (core)
    - GET /health
    - For Modal deployment verification
-   - Returns {"status": "healthy"}
+   - Returns {"status": "healthy", "timestamp": "..."}
+3. **Slack webhook endpoint** (optional bonus)
+   - POST /slack/events
+   - Only activates if SLACK_BOT_TOKEN is configured
+   - Gracefully skipped if not configured
 
 ### Modal Secrets Required
+**Core (required):**
 - `WANDB_API_KEY` - For Weave tracing and LLM API
 - `PLAYGROUND_API_KEY` - For OpenAI endpoint authentication
+
+**Optional (for Slack bonus):**
 - `SLACK_BOT_TOKEN` - For Slack bot API calls
 - `SLACK_SIGNING_SECRET` - For Slack webhook verification
 
 ### Deployment Flow
 
-1. User copies files: `cp examples/step-5/server.py workspace/`
+**Main Path (15 minutes):**
+1. User has `server.py` in workspace from Step 2
 2. User creates Modal account at modal.com (free tier)
-3. User creates Slack app at api.slack.com/apps (free)
-4. User gets Slack credentials (bot token, signing secret)
-5. User sets Modal secrets:
+3. User sets Modal secrets:
    ```bash
    modal secret create wandb-secrets \
      WANDB_API_KEY=... \
-     PLAYGROUND_API_KEY=... \
-     SLACK_BOT_TOKEN=... \
-     SLACK_SIGNING_SECRET=...
+     PLAYGROUND_API_KEY=...
    ```
-6. User deploys server: `modal deploy workspace/server.py`
-7. User receives Modal deployment URL
-8. User configures Slack app Event Subscriptions URL: `https://<modal-url>/slack/events`
-9. User installs Slack app to workspace
-10. Agent is live - ready to receive @ mentions in Slack
-11. Production traces flow to Weave automatically
+4. User deploys: `modal deploy workspace/server.py`
+5. User gets Modal URL: `modal app list`
+6. User tests health: `curl https://modal-url/health`
+7. User connects Weave Playground to Modal URL
+8. User chats with production agent in Playground
+9. User sees production traces in Weave
+10. User continues to Step 6 (monitoring)
+
+**Optional Slack Bonus:**
+- User can add Slack secrets and configure webhook
+- Enables @ mentions in Slack channels
+- Same server supports both Playground and Slack
 
 ### File Structure
 ```
-examples/step-5/
-├── server.py              # Renamed/extended playground_server with Slack support
-└── README.md              # Step 5 deployment instructions (added to main README)
+examples/step-2/part-b/
+└── server.py              # Unified server (works locally + Modal + Slack)
+                           # Copied to workspace in Step 2, deployed to Modal in Step 5
 ```
 
 ## Open Questions
 
-1. **Conversation persistence**: Do we need to persist chat history in a database?
-   - **Answer**: No - ephemeral is fine. Weave traces contain full conversation history
-   - Keeps implementation simple and focused on observability
+1. **Should we include Slack integration instructions in Step 5?**
+   - **Answer**: No - make it optional bonus. Focus on Modal + Playground for main path
+   - Keeps Step 5 simple and removes potential blocker
+   - Users can still set up Slack if desired
 
-2. **Slack rate limiting**: Do we need to handle Slack API rate limiting?
-   - **Answer**: Document as limitation. Not expecting high traffic in demo usage
-   - Users testing with 1-2 people won't hit limits
+2. **Is Weave Playground sufficient for generating production traffic?**
+   - **Answer**: Yes - production traces are identical whether from Playground or Slack
+   - Playground is already familiar from Step 2
+   - Monitoring in Step 6 works the same regardless of traffic source
 
-3. **Multi-turn conversations**: Should the bot maintain conversation context across messages?
-   - **Answer**: Keep stateless for simplicity. Each @ mention is independent
-   - Users can include context in their message if needed
-   - Future: Could add thread context in Step 6/7 if valuable
+3. **Should we warm Modal containers to avoid cold starts?**
+   - **Answer**: No - document cold starts as expected behavior
+   - Free tier limitation, acceptable for demo purposes
 
 

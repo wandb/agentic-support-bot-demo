@@ -4,18 +4,21 @@
 
 ### Existing Files Modified:
 - `examples/step-2/part-b/playground_server.py` 
-  - **Change**: Rename to `examples/step-5/server.py`
-  - **Additions**: Add Slack webhook endpoints, Modal deployment decorators, health check
-  - **Impact**: No breaking changes to existing OpenAI-compatible endpoint
+  - **Change**: Replaced with unified `server.py`
+  - **Additions**: Modal deployment decorators, optional Slack support
+  - **Impact**: Works locally (Step 2) and on Modal (Step 5) with same code
 
 ### New Files Created:
-- `examples/step-5/server.py`
-  - Extended version of playground_server.py with Slack support and Modal deployment
-  - Handles both Weave Playground endpoint and Slack webhooks
+- `examples/step-2/part-b/server.py`
+  - Unified server that replaces playground_server.py
+  - Works locally with ngrok OR deployed to Modal
+  - Handles Weave Playground endpoint (core)
+  - Optional Slack webhook support (bonus)
 
 ### Dependencies to Add (pyproject.toml):
-- `modal` - Cloud deployment platform
-- `slack-bolt` - Slack bot SDK for webhook handling
+- `modal` - Cloud deployment platform (required for Step 5)
+- `slack-bolt` - Slack bot SDK (optional, for bonus feature)
+- `slack-sdk` - Slack API client (optional, for bonus feature)
 
 ### Configuration Files:
 - No changes to `tyler-chat-config.yaml` - reused as-is
@@ -27,40 +30,24 @@
 
 ## Contracts to update (APIs, events, schemas, migrations)
 
-### New API Endpoints (server.py):
-
-**POST /slack/events** (New)
-- **Purpose**: Slack event webhook receiver
-- **Request**: Slack event payload (JSON)
-  ```json
-  {
-    "type": "event_callback",
-    "event": {
-      "type": "app_mention",
-      "user": "U123456",
-      "text": "@bot help me",
-      "channel": "C123456",
-      "ts": "1234567890.123456"
-    }
-  }
-  ```
-- **Response**: 200 OK (acknowledges receipt)
-- **Authentication**: Slack signing secret verification
-- **Side effects**: Async response posted to Slack thread
+### API Endpoints (server.py):
 
 **GET /health** (New)
-- **Purpose**: Health check for Modal deployment
-- **Response**: `{"status": "healthy"}`
+- **Purpose**: Health check for Modal deployment verification
+- **Response**: `{"status": "healthy", "timestamp": "2025-11-03T12:00:00Z"}`
 - **Authentication**: None (public)
+- **Use**: Verify deployment is running
 
 **POST /v1/chat/completions** (Existing - No Changes)
-- Keeps existing OpenAI-compatible format
-- Still used by Weave Playground
-- API key authentication unchanged
+- **Purpose**: OpenAI-compatible chat endpoint
+- **Request/Response**: OpenAI format (unchanged from Step 2)
+- **Authentication**: PLAYGROUND_API_KEY (Bearer token)
+- **Use**: Weave Playground (local in Step 2, production on Modal in Step 5)
 
-### Slack Integration Events:
-- **app_mention**: When bot is @ mentioned in a channel
-- **message**: Direct messages to bot (optional)
+**POST /slack/events** (Optional Bonus)
+- **Purpose**: Slack event webhook receiver (if user configures Slack)
+- **Activation**: Only if SLACK_BOT_TOKEN is configured
+- **Note**: Not required for main Step 5 path
 
 ### No Schema/Migration Changes:
 - No database involved (ephemeral conversations)
@@ -73,8 +60,8 @@
 - **Public Internet Exposure**: 
   - Server deployed to public Modal URL
   - **Mitigation**: API key authentication on /v1/chat/completions endpoint
-  - **Mitigation**: Slack signing secret verification on /slack/events
   - **Mitigation**: Modal secrets for sensitive credentials (never in code)
+  - **Impact**: Low risk - only Weave Playground traffic expected
   
 - **API Key Leakage**:
   - WANDB_API_KEY and PLAYGROUND_API_KEY in Modal secrets
@@ -82,37 +69,32 @@
   - **Mitigation**: Never log or expose secrets in responses
   
 - **Unauthorized LLM Usage**:
-  - Someone could spam the bot and incur W&B Inference costs
-  - **Mitigation**: API key required for non-Slack endpoints
-  - **Mitigation**: Slack webhook verified with signing secret
+  - Someone could discover Modal URL and spam requests
+  - **Mitigation**: API key required on /v1/chat/completions
   - **Mitigation**: Modal free tier limits resource usage
-  - **Note**: This is a demo, not hardened for production abuse
+  - **Impact**: Low risk for demo purposes (users control API key)
 
 ### Performance/Availability:
 - **Modal Cold Starts**: 
   - First request after idle may be slow (5-10 seconds)
-  - **Impact**: User may see delayed first response in Slack
+  - **Impact**: User may see delayed first response in Weave Playground
   - **Mitigation**: Document this behavior, note Modal warm containers help after first request
-  
-- **Slack 3-second Timeout**:
-  - Slack expects acknowledgment within 3 seconds
-  - Agent responses may take longer (LLM calls, tool execution)
-  - **Mitigation**: Acknowledge immediately, respond asynchronously via chat.postMessage API
   
 - **LLM API Timeouts**:
   - W&B Inference or other LLM APIs may timeout
-  - **Mitigation**: Catch exceptions, send error message to Slack
+  - **Mitigation**: Tyler handles retries internally
   - **Mitigation**: Weave traces show failures for debugging
+  - **Impact**: User sees error in Playground, can check traces
 
 ### Data Integrity:
 - **No Conversation Persistence**:
   - Conversations not stored in database
-  - Each @ mention is independent (stateless)
-  - **Impact**: No multi-turn conversation context
+  - Each Playground conversation is independent (stateless)
+  - **Impact**: Weave Playground doesn't persist multi-turn context
   - **Mitigation**: This is acceptable for demo. Weave traces provide full conversation history
   
 - **Concurrent Requests**:
-  - Multiple users could @ mention bot simultaneously
+  - Multiple users could use Playground simultaneously
   - **Impact**: Minimal - each request is independent
   - **Mitigation**: Stateless agent design handles this naturally
   
@@ -120,7 +102,7 @@
   - Production uses tyler-chat-config.yaml from workspace
   - Local changes don't auto-deploy
   - **Impact**: User must manually redeploy after config changes
-  - **Mitigation**: Document that config changes require `modal deploy workspace/server.py` to update
+  - **Mitigation**: Document that config changes require `modal deploy workspace/server.py`
 
 ## Observability needs
 
@@ -135,10 +117,7 @@
   - Tool calls, LLM requests, timing, costs captured
   - **Use**: Monitor production behavior, analyze failures, track performance
   - **Access**: Weave UI → Traces tab
-  
-- **Slack Delivery Logs**:
-  - Slack API errors logged to Modal
-  - **Use**: Debug webhook delivery issues
+  - **Note**: This is the main learning objective of Step 5
 
 ### Metrics:
 - **Weave-Provided Metrics**:
