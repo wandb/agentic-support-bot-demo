@@ -79,17 +79,16 @@ cp .env.example .env
   - This is the Weave project where your traces, datasets, and evaluations will appear
   - **Important:** Multiple people using the same project name will overwrite each other's datasets and evaluations
 
-**c) Add your ngrok auth token:**
-- `NGROK_AUTHTOKEN` - Get your token from [ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken)
-  - Used to expose your local playground server so Weave Playground can connect to it
-  - **Note:** You need a free ngrok account to get this token
+**c) Add your playground API key:**
+- `PLAYGROUND_API_KEY` - Set a secret key for API authentication (can use "dummy" for this demo)
+  - Used to secure your Modal server endpoint
+  - Will be configured as a Modal secret in Step 2
 
 Example `.env`:
 ```bash
 WANDB_API_KEY=your_api_key_here
 WANDB_PROJECT=agentic-support-bot-demo-alice  # ← Add your name here!
-NGROK_AUTHTOKEN=your_ngrok_token_here
-# PLAYGROUND_API_KEY=your_secret_key_here  # Not needed until Step 2 Part B
+PLAYGROUND_API_KEY=your_secret_key_here  # Can use "dummy" for demo
 ```
 
 **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `workspace/tyler-chat-config.yaml`.
