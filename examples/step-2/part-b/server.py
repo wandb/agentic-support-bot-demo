@@ -433,7 +433,11 @@ async def lifespan(app: FastAPI):
     
     try:
         # Load agent configuration
-        config_path = os.getenv("TYLER_CONFIG", "tyler-chat-config.yaml")
+        # Look for config in same directory as server.py
+        import pathlib
+        server_dir = pathlib.Path(__file__).parent
+        default_config = server_dir / "tyler-chat-config.yaml"
+        config_path = os.getenv("TYLER_CONFIG", str(default_config))
         AGENT, CONFIG = load_agent(config_path)
         AGENT_CONFIG = CONFIG.get("agent", CONFIG)
         
@@ -677,8 +681,8 @@ if MODAL_AVAILABLE:
             modal.Secret.from_name("buzz-secrets"),
         ],
         timeout=300,  # 5 minute timeout for long agent calls
-        allow_concurrent_inputs=10,  # Handle multiple requests
     )
+    @modal.concurrent()  # Handle multiple concurrent requests
     @modal.asgi_app()
     def fastapi_app():
         """Modal ASGI wrapper for FastAPI app."""
