@@ -703,7 +703,7 @@ After building confidence through systematic evaluation, it's time to deploy to 
 **Step 1: Install Modal**
 
 ```bash
-pip install modal
+uv pip install modal
 ```
 
 **Step 2: Authenticate with Modal**
