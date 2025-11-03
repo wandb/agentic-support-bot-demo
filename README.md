@@ -694,7 +694,6 @@ Continue to **Step 5** to deploy your agent where it matters - in front of real 
 After building confidence through systematic evaluation, it's time to deploy to the cloud! You'll deploy the same server you've been using locally to Modal, point Weave Playground at the production URL, and see that Weave traces work identically in production.
 
 **Prerequisites:**
-- Completed Steps 1-4 (you have a working agent in `workspace/`)
 - Free Modal account ([sign up](https://modal.com))
 
 ---
@@ -704,19 +703,19 @@ After building confidence through systematic evaluation, it's time to deploy to 
 **1. Authenticate with Modal**
 
 ```bash
-modal setup
+uv run modal setup
 ```
 
 This opens a browser to authenticate. Follow the prompts.
 
-> **Note**: Modal is already installed via `uv sync` in Step 1 (it's in `pyproject.toml`).
+> **Note**: We use `uv run` to execute modal in the project's managed environment.
 
 **2. Configure Modal Secrets**
 
 Set your W&B and Playground API keys as Modal secrets:
 
 ```bash
-modal secret create wandb-secrets \
+uv run modal secret create wandb-secrets \
   WANDB_API_KEY=<your-wandb-api-key> \
   PLAYGROUND_API_KEY=<your-playground-api-key>
 ```
@@ -730,7 +729,7 @@ Replace placeholders with your actual keys:
 Deploy the same `server.py` you've been using locally:
 
 ```bash
-modal deploy workspace/server.py
+uv run modal deploy workspace/server.py
 ```
 
 You'll see output like:
@@ -746,7 +745,7 @@ View Deployment: https://modal.com/apps/...
 **4. Get Your Deployment URL**
 
 ```bash
-modal app list
+uv run modal app list
 ```
 
 Look for `buzz-production-server` and note the URL. It will look like:
@@ -836,11 +835,11 @@ Want to chat with your agent via Slack @ mentions? The `server.py` already inclu
 4. Get Bot Token and Signing Secret
 5. Add to Modal:
    ```bash
-   modal secret create slack-secrets \
+   uv run modal secret create slack-secrets \
      SLACK_BOT_TOKEN=xoxb-... \
      SLACK_SIGNING_SECRET=...
    ```
-6. Redeploy: `modal deploy workspace/server.py`
+6. Redeploy: `uv run modal deploy workspace/server.py`
 7. @ mention your agent in Slack!
 
 Both Slack and Playground conversations appear in Weave traces.
@@ -851,21 +850,21 @@ Both Slack and Playground conversations appear in Weave traces.
 
 **Modal Deployment Issues:**
 
-- `Secret not found` → Run `modal secret list` to verify `wandb-secrets` is created
+- `Secret not found` → Run `uv run modal secret list` to verify `wandb-secrets` is created
 - `Import error: tyler` → Modal image should auto-install dependencies
 - `Agent config not found` → Ensure `tyler-chat-config.yaml` is in workspace directory
 
 **Weave Playground Can't Connect:**
 
-- Verify Modal URL is correct (use `modal app list`)
+- Verify Modal URL is correct (use `uv run modal app list`)
 - Ensure URL includes `/v1` at the end
 - Check API key matches your `PLAYGROUND_API_KEY`
 - Test health endpoint first: `curl https://your-modal-url/health`
 
 **Agent Not Responding:**
 
-1. Check Modal logs: `modal app logs buzz-production-server`
-2. Verify deployment is running: `modal app list`
+1. Check Modal logs: `uv run modal app logs buzz-production-server`
+2. Verify deployment is running: `uv run modal app list`
 3. Check Weave traces for agent errors
 4. Try local test first: `uv run workspace/server.py --no-ngrok`
 
@@ -873,10 +872,10 @@ Both Slack and Playground conversations appear in Weave traces.
 
 ```bash
 # View real-time logs
-modal app logs buzz-production-server --follow
+uv run modal app logs buzz-production-server --follow
 
 # View last 100 lines
-modal app logs buzz-production-server -n 100
+uv run modal app logs buzz-production-server -n 100
 ```
 
 **Cold Start (First Request Slow):**

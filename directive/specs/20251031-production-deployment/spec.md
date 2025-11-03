@@ -199,22 +199,22 @@ This enables filtering in Weave UI:
 **Main Path (15 minutes):**
 1. User has `server.py` in workspace from Step 2
 2. User creates Modal account at modal.com (free tier)
-3. User authenticates Modal: `modal setup`
+3. User authenticates Modal: `uv run modal setup`
 4. User sets Modal secrets:
    ```bash
-   modal secret create wandb-secrets \
+   uv run modal secret create wandb-secrets \
      WANDB_API_KEY=... \
      PLAYGROUND_API_KEY=...
    ```
-5. User deploys: `modal deploy workspace/server.py`
-6. User gets Modal URL: `modal app list`
+5. User deploys: `uv run modal deploy workspace/server.py`
+6. User gets Modal URL: `uv run modal app list`
 7. User tests health: `curl https://modal-url/health`
 8. User connects Weave Playground to Modal URL
 9. User chats with production agent in Playground
 10. User sees production traces in Weave (tagged with `env: production`)
 11. User continues to Step 6 (monitoring)
 
-**Note**: Modal is already in project dependencies from Step 1 (`uv sync`).
+**Note**: All modal commands use `uv run` to execute in project's managed environment.
 
 **Optional Slack Bonus:**
 - User can add Slack secrets and configure webhook

@@ -461,8 +461,8 @@ This achieves the goal (production deployment with Weave observability) with min
 
 **Deployment Failed**:
 ```
-1. Check Modal logs: modal app logs buzz-production-server
-2. Verify secrets are set: modal secret list
+1. Check Modal logs: uv run modal app logs buzz-production-server
+2. Verify secrets are set: uv run modal secret list
 3. Check image build logs in Modal dashboard
 4. Common issues:
    - Missing secrets (wandb-secrets not created)
@@ -472,15 +472,15 @@ This achieves the goal (production deployment with Weave observability) with min
 
 **Health Endpoint Returns Error**:
 ```
-1. Verify deployment is running: modal app list
-2. Check Modal logs: modal app logs buzz-production-server
+1. Verify deployment is running: uv run modal app list
+2. Check Modal logs: uv run modal app logs buzz-production-server
 3. Test locally first: uv run workspace/server.py --no-ngrok
-4. Redeploy: modal deploy workspace/server.py
+4. Redeploy: uv run modal deploy workspace/server.py
 ```
 
 **Playground Can't Connect**:
 ```
-1. Verify Modal URL is correct (check modal app list)
+1. Verify Modal URL is correct (check uv run modal app list)
 2. Verify API key matches PLAYGROUND_API_KEY
 3. Test health endpoint: curl https://modal-url/health
 4. Check Weave Playground provider configuration
@@ -514,10 +514,10 @@ This achieves the goal (production deployment with Weave observability) with min
 **Not Applicable** - Stateless deployment, no data to migrate
 
 ### Revert Plan:
-1. `modal app stop tyler-production-server` - Stop immediately
+1. `uv run modal app stop buzz-production-server` - Stop immediately
 2. Fix issue in `workspace/server.py`
 3. Test locally: `uv run workspace/server.py --no-ngrok`
-4. Redeploy: `modal deploy workspace/server.py`
+4. Redeploy: `uv run modal deploy workspace/server.py`
 
 ### Blast Radius:
 - Only affects user's own deployment
