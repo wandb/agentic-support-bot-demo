@@ -708,21 +708,21 @@ uv run modal setup
 
 This opens a browser to authenticate. Follow the prompts.
 
-> **Note**: We use `uv run` to execute modal in the project's managed environment.
-
 **2. Configure Modal Secrets**
 
-Set your W&B and Playground API keys as Modal secrets:
+Since your keys are already in `.env`, load them and create Modal secrets:
 
 ```bash
+# Load environment variables from .env
+source .env
+
+# Create Modal secrets using the loaded variables
 uv run modal secret create wandb-secrets \
-  WANDB_API_KEY=<your-wandb-api-key> \
-  PLAYGROUND_API_KEY=<your-playground-api-key>
+  WANDB_API_KEY=$WANDB_API_KEY \
+  PLAYGROUND_API_KEY=$PLAYGROUND_API_KEY
 ```
 
-Replace placeholders with your actual keys:
-- Get `WANDB_API_KEY` from [wandb.ai/authorize](https://wandb.ai/authorize)
-- Use the same `PLAYGROUND_API_KEY` from your `.env` file
+This reads directly from your `.env` file - no need to copy/paste keys!
 
 **3. Deploy to Modal**
 

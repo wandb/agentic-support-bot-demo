@@ -200,11 +200,12 @@ This enables filtering in Weave UI:
 1. User has `server.py` in workspace from Step 2
 2. User creates Modal account at modal.com (free tier)
 3. User authenticates Modal: `uv run modal setup`
-4. User sets Modal secrets:
+4. User loads .env and sets Modal secrets:
    ```bash
+   source .env
    uv run modal secret create wandb-secrets \
-     WANDB_API_KEY=... \
-     PLAYGROUND_API_KEY=...
+     WANDB_API_KEY=$WANDB_API_KEY \
+     PLAYGROUND_API_KEY=$PLAYGROUND_API_KEY
    ```
 5. User deploys: `uv run modal deploy workspace/server.py`
 6. User gets Modal URL: `uv run modal app list`
