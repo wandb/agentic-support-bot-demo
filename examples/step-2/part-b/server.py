@@ -682,7 +682,7 @@ if MODAL_AVAILABLE:
         ],
         timeout=300,  # 5 minute timeout for long agent calls
     )
-    @modal.concurrent()  # Handle multiple concurrent requests
+    @modal.concurrent(max_inputs=10)  # Handle up to 10 concurrent requests
     @modal.asgi_app()
     def fastapi_app():
         """Modal ASGI wrapper for FastAPI app."""
