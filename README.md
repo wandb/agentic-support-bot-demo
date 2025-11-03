@@ -687,6 +687,8 @@ Continue to **Step 5** to deploy your agent where it matters - in front of real 
 
 ## Step 5: Production Deployment 🚀
 
+> **📝 Note:** This step is optional! You can skip directly to Step 6 (Monitoring) using your local server from Step 2. However, deploying to Modal gives you a more realistic production experience and persistent deployment that stays up even when your laptop is closed.
+
 **Goal:** Deploy your agent to production on Modal as a Slack bot.
 
 After building confidence through systematic evaluation, it's time to deploy to production! You'll deploy your agent to Modal's cloud platform and connect it to Slack, where team members can @ mention it for help. All production conversations automatically flow to Weave traces.
