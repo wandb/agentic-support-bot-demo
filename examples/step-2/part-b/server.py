@@ -482,7 +482,7 @@ async def lifespan(app: FastAPI):
 # FastAPI Application
 # ============================================================================
 
-app = FastAPI(
+web_app = FastAPI(
     title="Tyler API Server",
     description="Universal server for Tyler support bot (Local/Modal, Playground/Slack)",
     version="1.0.0",
@@ -490,7 +490,7 @@ app = FastAPI(
 )
 
 # Add CORS middleware
-app.add_middleware(
+web_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
@@ -503,7 +503,7 @@ app.add_middleware(
 # Endpoints
 # ============================================================================
 
-@app.get("/health")
+@web_app.get("/health")
 async def health_check():
     """Health check endpoint."""
     response = HealthResponse(
@@ -519,7 +519,7 @@ async def health_check():
     return response
 
 
-@app.get("/")
+@web_app.get("/")
 async def root():
     """Root endpoint - API information."""
     return {
@@ -533,7 +533,7 @@ async def root():
     }
 
 
-@app.post("/v1/chat/completions")
+@web_app.post("/v1/chat/completions")
 async def chat_completions(
     request: ChatCompletionRequest,
     authorization: Optional[str] = Header(None)
@@ -601,7 +601,7 @@ async def chat_completions(
     )
 
 
-@app.post("/slack/events")
+@web_app.post("/slack/events")
 async def slack_events(request: Request):
     """
     Slack event webhook endpoint (Step 5 only).
@@ -671,12 +671,12 @@ if MODAL_AVAILABLE:
         "slack-sdk",
     )
     
-    # Create Modal app
-    modal_app = modal.App("buzz-production-server", image=image)
+    # Create Modal app (named 'app' so modal deploy finds it automatically)
+    app = modal.App("buzz-production-server", image=image)
     
     # Deploy FastAPI app to Modal
     # All secrets (including optional Slack ones) are in buzz-secrets
-    @modal_app.function(
+    @app.function(
         secrets=[
             modal.Secret.from_name("buzz-secrets"),
         ],
@@ -686,7 +686,7 @@ if MODAL_AVAILABLE:
     @modal.asgi_app()
     def fastapi_app():
         """Modal ASGI wrapper for FastAPI app."""
-        return app
+        return web_app
 
 
 # ============================================================================
@@ -793,7 +793,7 @@ if __name__ == "__main__":
         print("="*60 + "\n")
     
     uvicorn.run(
-        "server:app",
+        "server:web_app",
         host=args.host,
         port=args.port,
         log_level="info",

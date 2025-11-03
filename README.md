@@ -255,7 +255,7 @@ In order to use this agent in the playground we need to start a server locally a
 The server will automatically create an ngrok tunnel and display the public URL:
 
 ```bash
-uv run python workspace/server.py
+uv run workspace/server.py
 ```
 
 You'll see output like:
@@ -351,7 +351,7 @@ Open `workspace/tyler-chat-config.yaml` - the `purpose` field is currently `"You
 
 💡 **Stuck?** See `examples/step-3/tyler-chat-config.yaml` for inspiration, but try your own first!
 
-**Test:** Restart playground server (`uv run python workspace/server.py`) and try the test prompts.
+**Test:** Restart playground server (`uv run workspace/server.py`) and try the test prompts.
 
 **🔍 Observe in Weave:** Does it feel more like a support bot? Check traces to see how `purpose` influences behavior.
 
@@ -414,7 +414,7 @@ Open `tools.py` (line 54). The `TOOLS` list currently has no descriptions or par
 
 💡 **Stuck?** See `examples/step-3/tools.py` for fully documented definitions, but try your own first!
 
-**Test:** Save `tools.py` → restart playground server (`uv run python workspace/server.py`) → test the prompts.
+**Test:** Save `tools.py` → restart playground server (`uv run workspace/server.py`) → test the prompts.
 
 **🔍 Observe in Weave:** Do you see better tool usage now?
 
@@ -869,7 +869,7 @@ Both Slack and Playground conversations appear in Weave traces.
 1. Check Modal logs: `uv run modal app logs buzz-production-server`
 2. Verify deployment is running: `uv run modal app list`
 3. Check Weave traces for agent errors
-4. Try local test first: `uv run python workspace/server.py --no-ngrok`
+4. Try local test first: `uv run workspace/server.py --no-ngrok`
 
 **Viewing Logs:**
 
