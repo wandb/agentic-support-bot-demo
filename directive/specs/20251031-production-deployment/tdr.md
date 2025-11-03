@@ -474,7 +474,7 @@ This achieves the goal (production deployment with Weave observability) with min
 ```
 1. Verify deployment is running: uv run modal app list
 2. Check Modal logs: uv run modal app logs buzz-production-server
-3. Test locally first: uv run workspace/server.py --no-ngrok
+3. Test locally first: uv run python workspace/server.py --no-ngrok
 4. Redeploy: uv run modal deploy workspace/server.py
 ```
 
@@ -516,7 +516,7 @@ This achieves the goal (production deployment with Weave observability) with min
 ### Revert Plan:
 1. `uv run modal app stop buzz-production-server` - Stop immediately
 2. Fix issue in `workspace/server.py`
-3. Test locally: `uv run workspace/server.py --no-ngrok`
+3. Test locally: `uv run python workspace/server.py --no-ngrok`
 4. Redeploy: `uv run modal deploy workspace/server.py`
 
 ### Blast Radius:
