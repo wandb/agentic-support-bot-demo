@@ -233,10 +233,10 @@ Modal secrets store your API keys securely and inject them as environment variab
 ```bash
 uv run modal secret create agentic-support-bot-secrets \
   WANDB_API_KEY=$WANDB_API_KEY \
-  AGENTIC_SUPPORT_BOT_API_KEY=your_secret_key_here
+  AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY
 ```
 
-Replace `your_secret_key_here` with any value (e.g., "dummy" for this demo). This API key is used to authenticate requests to your support bot server.
+This reads from your `.env` file where `AGENTIC_SUPPORT_BOT_API_KEY` is set to "dummy" (good enough for this demo). This API key is used to authenticate requests to your support bot server.
 
 **3. Add to W&B Team Secrets** (W&B Admins only, optional):
    - Navigate to your W&B project → team **Settings** → **Team Secrets**
