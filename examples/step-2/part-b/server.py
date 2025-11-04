@@ -648,9 +648,18 @@ image = modal.Image.debian_slim(python_version="3.12").pip_install(
 # Create Modal app (named 'app' so modal deploy/serve finds it automatically)
 app = modal.App("buzz-production-server", image=image)
 
+# Mount the workspace directory so config and tools are available
+import pathlib
+workspace_dir = pathlib.Path(__file__).parent
+workspace_mount = modal.Mount.from_local_dir(
+    workspace_dir,
+    remote_path="/root"
+)
+
 # Deploy FastAPI app to Modal
 # All secrets (including optional Slack ones) are in buzz-secrets
 @app.function(
+    mounts=[workspace_mount],
     secrets=[
         modal.Secret.from_name("buzz-secrets"),
     ],

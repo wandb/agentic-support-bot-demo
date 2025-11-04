@@ -54,8 +54,8 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "slack-bolt", specifier = ">=1.21.0" },
     { name = "slack-sdk", specifier = ">=3.35.0" },
-    { name = "slide-lye", specifier = ">=5.1.1" },
-    { name = "slide-tyler", specifier = ">=5.1.1" },
+    { name = "slide-lye", specifier = ">=5.2.0" },
+    { name = "slide-tyler", specifier = ">=5.2.0" },
     { name = "tinydb", specifier = ">=4.8.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.37.0" },
     { name = "weave", specifier = ">=0.51.0" },
@@ -903,6 +903,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/58/46/0028a82567109b5ef6e4d2a1f04a583fb513e6cf9527fcdd09afd817deeb/filelock-3.20.0.tar.gz", hash = "sha256:711e943b4ec6be42e1d4e6690b48dc175c822967466bb31c0c293f34334c13f4", size = 18922, upload-time = "2025-10-08T18:03:50.056Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/91/7216b27286936c16f5b4d0c530087e4a54eead683e6b0b73dd0c64844af6/filelock-3.20.0-py3-none-any.whl", hash = "sha256:339b4732ffda5cd79b13f4e2711a31b0365ce445d95d243bb996273d072546a2", size = 16054, upload-time = "2025-10-08T18:03:48.35Z" },
+]
+
+[[package]]
+name = "filetype"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bb/29/745f7d30d47fe0f251d3ad3dc2978a23141917661998763bebb6da007eb1/filetype-1.2.0.tar.gz", hash = "sha256:66b56cd6474bf41d8c54660347d37afcc3f7d1970648de365c102ef77548aadb", size = 998020, upload-time = "2022-11-02T17:34:04.141Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/18/79/1b8fa1bb3568781e84c9200f951c735f3f157429f44be0495da55894d620/filetype-1.2.0-py2.py3-none-any.whl", hash = "sha256:7ce71b6880181241cf7ac8697a2f1eb6a8bd9b429f7ad6d27b8db9ba5f1c2d25", size = 19970, upload-time = "2022-11-02T17:34:01.425Z" },
 ]
 
 [[package]]
@@ -5377,15 +5386,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python-magic"
-version = "0.4.27"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/da/db/0b3e28ac047452d079d375ec6798bf76a036a08182dbb39ed38116a49130/python-magic-0.4.27.tar.gz", hash = "sha256:c1ba14b08e4a5f5c31a302b7721239695b2f0f058d125bd5ce1ee36b9d9d3c3b", size = 14677, upload-time = "2022-06-07T20:16:59.508Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6c/73/9f872cb81fc5c3bb48f7227872c28975f998f3e7c2b1c16e95e6432bbb90/python_magic-0.4.27-py2.py3-none-any.whl", hash = "sha256:c212960ad306f700aa0d01e5d7a325d20548ff97eb9920dcd29513174f0294d3", size = 13840, upload-time = "2022-06-07T20:16:57.763Z" },
-]
-
-[[package]]
 name = "python-multipart"
 version = "0.0.20"
 source = { registry = "https://pypi.org/simple" }
@@ -5862,11 +5862,12 @@ wheels = [
 
 [[package]]
 name = "slide-lye"
-version = "5.1.1"
+version = "5.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "browser-use" },
+    { name = "filetype" },
     { name = "httpx" },
     { name = "langchain-openai" },
     { name = "litellm" },
@@ -5875,42 +5876,41 @@ dependencies = [
     { name = "platformdirs" },
     { name = "pypdf" },
     { name = "python-dotenv" },
-    { name = "python-magic" },
     { name = "requests" },
     { name = "slack-sdk" },
     { name = "wandb" },
     { name = "wandb-workspaces" },
     { name = "weave" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/c1/312fbdd94acfe01ad4f2980157da6762540354a04d6960e600b7ea1a2d92/slide_lye-5.1.1.tar.gz", hash = "sha256:30cdd83e37053ac72f3b45dd1ca77d511ab2dfbdba775871d537e16604ce23bc", size = 32923, upload-time = "2025-10-31T01:43:07.499Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5d/25/c0a2a72c244d0b0f26a0010b431d74073373c2928c4b54db5f3cb7847c38/slide_lye-5.2.0.tar.gz", hash = "sha256:17257dc2ae0b701fb90e50e6b5e0b77754ba2290d5650ee05bd8164d5ef1c3c6", size = 32968, upload-time = "2025-11-04T02:36:49.968Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/69/98/dc9c8710cf9e4793fc3032619619e81ee1c25a8af6700e8245da2325625a/slide_lye-5.1.1-py3-none-any.whl", hash = "sha256:a9ba57f86b5c2a2dbcf3622f5d5fd292a9b5f902bb86d9794021cc152eaf4798", size = 36938, upload-time = "2025-10-31T01:43:06.366Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/d5/a87ac47fff326153735de35301754426d2f913784a455a148a4fc6c118b5/slide_lye-5.2.0-py3-none-any.whl", hash = "sha256:230cf0575a46b7be4f1363ddbc1ede008aa9ba51c51b6561c1a16e84dd05bb44", size = 36990, upload-time = "2025-11-04T02:36:51.001Z" },
 ]
 
 [[package]]
 name = "slide-narrator"
-version = "5.1.1"
+version = "5.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiosqlite" },
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "click" },
+    { name = "filetype" },
     { name = "greenlet" },
     { name = "pydantic" },
     { name = "pypdf" },
-    { name = "python-magic" },
     { name = "sqlalchemy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/c6/44e4ca4adbc236d80ff145fc0cc6506f5b7bcd2ab4ca2583a31bbbc35d0e/slide_narrator-5.1.1.tar.gz", hash = "sha256:15c6df7c6d89fbbed761f2a685c23d259be9e37e0358fe2d723b56b9b8c8f0a3", size = 35158, upload-time = "2025-10-31T01:43:01.46Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/77/66/158126ea52ff2db883cba40f5b24cf8e3855602ed15203ee4ac505bbb681/slide_narrator-5.2.0.tar.gz", hash = "sha256:dd3eede704013112a73a93e88cee8549df086f01c13c089efeb866d3e4e118b2", size = 35289, upload-time = "2025-11-04T02:36:46.063Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/39/059c63374b49ed1be1d3ad98402e26b6d8e17b366f265858f86f1293f1c4/slide_narrator-5.1.1-py3-none-any.whl", hash = "sha256:49d7f5d6a251e39c8a0070b66455a598945631390be9e31b81da2440f783df38", size = 40788, upload-time = "2025-10-31T01:43:02.543Z" },
+    { url = "https://files.pythonhosted.org/packages/bf/d1/deec88d4a3f6f6229b732b75dc60fe816355a6186c60e63da6949ec195e1/slide_narrator-5.2.0-py3-none-any.whl", hash = "sha256:d77657a1ff6b278cb6a530965c588daec50bec5f5e1911384dd6ef97cb9d0efb", size = 40919, upload-time = "2025-11-04T02:36:45.044Z" },
 ]
 
 [[package]]
 name = "slide-tyler"
-version = "5.1.1"
+version = "5.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohappyeyeballs" },
@@ -5934,6 +5934,7 @@ dependencies = [
     { name = "email-validator" },
     { name = "emoji" },
     { name = "filelock" },
+    { name = "filetype" },
     { name = "flask" },
     { name = "frozenlist" },
     { name = "fsspec" },
@@ -5979,7 +5980,6 @@ dependencies = [
     { name = "pypdf" },
     { name = "python-dateutil" },
     { name = "python-dotenv" },
-    { name = "python-magic" },
     { name = "pytz" },
     { name = "pyyaml" },
     { name = "referencing" },
@@ -6015,9 +6015,9 @@ dependencies = [
     { name = "yarl" },
     { name = "zipp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ec/62/6386ba9167d1e7dd00946a74edbd0333ef948b6c824a4ccd17acc39f0e36/slide_tyler-5.1.1.tar.gz", hash = "sha256:81153f561c178e4dd0c59eacb9d3a29d9d8e140004f7a89b1104fa8e4ee23123", size = 77687, upload-time = "2025-10-31T01:42:58.542Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/40/b2/9372e2879f65fcaf300a35364876a8d5639bbe50a421527bfe0f3ae39ef9/slide_tyler-5.2.0.tar.gz", hash = "sha256:d12fe6424c64bc6e238515f5806ddcc8a5a11e2c5e22e041215abd2c690e441f", size = 77683, upload-time = "2025-11-04T02:36:43.767Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/29/58/5dd261a967ebfc96c8c89478b71e5337c0a59756fbf5df8057a5cb3bf0ab/slide_tyler-5.1.1-py3-none-any.whl", hash = "sha256:a27499ff63fb83a2333631b0b8f15e05ea5ee425be7c209c0cd111b182ff7d59", size = 92026, upload-time = "2025-10-31T01:42:59.913Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/a1/8aa745ff96335b14ff908a034fa47c5352f54623b905c859f51891ab2afb/slide_tyler-5.2.0-py3-none-any.whl", hash = "sha256:fc2bdd6aa98a6573b0bba8cd4941ac8f768629cbe7091f4db7da11eecdcd1db9", size = 92015, upload-time = "2025-11-04T02:36:42.307Z" },
 ]
 
 [[package]]
