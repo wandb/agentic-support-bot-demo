@@ -228,7 +228,16 @@ This creates a Modal account (free) and saves your credentials locally.
 
 **2. Create Modal secrets:**
 
-Modal secrets store your API keys securely and inject them as environment variables:
+Modal secrets store your API keys securely and inject them as environment variables.
+
+First, make sure your `.env` variables are loaded in your shell:
+
+```bash
+# Source your .env file to load variables into your shell
+export $(cat .env | grep -v '^#' | xargs)
+```
+
+Then create the Modal secret:
 
 ```bash
 uv run modal secret create agentic-support-bot-secrets \
@@ -236,7 +245,7 @@ uv run modal secret create agentic-support-bot-secrets \
   AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY
 ```
 
-This reads from your `.env` file where `AGENTIC_SUPPORT_BOT_API_KEY` is set to "dummy" (good enough for this demo). This API key is used to authenticate requests to your support bot server.
+This reads the variables from your shell environment (loaded from `.env`). The `AGENTIC_SUPPORT_BOT_API_KEY` is set to "dummy" in `.env.example` (good enough for this demo).
 
 **3. Add to W&B Team Secrets** (W&B Admins only, optional):
    - Navigate to your W&B project → team **Settings** → **Team Secrets**
