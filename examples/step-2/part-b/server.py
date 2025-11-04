@@ -42,15 +42,11 @@ logger = logging.getLogger(__name__)
 # Create Modal app
 app_modal = modal.App("agentic-support-bot")
 
-# Create Modal image with dependencies
-image = modal.Image.debian_slim(python_version="3.12").pip_install_from_pyproject(
-    Path(__file__).parent.parent / "pyproject.toml"
-)
-
-# Mount workspace directory so we can access config, tools, and db
-workspace_mount = modal.Mount.from_local_dir(
-    Path(__file__).parent,
-    remote_path="/workspace"
+# Create Modal image with dependencies and workspace files
+image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .pip_install_from_pyproject(Path(__file__).parent.parent / "pyproject.toml")
+    .add_local_dir(Path(__file__).parent, remote_path="/workspace")
 )
 
 # ============================================================================
@@ -519,7 +515,6 @@ async def chat_completions(
 @app_modal.function(
     image=image,
     secrets=[modal.Secret.from_name("agentic-support-bot-secrets")],
-    mounts=[workspace_mount],
     timeout=300,  # 5 minute timeout
 )
 @modal.asgi_app()

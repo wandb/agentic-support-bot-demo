@@ -257,14 +257,13 @@ uv run modal serve workspace/server.py
 
 Modal will:
 - Build a container image with your dependencies
-- Mount your `workspace/` directory
+- Include your `workspace/` directory in the image
 - Deploy to Modal's infrastructure
 - Provide an HTTPS URL
 
 You'll see output like:
 ```
 ✓ Created objects.
-├── 🔨 Created mount /Users/you/workspace
 ├── 🔨 Created function modal_app.
 └── 🔨 Created web function modal_app => https://yourname--agentic-support-bot-dev.modal.run
 ✓ App deployed in 3.14s
@@ -720,7 +719,6 @@ Modal will:
 You'll see output like:
 ```
 ✓ Created objects.
-├── 🔨 Created mount /Users/you/workspace
 ├── 🔨 Created function modal_app.
 └── 🔨 Created web function modal_app => https://yourname--agentic-support-bot.modal.run
 ✓ App deployed in 5.12s
