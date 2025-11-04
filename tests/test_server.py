@@ -36,34 +36,25 @@ def client():
 # Unit Tests - Environment Detection
 # ============================================================================
 
-def test_get_environment_dev():
-    """Test environment detection returns 'dev' for modal serve."""
-    with patch('modal.is_local', return_value=True):
+def test_get_environment_dev_default():
+    """Test environment detection returns 'dev' by default (no DEPLOYMENT_ENV)."""
+    with patch.dict(os.environ, {}, clear=True):
+        env = get_environment()
+        assert env == "dev"
+
+
+def test_get_environment_dev_explicit():
+    """Test environment detection returns 'dev' when DEPLOYMENT_ENV=dev."""
+    with patch.dict(os.environ, {'DEPLOYMENT_ENV': 'dev'}, clear=True):
         env = get_environment()
         assert env == "dev"
 
 
 def test_get_environment_prod():
-    """Test environment detection returns 'prod' for modal deploy."""
-    with patch('modal.is_local', return_value=False):
+    """Test environment detection returns 'prod' when DEPLOYMENT_ENV=prod."""
+    with patch.dict(os.environ, {'DEPLOYMENT_ENV': 'prod'}, clear=True):
         env = get_environment()
         assert env == "prod"
-
-
-def test_get_environment_fallback():
-    """Test environment detection falls back to env var."""
-    with patch('modal.is_local', side_effect=Exception("modal not available")):
-        with patch.dict(os.environ, {'MODAL_ENVIRONMENT': 'test'}):
-            env = get_environment()
-            assert env == "test"
-
-
-def test_get_environment_default_fallback():
-    """Test environment detection defaults to 'dev' if nothing available."""
-    with patch('modal.is_local', side_effect=Exception("modal not available")):
-        with patch.dict(os.environ, {}, clear=True):
-            env = get_environment()
-            assert env == "dev"
 
 
 # ============================================================================

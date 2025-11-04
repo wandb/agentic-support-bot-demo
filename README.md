@@ -230,14 +230,7 @@ This creates a Modal account (free) and saves your credentials locally.
 
 Modal secrets store your API keys securely and inject them as environment variables.
 
-First, make sure your `.env` variables are loaded in your shell:
-
-```bash
-# Source your .env file to load variables into your shell
-export $(cat .env | grep -v '^#' | xargs)
-```
-
-Then create the Modal secret:
+Create the Modal secret:
 
 ```bash
 uv run modal secret create agentic-support-bot-secrets \
@@ -289,16 +282,15 @@ Copy the URL (e.g., `https://yourname--agentic-support-bot-dev.modal.run`).
 1. Go to your W&B project → navigate to **Playground**
 2. In model dropdown: **+ Add AI provider** → **Custom provider**
 3. Fill in:
-   - **Provider name**: `buzz_agent`
+   - **Provider name**: `agentic-support-bot-dev`
    - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
    - **Base URL**: `<your-modal-url>/v1` (append `/v1` to the Modal URL)
    - **Models**: `buzz`
 4. Click **Add provider**
-5. Select `buzz_agent/buzz` from the model dropdown
 
 **Test your agent:**
 
-Select `buzz_agent/buzz`, delete the default system message, and try these prompts:
+Select `agentic-support-bot-dev/buzz`, delete the default system message, and try these prompts:
 
 ```
 How do I initialize Weave in my Python code?
@@ -714,7 +706,19 @@ After iterating in the playground and building confidence through systematic eva
 
 ### Deploy to Production
 
-In Step 2 Part B, you used `uv run modal serve` for development. This creates an ephemeral deployment that auto-reloads when you change code. For production, you want a persistent deployment that stays running:
+In Step 2 Part B, you used `uv run modal serve` for development. This creates an ephemeral deployment that auto-reloads when you change code. For production, you want a persistent deployment that stays running.
+
+First, update your Modal secret to include `DEPLOYMENT_ENV=prod`:
+
+```bash
+uv run modal secret create agentic-support-bot-secrets \
+  WANDB_API_KEY=$WANDB_API_KEY \
+  AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
+  DEPLOYMENT_ENV=prod \
+  --force
+```
+
+Then deploy:
 
 ```bash
 uv run modal deploy workspace/server.py
@@ -763,8 +767,9 @@ Select `buzz_agent_prod/buzz` in the Playground and try the same test prompts fr
 Navigate to Traces → filter for `Agent.stream` operations.
 
 **What to notice:**
-- Traces from production are tagged with `env=prod`
-- You can filter by environment: `env=dev` vs `env=prod`
+- Traces from production are tagged with `env=prod` (because you set `DEPLOYMENT_ENV=prod` in the secret)
+- Traces from development are tagged with `env=dev` (the default)
+- You can filter by environment: `env=dev` vs `env=prod` in Weave UI
 - Same observability in both environments!
 
 ### Update Your Deployment

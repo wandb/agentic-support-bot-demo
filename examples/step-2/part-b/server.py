@@ -60,16 +60,9 @@ def get_environment() -> str:
     Returns:
         "dev" if running with `modal serve`, "prod" if running with `modal deploy`
     """
-    # Modal provides environment detection via modal.is_local()
-    import modal
-    try:
-        if modal.is_local():
-            return "dev"
-        else:
-            return "prod"
-    except:
-        # Fallback if modal.is_local() is not available
-        return os.getenv("MODAL_ENVIRONMENT", "dev")
+    # For production deployments, users should add DEPLOYMENT_ENV=prod to their Modal secret
+    # For development (modal serve), it defaults to "dev"
+    return os.getenv("DEPLOYMENT_ENV", "dev")
 
 
 # ============================================================================
@@ -139,11 +132,10 @@ def load_agent(config_path: str = "/workspace/tyler-chat-config.yaml") -> tuple[
     env = get_environment()
     logger.info(f"🚀 Environment: {env}")
     
-    # Initialize Weave with environment attribute
+    # Initialize Weave
     try:
         project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
-        # Set environment attribute for trace filtering
-        weave.init(project, attributes={"env": env})
+        weave.init(project)
         logger.info(f"📊 Weave initialized: project={project}, env={env}")
     except Exception as e:
         logger.warning(f"Weave initialization failed: {e} (observability degraded)")
@@ -478,8 +470,10 @@ async def chat_completions(
     async def generate() -> AsyncGenerator[str, None]:
         """Generate SSE stream from Tyler agent."""
         try:
-            async for chunk in AGENT.stream(thread, mode="raw"):
-                yield serialize_chunk_to_sse(chunk)
+            # Wrap agent call with weave.attributes to tag with environment
+            with weave.attributes({"env": ENV}):
+                async for chunk in AGENT.stream(thread, mode="raw"):
+                    yield serialize_chunk_to_sse(chunk)
             
             # Send [DONE] message
             yield "data: [DONE]\n\n"
