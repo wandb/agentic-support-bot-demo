@@ -254,7 +254,7 @@ This reads the variables from your shell environment (loaded from `.env`). The `
 **4. Start the development server:**
 
 ```bash
-uv run modal serve workspace/server.py
+MODAL_ENVIRONMENT=dev uv run modal serve workspace/server.py
 ```
 
 Modal will:
@@ -706,22 +706,10 @@ After iterating in the playground and building confidence through systematic eva
 
 ### Deploy to Production
 
-In Step 2 Part B, you used `uv run modal serve` for development. This creates an ephemeral deployment that auto-reloads when you change code. For production, you want a persistent deployment that stays running.
-
-First, update your Modal secret to include `DEPLOYMENT_ENV=prod`:
+In Step 2 Part B, you used `modal serve` for development. This creates an ephemeral deployment that auto-reloads when you change code. For production, you want a persistent deployment that stays running:
 
 ```bash
-uv run modal secret create agentic-support-bot-secrets \
-  WANDB_API_KEY=$WANDB_API_KEY \
-  AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
-  DEPLOYMENT_ENV=prod \
-  --force
-```
-
-Then deploy:
-
-```bash
-uv run modal deploy workspace/server.py
+MODAL_ENVIRONMENT=prod uv run modal deploy workspace/server.py
 ```
 
 Modal will:
@@ -767,8 +755,8 @@ Select `buzz_agent_prod/buzz` in the Playground and try the same test prompts fr
 Navigate to Traces → filter for `Agent.stream` operations.
 
 **What to notice:**
-- Traces from production are tagged with `env=prod` (because you set `DEPLOYMENT_ENV=prod` in the secret)
-- Traces from development are tagged with `env=dev` (the default)
+- Traces from production are tagged with `env=prod` (from `MODAL_ENVIRONMENT=prod`)
+- Traces from development are tagged with `env=dev` (from `MODAL_ENVIRONMENT=dev`)
 - You can filter by environment: `env=dev` vs `env=prod` in Weave UI
 - Same observability in both environments!
 
@@ -778,7 +766,7 @@ Made improvements to your agent? Just redeploy:
 
 ```bash
 # Make changes to workspace/tyler-chat-config.yaml or workspace/tools.py
-uv run modal deploy workspace/server.py
+MODAL_ENVIRONMENT=prod uv run modal deploy workspace/server.py
 ```
 
 Modal will update your production deployment. The update typically completes in under 1 minute.
@@ -800,12 +788,12 @@ uv run modal app stop agentic-support-bot
 
 ### Key Differences: Development vs Production
 
-| Aspect | `uv run modal serve` (dev) | `uv run modal deploy` (prod) |
+| Aspect | `MODAL_ENVIRONMENT=dev modal serve` | `MODAL_ENVIRONMENT=prod modal deploy` |
 |--------|-------------------|---------------------|
 | **Persistence** | Ephemeral (stops when you Ctrl+C) | Persistent (runs 24/7) |
 | **Auto-reload** | Yes (watches for file changes) | No (manual redeploy) |
-| **URL** | `...--agentic-support-bot-dev.modal.run` | `...--agentic-support-bot.modal.run` |
-| **Weave tags** | `env=dev` | `env=prod` |
+| **URL** | `...--agentic-support-bot-modal-endpoint-dev.modal.run` | `...--agentic-support-bot-modal-endpoint.modal.run` |
+| **Weave tags** | `env=dev` (from MODAL_ENVIRONMENT) | `env=prod` (from MODAL_ENVIRONMENT) |
 | **Use case** | Development and testing | Production usage |
 
 **Key Insight:** With Weave, your production traces look identical to your development traces - no separate instrumentation needed. The same `server.py` works for both environments, and Weave automatically tags traces so you can filter development vs production traffic.

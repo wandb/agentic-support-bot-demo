@@ -60,9 +60,11 @@ def get_environment() -> str:
     Returns:
         "dev" if running with `modal serve`, "prod" if running with `modal deploy`
     """
-    # For production deployments, users should add DEPLOYMENT_ENV=prod to their Modal secret
-    # For development (modal serve), it defaults to "dev"
-    return os.getenv("DEPLOYMENT_ENV", "dev")
+    # Use MODAL_ENVIRONMENT which can be set when running commands:
+    # MODAL_ENVIRONMENT=dev modal serve ...
+    # MODAL_ENVIRONMENT=prod modal deploy ...
+    # Defaults to "dev" if not set
+    return os.getenv("MODAL_ENVIRONMENT", "dev")
 
 
 # ============================================================================

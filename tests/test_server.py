@@ -37,22 +37,22 @@ def client():
 # ============================================================================
 
 def test_get_environment_dev_default():
-    """Test environment detection returns 'dev' by default (no DEPLOYMENT_ENV)."""
+    """Test environment detection returns 'dev' by default (no MODAL_ENVIRONMENT)."""
     with patch.dict(os.environ, {}, clear=True):
         env = get_environment()
         assert env == "dev"
 
 
 def test_get_environment_dev_explicit():
-    """Test environment detection returns 'dev' when DEPLOYMENT_ENV=dev."""
-    with patch.dict(os.environ, {'DEPLOYMENT_ENV': 'dev'}, clear=True):
+    """Test environment detection returns 'dev' when MODAL_ENVIRONMENT=dev."""
+    with patch.dict(os.environ, {'MODAL_ENVIRONMENT': 'dev'}, clear=True):
         env = get_environment()
         assert env == "dev"
 
 
 def test_get_environment_prod():
-    """Test environment detection returns 'prod' when DEPLOYMENT_ENV=prod."""
-    with patch.dict(os.environ, {'DEPLOYMENT_ENV': 'prod'}, clear=True):
+    """Test environment detection returns 'prod' when MODAL_ENVIRONMENT=prod."""
+    with patch.dict(os.environ, {'MODAL_ENVIRONMENT': 'prod'}, clear=True):
         env = get_environment()
         assert env == "prod"
 
