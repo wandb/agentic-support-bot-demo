@@ -6,14 +6,14 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "directive>=0.0.9",
-    "slide-lye>=5.1.1",
-    "weave>=0.51.0",
+    "slide-lye>=5.2.1",
+    "weave>=0.51.14",
     "python-dotenv>=1.0.0",
-    "slide-tyler>=5.1.1",
+    "slide-tyler>=5.2.1",
     "fastapi>=0.119.0",
     "uvicorn[standard]>=0.37.0",
     "tinydb>=4.8.0",
-    "ngrok>=1.4.0",
+    "modal>=0.64.0",
 ]
 
 [dependency-groups]

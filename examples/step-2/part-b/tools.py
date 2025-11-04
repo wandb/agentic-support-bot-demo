@@ -20,15 +20,18 @@ if os.getenv("WANDB_API_KEY"):
         print(f"Warning: Failed to initialize Weave: {e}")
 
 # Database configuration
-PROJECT_ROOT = Path(__file__).parent.parent
-DB_DIR = PROJECT_ROOT / "db"
+# When tools.py is in workspace/, database is in workspace/db/
+WORKSPACE_DIR = Path(__file__).parent
+DB_DIR = WORKSPACE_DIR / "db"
 DB_PATH = os.getenv("TICKETS_DB_PATH", str(DB_DIR / "tickets.json"))
 
 # Initialize database
 def _init_database():
     """Initialize the ticket database, ensuring it exists."""
     db_path = Path(DB_PATH)
-    sample_path = DB_DIR / "tickets.sample.json"
+    # Sample file is at project root db/ directory
+    project_root = WORKSPACE_DIR.parent
+    sample_path = project_root / "db" / "tickets.sample.json"
     
     # Ensure db directory exists
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -39,6 +42,7 @@ def _init_database():
             f"\n{'='*70}\n"
             f"❌ Ticket database not found at: {db_path}\n\n"
             f"Please set up the database by copying the sample data:\n"
+            f"  mkdir -p {db_path.parent}\n"
             f"  cp {sample_path} {db_path}\n\n"
             f"This will give you 15 realistic sample tickets to work with.\n"
             f"{'='*70}\n"

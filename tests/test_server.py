@@ -1,23 +1,28 @@
-"""Tests for the playground server OpenAI-compatible API."""
+"""Tests for the Modal-based server OpenAI-compatible API."""
 
 import json
+import os
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
 
 # Import server components
 import sys
 from pathlib import Path
 
-# Add step-2/part-b to path (where playground_server.py lives)
+# Add step-2/part-b to path (where server.py lives)
 step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
 sys.path.insert(0, str(step2_partb_dir))
 
-from playground_server import (
+# Mock modal before importing server
+sys.modules['modal'] = MagicMock()
+
+from server import (
     app,
     serialize_chunk_to_sse,
     convert_to_tyler_thread,
-    ChatMessage
+    get_environment,
+    ChatMessage,
 )
 
 
@@ -25,6 +30,71 @@ from playground_server import (
 def client():
     """Create a test client for the FastAPI app."""
     return TestClient(app)
+
+
+# ============================================================================
+# Unit Tests - Environment Detection
+# ============================================================================
+
+def test_get_environment_dev():
+    """Test environment detection returns 'dev' for modal serve."""
+    with patch('modal.is_local', return_value=True):
+        env = get_environment()
+        assert env == "dev"
+
+
+def test_get_environment_prod():
+    """Test environment detection returns 'prod' for modal deploy."""
+    with patch('modal.is_local', return_value=False):
+        env = get_environment()
+        assert env == "prod"
+
+
+def test_get_environment_fallback():
+    """Test environment detection falls back to env var."""
+    with patch('modal.is_local', side_effect=Exception("modal not available")):
+        with patch.dict(os.environ, {'MODAL_ENVIRONMENT': 'test'}):
+            env = get_environment()
+            assert env == "test"
+
+
+def test_get_environment_default_fallback():
+    """Test environment detection defaults to 'dev' if nothing available."""
+    with patch('modal.is_local', side_effect=Exception("modal not available")):
+        with patch.dict(os.environ, {}, clear=True):
+            env = get_environment()
+            assert env == "dev"
+
+
+# ============================================================================
+# Unit Tests - Secret Validation
+# ============================================================================
+
+def test_load_agent_missing_wandb_key():
+    """Test that load_agent fails when WANDB_API_KEY is missing."""
+    from server import load_agent
+    
+    with patch.dict(os.environ, {'AGENTIC_SUPPORT_BOT_API_KEY': 'test'}, clear=True):
+        with pytest.raises(ValueError, match="Missing required secrets"):
+            load_agent()
+
+
+def test_load_agent_missing_support_bot_key():
+    """Test that load_agent fails when AGENTIC_SUPPORT_BOT_API_KEY is missing."""
+    from server import load_agent
+    
+    with patch.dict(os.environ, {'WANDB_API_KEY': 'test'}, clear=True):
+        with pytest.raises(ValueError, match="Missing required secrets"):
+            load_agent()
+
+
+def test_load_agent_missing_both_keys():
+    """Test that load_agent fails when both secrets are missing."""
+    from server import load_agent
+    
+    with patch.dict(os.environ, {}, clear=True):
+        with pytest.raises(ValueError, match="Missing required secrets"):
+            load_agent()
 
 
 # ============================================================================
@@ -180,8 +250,18 @@ def test_health_endpoint(client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
+    assert "environment" in data
     assert "agent_name" in data
     assert "model" in data
+
+
+def test_health_endpoint_includes_environment(client):
+    """Test that health endpoint includes environment information."""
+    response = client.get("/health")
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["environment"] in ["dev", "prod", "unknown"]
 
 
 def test_root_endpoint(client):
@@ -191,6 +271,7 @@ def test_root_endpoint(client):
     assert response.status_code == 200
     data = response.json()
     assert "message" in data
+    assert "environment" in data
     assert "endpoints" in data
 
 
@@ -262,12 +343,13 @@ def test_cors_headers(client):
 # ============================================================================
 
 # NOTE: The following tests would require pytest-asyncio or actual API calls.
-# They've been validated manually with curl and are skipped in CI.
+# They've been validated manually with Modal and are skipped in CI.
 #
 # Manual test commands:
-# 1. Start server: uv run python playground_server.py
-# 2. Test streaming: curl -X POST http://localhost:8000/v1/chat/completions \
+# 1. Start server: modal serve workspace/server.py
+# 2. Test streaming: curl -X POST <modal-url>/v1/chat/completions \
 #      -H "Content-Type: application/json" \
+#      -H "Authorization: Bearer <api-key>" \
 #      -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}],"stream":true}'
 # 3. Verify SSE format, [DONE] message, and proper JSON chunks
 
@@ -387,15 +469,17 @@ def test_coverage_summary():
     Test coverage summary (for documentation).
     
     This test documents what we're testing:
+    - ✅ Environment detection (modal.is_local(), fallback)
+    - ✅ Secret validation (WANDB_API_KEY, AGENTIC_SUPPORT_BOT_API_KEY required)
     - ✅ SSE serialization (content, finish_reason, usage)
     - ✅ Message conversion (OpenAI → Tyler)
-    - ✅ Health endpoint
+    - ✅ Health endpoint (includes environment info)
     - ✅ Root endpoint
     - ✅ Error handling (empty messages, invalid format, missing fields)
     - ✅ CORS headers
-    - ✅ Streaming response format
+    - ✅ Authentication (missing, invalid format, wrong key, valid key)
     - ✅ Edge cases (special characters, long messages)
-    - ✅ Integration with real agent (optional, env-dependent)
+    - ✅ Modal-specific functionality
     """
     assert True  # This test always passes, it's just documentation
 

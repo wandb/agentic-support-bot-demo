@@ -25,8 +25,9 @@ Build a support bot for Weights & Biases that can:
 - **Python 3.12+** environment
 - **GitHub** to clone the repo
 - **Terminal access** to run commands
-- **ngrok account** (free) to expose local server ([sign up here](https://dashboard.ngrok.com/signup))
-  - After signup, get your auth token from [your ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken)
+- **Modal account** (free) for serverless deployment ([sign up here](https://modal.com))
+  - Used to deploy your agent server (both development and production)
+  - Free tier includes generous compute credits
 - **Weights & Biases account** ([sign up free](https://wandb.ai/authorize))
   - Your W&B API key is used for both Weave observability AND the LLM API (we use W&B Inference with DeepSeek)
 
@@ -75,30 +76,22 @@ cp .env.example .env
   - This is the Weave project where your traces, datasets, and evaluations will appear
   - **Important:** Multiple people using the same project name will overwrite each other's datasets and evaluations
 
-**c) Add your ngrok auth token:**
-- `NGROK_AUTHTOKEN` - Get your token from [ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken)
-  - Used to expose your local playground server so Weave Playground can connect to it
-  - **Note:** You need a free ngrok account to get this token
-
 Example `.env`:
 ```bash
 WANDB_API_KEY=your_api_key_here
 WANDB_PROJECT=agentic-support-bot-demo-alice  # ← Add your name here!
-NGROK_AUTHTOKEN=your_ngrok_token_here
-# PLAYGROUND_API_KEY=your_secret_key_here  # Not needed until Step 2 Part B
 ```
 
 **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `workspace/tyler-chat-config.yaml`.
 
-**Note:** The `workspace/` directory is gitignored - you can experiment freely and reset anytime by copying from `examples/`.
-
-4. **📦 Persistent Ticket Database**
+4. **Set up the `workspace/` directory where you will work**
 
 In order to make testing the support tools more realistic, we have a small db to persist tickets and allow tools to actually work.
 
 **Set up sample data:**
 ```bash
-cp db/tickets.sample.json db/tickets.json
+mkdir -p workspace/db
+cp db/tickets.sample.json workspace/db/tickets.json
 ```
 
 ---
@@ -118,7 +111,6 @@ Build your agent incrementally, starting simple and adding complexity. Use **Wea
 Copy the basic agent files to your workspace:
 
 ```bash
-mkdir -p workspace
 cp examples/step-2/part-a/*.{py,yaml} workspace/
 ```
 
@@ -126,7 +118,7 @@ This gives you:
 - `main.py` - Basic agent execution script
 - `tyler-chat-config.yaml` - Minimal agent configuration (generic purpose, no tools yet)
 
-**Test it:**
+**Test it using Slide's chat cli:**
 
 ```bash
 uv run tyler chat --config workspace/tyler-chat-config.yaml
@@ -189,7 +181,7 @@ cp examples/step-2/part-b/*.{py,yaml} workspace/
 This adds:
 - `tools.py` - Two support ticket tools: `create_issue` and `get_issue`
 - `tyler-chat-config.yaml` - Updated config with tools and MCP enabled
-- `playground_server.py` - OpenAI-compatible API server for Weave Playground
+- `server.py` - OpenAI-compatible API server for Weave Playground (deployed on Modal)
 
 
 Open `workspace/tools.py` (line 54) and look at the TOOLS list. Notice the tool definitions have NO descriptions or parameters - just function names. This is intentional! You'll add these in Step 3 to teach the agent when and how to use each tool.
@@ -223,50 +215,75 @@ mcp:
 
 **Test in Weave Playground**
 
-In order to use this agent in the playground we need to start a server locally and expose it. `playground_server.py` acts as a bridge between Weave Playground (OpenAI format) and your Tyler agent.
+We'll deploy your agent server on Modal so Weave Playground can connect to it. Modal provides a simple serverless platform that works for both development (with auto-reload) and production deployment.
 
-**Set up API key authentication:**
+**1. Set up Modal:**
 
-1. **Add to `.env` file:**
-   ```bash
-   PLAYGROUND_API_KEY=your_secret_key_here  # Can use "dummy" for this demo
-   ```
+```bash
+# Authenticate with Modal (opens browser for login)
+uv run modal setup
+```
 
-2. **Create team secret in W&B** (W&B Admins only):
+This creates a Modal account (free) and saves your credentials locally.
+
+**2. Create Modal secrets:**
+
+Modal secrets store your API keys securely and inject them as environment variables:
+
+```bash
+uv run modal secret create agentic-support-bot-secrets \
+  WANDB_API_KEY=$WANDB_API_KEY \
+  AGENTIC_SUPPORT_BOT_API_KEY=your_secret_key_here
+```
+
+Replace `your_secret_key_here` with any value (e.g., "dummy" for this demo). This API key is used to authenticate requests to your support bot server.
+
+**3. Add to W&B Team Secrets** (W&B Admins only, optional):
    - Navigate to your W&B project → team **Settings** → **Team Secrets**
    - Click **New secret**
-   - Name: `PLAYGROUND_API_KEY`
-   - Value: Same as your `.env` file
+   - Name: `AGENTIC_SUPPORT_BOT_API_KEY`
+   - Value: Same as your Modal secret
    - Click **Add secret**
 
-   **Note:** If your team already has `PLAYGROUND_API_KEY` set as a team secret, you can use any value in your `.env` file (e.g., "dummy") - the team secret takes precedence.
+   **Note:** If your team already has `AGENTIC_SUPPORT_BOT_API_KEY` set, you can use that value in the Modal secret above.
 
    See [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets) for details.
 
-**Start the playground server:**
-
-The server will automatically create an ngrok tunnel and display the public URL:
+**4. Start the development server:**
 
 ```bash
-uv run workspace/playground_server.py
+uv run modal serve workspace/server.py
 ```
+
+Modal will:
+- Build a container image with your dependencies
+- Mount your `workspace/` directory
+- Deploy to Modal's infrastructure
+- Provide an HTTPS URL
 
 You'll see output like:
 ```
-🌐 NGROK TUNNEL ACTIVE
-   Use this Base URL in Weave Playground: https://abc123.ngrok-free.app/v1
+✓ Created objects.
+├── 🔨 Created mount /Users/you/workspace
+├── 🔨 Created function modal_app.
+└── 🔨 Created web function modal_app => https://yourname--agentic-support-bot-dev.modal.run
+✓ App deployed in 3.14s
+
+View app at https://modal.com/apps/yourname/agentic-support-bot
+
+Serving... (Ctrl+C to stop)
 ```
 
-Copy the URL (e.g., `https://abc123.ngrok-free.app/v1`) for the next step.
+Copy the URL (e.g., `https://yourname--agentic-support-bot-dev.modal.run`).
 
-**Connect Weave Playground:**
+**5. Connect Weave Playground:**
 
-1. Go to your W&B project → navigate to Playground
+1. Go to your W&B project → navigate to **Playground**
 2. In model dropdown: **+ Add AI provider** → **Custom provider**
 3. Fill in:
    - **Provider name**: `buzz_agent`
-   - **API key**: `PLAYGROUND_API_KEY`
-   - **Base URL**: Your ngrok URL from the server output (already includes `/v1`)
+   - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
+   - **Base URL**: `<your-modal-url>/v1` (append `/v1` to the Modal URL)
    - **Models**: `buzz`
 4. Click **Add provider**
 5. Select `buzz_agent/buzz` from the model dropdown
@@ -304,8 +321,11 @@ Navigate to Traces → filter for `Agent.stream` operations.
 - Agent doesn't consistently use tools when it should
 - Doesn't "vibe" as a support bot
 - **Why?** The agent doesn't know its purpose or when to use tools!
+- **New:** All traces are tagged with `env=dev` (you can filter by this in Weave)
 
 This is what we'll fix in Step 3.
+
+**📌 Tip:** Keep `uv run modal serve` running in a terminal. It will auto-reload when you make changes to your code in Step 3!
 
 ---
 
@@ -680,20 +700,103 @@ Continue to **Step 5** to deploy your agent where it matters - in front of real 
 
 ## Step 5: Production Deployment 🚀
 
-> **🚧 COMING SOON**  
-> This step is currently under development. Check back soon for the full guide on deploying your agent to production!
+**Goal:** Deploy your agent as a persistent production service accessible 24/7.
 
-**Goal:** Deploy your agent as a production service where real users can interact with it.
+After iterating in the playground and building confidence through systematic evaluation, it's time to deploy your agent to production! The same code you've been developing with `modal serve` can be deployed to a persistent production environment with one command.
 
-After iterating in the playground and building confidence through systematic evaluation, it's time to deploy your agent where it matters - in front of actual users. This step will show you how to deploy the support bot to a real communication channel like Slack where team members can interact with it.
+### Deploy to Production
 
-**What You'll Accomplish:**
-- Deploy your agent to a production environment (e.g., Slack, web API, or chat interface)
-- See how Weave automatically traces production conversations with zero additional code
-- Experience the same observability in production that you had in development
-- Understand the deployment patterns and infrastructure considerations
+In Step 2 Part B, you used `uv run modal serve` for development. This creates an ephemeral deployment that auto-reloads when you change code. For production, you want a persistent deployment that stays running:
 
-**Key Insight:** With Weave, your production traces look identical to your playground traces - no separate instrumentation needed. This means you can debug production issues with the same tools you used during development.
+```bash
+uv run modal deploy workspace/server.py
+```
+
+Modal will:
+- Build a production container image
+- Deploy to persistent infrastructure
+- Provide a stable HTTPS URL that stays active 24/7
+
+You'll see output like:
+```
+✓ Created objects.
+├── 🔨 Created mount /Users/you/workspace
+├── 🔨 Created function modal_app.
+└── 🔨 Created web function modal_app => https://yourname--agentic-support-bot.modal.run
+✓ App deployed in 5.12s
+
+View app at https://modal.com/apps/yourname/agentic-support-bot
+```
+
+Copy the production URL (e.g., `https://yourname--agentic-support-bot.modal.run`).
+
+### Update Weave Playground for Production
+
+Now you can create a separate AI provider in Weave Playground for your production deployment:
+
+1. Go to your W&B project → navigate to **Playground**
+2. In model dropdown: **+ Add AI provider** → **Custom provider**
+3. Fill in:
+   - **Provider name**: `buzz_agent_prod`
+   - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (same as before)
+   - **Base URL**: `<your-production-modal-url>/v1`
+   - **Models**: `buzz`
+4. Click **Add provider**
+
+Now you have two providers:
+- `buzz_agent` → Development (modal serve)
+- `buzz_agent_prod` → Production (modal deploy)
+
+### Test Your Production Deployment
+
+Select `buzz_agent_prod/buzz` in the Playground and try the same test prompts from Step 2.
+
+**🔍 Check traces in Weave:**
+
+Navigate to Traces → filter for `Agent.stream` operations.
+
+**What to notice:**
+- Traces from production are tagged with `env=prod`
+- You can filter by environment: `env=dev` vs `env=prod`
+- Same observability in both environments!
+
+### Update Your Deployment
+
+Made improvements to your agent? Just redeploy:
+
+```bash
+# Make changes to workspace/tyler-chat-config.yaml or workspace/tools.py
+uv run modal deploy workspace/server.py
+```
+
+Modal will update your production deployment. The update typically completes in under 1 minute.
+
+### Monitor Your Production Deployment
+
+**View logs:**
+```bash
+uv run modal app logs agentic-support-bot
+```
+
+**Check deployment status:**
+Visit https://modal.com/apps and find your `agentic-support-bot` app.
+
+**Stop production deployment:**
+```bash
+uv run modal app stop agentic-support-bot
+```
+
+### Key Differences: Development vs Production
+
+| Aspect | `uv run modal serve` (dev) | `uv run modal deploy` (prod) |
+|--------|-------------------|---------------------|
+| **Persistence** | Ephemeral (stops when you Ctrl+C) | Persistent (runs 24/7) |
+| **Auto-reload** | Yes (watches for file changes) | No (manual redeploy) |
+| **URL** | `...--agentic-support-bot-dev.modal.run` | `...--agentic-support-bot.modal.run` |
+| **Weave tags** | `env=dev` | `env=prod` |
+| **Use case** | Development and testing | Production usage |
+
+**Key Insight:** With Weave, your production traces look identical to your development traces - no separate instrumentation needed. The same `server.py` works for both environments, and Weave automatically tags traces so you can filter development vs production traffic.
 
 ---
 
@@ -753,6 +856,12 @@ This is where everything comes together: evaluation → deployment → monitorin
 **Python Environment Issues:**
 - If you have `pyenv` or other Python version managers active, you may need to deactivate them first (`pyenv deactivate` or similar) before running `uv` commands
 - **macOS**: If you see import errors related to `magic`, install: `brew install libmagic`
+
+**Modal Issues:**
+- `modal: command not found` → Run `uv sync` to ensure Modal is installed
+- `Authentication error` → Run `uv run modal setup` to re-authenticate
+- `Missing secrets` → Create Modal secrets: `uv run modal secret create agentic-support-bot-secrets WANDB_API_KEY=xxx AGENTIC_SUPPORT_BOT_API_KEY=xxx`
+- Server not responding → Check Modal logs: `uv run modal app logs agentic-support-bot`
 
 **Debug Mode:**
 ```bash

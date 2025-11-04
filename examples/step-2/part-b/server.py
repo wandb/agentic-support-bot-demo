@@ -1,11 +1,13 @@
 """
-OpenAI-compatible API server for Tyler agent.
+Tyler agent server deployed on Modal.
 
-Exposes the Tyler support bot through a /v1/chat/completions endpoint
-that works with Weave Playground and other OpenAI-compatible clients.
+Works in two modes:
+- Development: `modal serve workspace/server.py` (ephemeral, auto-reload)
+- Production: `modal deploy workspace/server.py` (persistent, stable)
+
+The same server file works for both - Modal handles the differences.
 """
 
-import argparse
 import asyncio
 import json
 import logging
@@ -13,10 +15,11 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import List, Literal, Optional, AsyncGenerator
 
+import modal
 import yaml
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -26,14 +29,52 @@ from tyler import Agent, Thread, Message
 
 # Configure logging
 logging.basicConfig(
-    level=os.getenv("PLAYGROUND_LOG_LEVEL", "INFO"),
+    level=os.getenv("LOG_LEVEL", "INFO"),
     format="[%(asctime)s] %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
+# ============================================================================
+# Modal Configuration
+# ============================================================================
+
+# Create Modal app
+app_modal = modal.App("agentic-support-bot")
+
+# Create Modal image with dependencies
+image = modal.Image.debian_slim(python_version="3.12").pip_install_from_pyproject(
+    Path(__file__).parent.parent / "pyproject.toml"
+)
+
+# Mount workspace directory so we can access config, tools, and db
+workspace_mount = modal.Mount.from_local_dir(
+    Path(__file__).parent,
+    remote_path="/workspace"
+)
+
+# ============================================================================
+# Environment Detection
+# ============================================================================
+
+def get_environment() -> str:
+    """
+    Detect if running in dev or prod mode.
+    
+    Returns:
+        "dev" if running with `modal serve`, "prod" if running with `modal deploy`
+    """
+    # Modal provides environment detection via modal.is_local()
+    import modal
+    try:
+        if modal.is_local():
+            return "dev"
+        else:
+            return "prod"
+    except:
+        # Fallback if modal.is_local() is not available
+        return os.getenv("MODAL_ENVIRONMENT", "dev")
+
 
 # ============================================================================
 # Pydantic Models
@@ -58,15 +99,16 @@ class ChatCompletionRequest(BaseModel):
 class HealthResponse(BaseModel):
     """Response format for health check endpoint."""
     status: str
-    agent_name: str
-    model: str
+    environment: str
+    agent_name: Optional[str] = None
+    model: Optional[str] = None
 
 
 # ============================================================================
 # Agent Initialization
 # ============================================================================
 
-def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict]:
+def load_agent(config_path: str = "/workspace/tyler-chat-config.yaml") -> tuple[Agent, dict]:
     """
     Load Tyler agent from configuration file using Agent.from_config().
     
@@ -78,18 +120,42 @@ def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict
     
     Raises:
         FileNotFoundError: If config file doesn't exist
-        ValueError: If config is invalid or tools can't be loaded
+        ValueError: If config is invalid or tools can't be loaded or secrets are missing
     """
-    # Initialize Weave before loading agent
+    # Validate required secrets
+    required_secrets = ["WANDB_API_KEY", "AGENTIC_SUPPORT_BOT_API_KEY"]
+    missing_secrets = [s for s in required_secrets if not os.getenv(s)]
+    if missing_secrets:
+        error_msg = (
+            f"\n{'='*70}\n"
+            f"❌ Missing required Modal secrets: {', '.join(missing_secrets)}\n\n"
+            f"Please create Modal secrets with:\n"
+            f"  modal secret create agentic-support-bot-secrets \\\n"
+            f"    WANDB_API_KEY=<your-key> \\\n"
+            f"    AGENTIC_SUPPORT_BOT_API_KEY=<your-key>\n\n"
+            f"Then restart the server.\n"
+            f"{'='*70}\n"
+        )
+        logger.error(error_msg)
+        raise ValueError(f"Missing required secrets: {', '.join(missing_secrets)}")
+    
+    # Detect environment
+    env = get_environment()
+    logger.info(f"🚀 Environment: {env}")
+    
+    # Initialize Weave with environment attribute
     try:
         project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
-        weave.init(project)
-        logger.info(f"Weave initialized: project={project}")
+        # Set environment attribute for trace filtering
+        weave.init(project, attributes={"env": env})
+        logger.info(f"📊 Weave initialized: project={project}, env={env}")
     except Exception as e:
         logger.warning(f"Weave initialization failed: {e} (observability degraded)")
     
-    # Use new Agent.from_config() helper from Slide 4.2.0
+    # Load agent from config
     try:
+        # Change to workspace directory so tools.py can find db/tickets.json
+        os.chdir("/workspace")
         agent = Agent.from_config(config_path)
         logger.info(f"Agent loaded from {config_path}")
         
@@ -97,44 +163,29 @@ def load_agent(config_path: str = "tyler-chat-config.yaml") -> tuple[Agent, dict
         with open(config_path) as f:
             config = yaml.safe_load(f)
         
-        logger.info(f"Agent initialized: {config.get('name')} ({config.get('model_name')})")
+        logger.info(f"🤖 Agent initialized: {config.get('name')} ({config.get('model_name')})")
         return agent, config
         
     except FileNotFoundError:
         logger.error(f"Config file not found: {config_path}")
         raise FileNotFoundError(
             f"Configuration file '{config_path}' not found. "
-            "Please run the server from the project root directory."
+            "Please ensure tyler-chat-config.yaml is in the workspace directory."
         )
     except Exception as e:
         logger.error(f"Failed to load agent: {e}")
         raise ValueError(f"Failed to initialize agent from config: {e}")
 
 
-# Global agent variables (initialized conditionally below)
+# Global agent variables (initialized in lifespan)
 AGENT = None
 CONFIG = None
 AGENT_CONFIG = None
-
-# Initialize agent at module load time only if not running as main script
-# When running as main, command-line args will handle initialization
-if __name__ != "__main__":
-    try:
-        # Check for config path in environment variable
-        # Default to workspace directory
-        import pathlib
-        workspace_dir = pathlib.Path(__file__).parent
-        default_config = workspace_dir / "tyler-chat-config.yaml"
-        config_path = os.getenv("TYLER_CONFIG", str(default_config))
-        AGENT, CONFIG = load_agent(config_path)
-        AGENT_CONFIG = CONFIG.get("agent", CONFIG)
-    except Exception as e:
-        logger.error(f"Failed to initialize agent: {e}")
-        raise
+ENV = None
 
 
 # ============================================================================
-# SSE Serialization
+# SSE Serialization (OpenAI-compatible streaming)
 # ============================================================================
 
 def serialize_chunk_to_sse(chunk) -> str:
@@ -232,8 +283,8 @@ def verify_api_key(authorization: Optional[str] = None) -> None:
     """
     Verify the API key from the Authorization header.
     
-    Validates the provided API key against the PLAYGROUND_API_KEY environment variable.
-    If PLAYGROUND_API_KEY is not set, raises an error to prevent unauthorized access.
+    Validates the provided API key against the AGENTIC_SUPPORT_BOT_API_KEY environment variable.
+    If AGENTIC_SUPPORT_BOT_API_KEY is not set, raises an error to prevent unauthorized access.
     
     Args:
         authorization: Authorization header value (e.g., "Bearer <your-secret-key>")
@@ -257,9 +308,9 @@ def verify_api_key(authorization: Optional[str] = None) -> None:
     api_key = authorization[7:]  # Remove "Bearer " prefix
     
     # Get expected API key from environment variable
-    expected_key = os.getenv("PLAYGROUND_API_KEY")
+    expected_key = os.getenv("AGENTIC_SUPPORT_BOT_API_KEY")
     if not expected_key:
-        logger.error("PLAYGROUND_API_KEY environment variable not set")
+        logger.error("AGENTIC_SUPPORT_BOT_API_KEY environment variable not set")
         raise HTTPException(
             status_code=500,
             detail="Server configuration error: API key not configured"
@@ -298,17 +349,37 @@ def convert_to_tyler_thread(messages: List[ChatMessage]) -> Thread:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage MCP connections during app lifespan."""
-    # Startup: Connect to MCP servers
-    if AGENT and CONFIG and CONFIG.get("mcp"):
-        try:
-            logger.info("Connecting to MCP servers...")
-            await AGENT.connect_mcp()
-            logger.info("✓ MCP servers connected successfully")
-        except Exception as e:
-            logger.error(f"Failed to connect to MCP servers: {e}")
-            # Don't fail startup - MCP is optional
-            logger.warning("Continuing without MCP integration")
+    """Manage agent and MCP connections during app lifespan."""
+    global AGENT, CONFIG, AGENT_CONFIG, ENV
+    
+    # Startup: Load agent and connect to MCP servers
+    try:
+        ENV = get_environment()
+        logger.info("="*60)
+        logger.info("Tyler Playground API Server (Modal)")
+        logger.info("="*60)
+        
+        # Load agent
+        AGENT, CONFIG = load_agent()
+        AGENT_CONFIG = CONFIG
+        
+        # Connect to MCP servers if configured
+        if CONFIG.get("mcp"):
+            try:
+                logger.info("Connecting to MCP servers...")
+                await AGENT.connect_mcp()
+                logger.info("✓ MCP servers connected successfully")
+            except Exception as e:
+                logger.error(f"Failed to connect to MCP servers: {e}")
+                logger.warning("Continuing without MCP integration")
+        
+        logger.info("="*60)
+        logger.info(f"✅ All systems ready (env={ENV})")
+        logger.info("="*60)
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize server: {e}")
+        raise
     
     yield
     
@@ -328,7 +399,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Tyler Playground API",
-    description="OpenAI-compatible API for Tyler support bot agent",
+    description="OpenAI-compatible API for Tyler support bot agent (deployed on Modal)",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -336,7 +407,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for local dev
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -352,8 +423,9 @@ async def health_check():
     """Health check endpoint."""
     return HealthResponse(
         status="ok",
-        agent_name=AGENT_CONFIG["name"],
-        model=AGENT_CONFIG["model_name"]
+        environment=ENV or "unknown",
+        agent_name=AGENT_CONFIG.get("name") if AGENT_CONFIG else None,
+        model=AGENT_CONFIG.get("model_name") if AGENT_CONFIG else None
     )
 
 
@@ -361,7 +433,8 @@ async def health_check():
 async def root():
     """Root endpoint - redirects to health check."""
     return {
-        "message": "Tyler Playground API",
+        "message": "Tyler Playground API (Modal)",
+        "environment": ENV or "unknown",
         "endpoints": {
             "health": "/health",
             "chat_completions": "/v1/chat/completions"
@@ -392,7 +465,7 @@ async def chat_completions(
     
     # Log request
     logger.info(
-        f"POST /v1/chat/completions (messages={len(request.messages)})"
+        f"POST /v1/chat/completions (messages={len(request.messages)}, env={ENV})"
     )
     
     # Convert messages to Tyler thread
@@ -440,96 +513,22 @@ async def chat_completions(
 
 
 # ============================================================================
-# Server Startup
+# Modal Web Endpoint
 # ============================================================================
 
-if __name__ == "__main__":
-    import uvicorn
-    import pathlib
-    import ngrok
+@app_modal.function(
+    image=image,
+    secrets=[modal.Secret.from_name("agentic-support-bot-secrets")],
+    mounts=[workspace_mount],
+    timeout=300,  # 5 minute timeout
+)
+@modal.asgi_app()
+def modal_app():
+    """
+    Modal web endpoint that serves the FastAPI app.
     
-    # Default config path is in the workspace directory
-    workspace_dir = pathlib.Path(__file__).parent
-    default_config_path = str(workspace_dir / "tyler-chat-config.yaml")
-    
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(
-        description="Tyler Playground API Server - OpenAI-compatible chat completions endpoint"
-    )
-    parser.add_argument(
-        "--config",
-        type=str,
-        default=default_config_path,
-        help=f"Path to Tyler configuration YAML file (default: {default_config_path})"
-    )
-    parser.add_argument(
-        "--host",
-        type=str,
-        default=os.getenv("PLAYGROUND_SERVER_HOST", "0.0.0.0"),
-        help="Host to bind the server to (default: 0.0.0.0)"
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=int(os.getenv("PLAYGROUND_SERVER_PORT", "8000")),
-        help="Port to bind the server to (default: 8000)"
-    )
-    args = parser.parse_args()
-    
-    # Validate required environment variables
-    if not os.getenv("PLAYGROUND_API_KEY"):
-        logger.error("PLAYGROUND_API_KEY environment variable is required")
-        logger.error("Please set it in your .env file or environment")
-        logger.error("Example: export PLAYGROUND_API_KEY=your_secret_key")
-        raise ValueError("Missing required environment variable: PLAYGROUND_API_KEY")
-    
-    if not os.getenv("NGROK_AUTHTOKEN"):
-        logger.error("NGROK_AUTHTOKEN environment variable is required")
-        logger.error("Please set it in your .env file")
-        logger.error("Get your authtoken at: https://dashboard.ngrok.com/get-started/your-authtoken")
-        raise ValueError("Missing required environment variable: NGROK_AUTHTOKEN")
-    
-    # Load the agent with the specified config
-    try:
-        AGENT, CONFIG = load_agent(args.config)
-        AGENT_CONFIG = CONFIG.get("agent", CONFIG)
-    except Exception as e:
-        logger.error(f"Failed to load agent with config {args.config}: {e}")
-        raise
-    
-    # Set up ngrok tunnel
-    logger.info("Setting up ngrok tunnel...")
-    try:
-        listener = ngrok.forward(args.port, authtoken_from_env=True)
-        tunnel_url = listener.url()
-        logger.info(f"✓ Ngrok tunnel established: {tunnel_url}")
-    except Exception as e:
-        logger.error(f"Failed to create ngrok tunnel: {e}")
-        logger.error("Make sure NGROK_AUTHTOKEN is set correctly")
-        raise
-    
-    logger.info("="*60)
-    logger.info("Tyler Playground API Server")
-    logger.info("="*60)
-    logger.info(f"Config: {args.config}")
-    logger.info(f"Agent: {AGENT_CONFIG['name']} ({AGENT_CONFIG['model_name']})")
-    logger.info(f"Local server: http://{args.host}:{args.port}")
-    logger.info(f"Health check: http://{args.host}:{args.port}/health")
-    logger.info(f"Authentication: Required (Bearer token)")
-    logger.info("="*60)
-    logger.info("")
-    
-    # Start the server
-    print("\n" + "="*60)
-    print("🌐 NGROK TUNNEL ACTIVE")
-    print(f"   Use this Base URL in Weave Playground: {tunnel_url}/v1")
-    print("="*60 + "\n")
-    
-    uvicorn.run(
-        "playground_server:app",
-        host=args.host,
-        port=args.port,
-        log_level="info",
-        reload=False  # Disable reload to prevent double initialization
-    )
+    This function is called by Modal to create the ASGI app.
+    Works for both `modal serve` (dev) and `modal deploy` (prod).
+    """
+    return app
 
