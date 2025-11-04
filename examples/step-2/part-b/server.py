@@ -632,10 +632,10 @@ async def slack_events(request: Request):
 image = modal.Image.debian_slim(python_version="3.12").pip_install(
     # Core dependencies (from pyproject.toml)
     "directive>=0.0.9",
-    "slide-lye>=5.1.1",
+    "slide-lye>=5.2.0",  # 5.2.0+ removes libmagic dependency
     "weave>=0.51.0",
     "python-dotenv>=1.0.0",
-    "slide-tyler>=5.1.1",
+    "slide-tyler>=5.2.0",  # 5.2.0+ removes libmagic dependency
     "fastapi>=0.119.0",
     "uvicorn[standard]>=0.37.0",
     "tinydb>=4.8.0",
