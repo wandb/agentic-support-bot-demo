@@ -514,7 +514,10 @@ async def chat_completions(
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_name("agentic-support-bot-secrets")],
+    secrets=[modal.Secret.from_name(
+        "agentic-support-bot-secrets",
+        required_keys=["WANDB_API_KEY", "AGENTIC_SUPPORT_BOT_API_KEY"]
+    )],
     timeout=300,  # 5 minute timeout
 )
 @modal.asgi_app()
