@@ -39,8 +39,8 @@ logger = logging.getLogger(__name__)
 # Modal Configuration
 # ============================================================================
 
-# Create Modal app
-app_modal = modal.App("agentic-support-bot")
+# Create Modal app (Modal convention: use 'app' for the Modal App object)
+app = modal.App("agentic-support-bot")
 
 # Create Modal image with dependencies and workspace files
 image = (
@@ -393,7 +393,7 @@ async def lifespan(app: FastAPI):
 # FastAPI Application
 # ============================================================================
 
-app = FastAPI(
+web_app = FastAPI(
     title="Tyler Playground API",
     description="OpenAI-compatible API for Tyler support bot agent (deployed on Modal)",
     version="1.0.0",
@@ -401,7 +401,7 @@ app = FastAPI(
 )
 
 # Add CORS middleware
-app.add_middleware(
+web_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
@@ -414,7 +414,7 @@ app.add_middleware(
 # Endpoints
 # ============================================================================
 
-@app.get("/health", response_model=HealthResponse)
+@web_app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint."""
     return HealthResponse(
@@ -425,7 +425,7 @@ async def health_check():
     )
 
 
-@app.get("/")
+@web_app.get("/")
 async def root():
     """Root endpoint - redirects to health check."""
     return {
@@ -438,7 +438,7 @@ async def root():
     }
 
 
-@app.post("/v1/chat/completions")
+@web_app.post("/v1/chat/completions")
 async def chat_completions(
     request: ChatCompletionRequest,
     authorization: Optional[str] = Header(None)
@@ -512,18 +512,18 @@ async def chat_completions(
 # Modal Web Endpoint
 # ============================================================================
 
-@app_modal.function(
+@app.function(
     image=image,
     secrets=[modal.Secret.from_name("agentic-support-bot-secrets")],
     timeout=300,  # 5 minute timeout
 )
 @modal.asgi_app()
-def modal_app():
+def modal_endpoint():
     """
     Modal web endpoint that serves the FastAPI app.
     
     This function is called by Modal to create the ASGI app.
     Works for both `modal serve` (dev) and `modal deploy` (prod).
     """
-    return app
+    return web_app
 

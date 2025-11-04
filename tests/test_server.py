@@ -18,7 +18,7 @@ sys.path.insert(0, str(step2_partb_dir))
 sys.modules['modal'] = MagicMock()
 
 from server import (
-    app,
+    web_app,
     serialize_chunk_to_sse,
     convert_to_tyler_thread,
     get_environment,
@@ -29,7 +29,7 @@ from server import (
 @pytest.fixture
 def client():
     """Create a test client for the FastAPI app."""
-    return TestClient(app)
+    return TestClient(web_app)
 
 
 # ============================================================================

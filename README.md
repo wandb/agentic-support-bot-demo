@@ -252,7 +252,7 @@ This reads from your `.env` file where `AGENTIC_SUPPORT_BOT_API_KEY` is set to "
 **4. Start the development server:**
 
 ```bash
-uv run modal serve workspace/server.py::app_modal
+uv run modal serve workspace/server.py
 ```
 
 Modal will:
@@ -708,7 +708,7 @@ After iterating in the playground and building confidence through systematic eva
 In Step 2 Part B, you used `uv run modal serve` for development. This creates an ephemeral deployment that auto-reloads when you change code. For production, you want a persistent deployment that stays running:
 
 ```bash
-uv run modal deploy workspace/server.py::app_modal
+uv run modal deploy workspace/server.py
 ```
 
 Modal will:
@@ -764,7 +764,7 @@ Made improvements to your agent? Just redeploy:
 
 ```bash
 # Make changes to workspace/tyler-chat-config.yaml or workspace/tools.py
-uv run modal deploy workspace/server.py::app_modal
+uv run modal deploy workspace/server.py
 ```
 
 Modal will update your production deployment. The update typically completes in under 1 minute.
