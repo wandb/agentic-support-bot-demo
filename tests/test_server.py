@@ -43,25 +43,25 @@ def test_get_environment_dev():
         assert env == "dev"
 
 
-def test_get_environment_prod_main():
-    """Test environment detection returns 'prod' for main environment."""
+def test_get_environment_main():
+    """Test environment detection returns 'main' for main environment."""
     with patch.dict(os.environ, {'MODAL_ENVIRONMENT': 'main'}, clear=True):
         env = get_environment()
-        assert env == "prod"
+        assert env == "main"
 
 
-def test_get_environment_prod_default():
-    """Test environment detection defaults to 'prod' (main) if MODAL_ENVIRONMENT not set."""
+def test_get_environment_default():
+    """Test environment detection defaults to 'main' if MODAL_ENVIRONMENT not set."""
     with patch.dict(os.environ, {}, clear=True):
         env = get_environment()
-        assert env == "prod"
+        assert env == "main"
 
 
-def test_get_environment_prod_other():
-    """Test environment detection returns 'prod' for any non-dev environment."""
+def test_get_environment_other():
+    """Test environment detection returns the environment name as-is."""
     with patch.dict(os.environ, {'MODAL_ENVIRONMENT': 'staging'}, clear=True):
         env = get_environment()
-        assert env == "prod"
+        assert env == "staging"
 
 
 # ============================================================================

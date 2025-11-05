@@ -55,21 +55,15 @@ image = (
 
 def get_environment() -> str:
     """
-    Detect if running in dev or prod mode.
+    Get the Modal environment name for Weave tagging.
     
     Returns:
-        "dev" if running in Modal's dev environment, "prod" if running in main environment
+        Modal environment name ("dev" or "main")
     """
     # Modal sets MODAL_ENVIRONMENT to the environment name
-    # We use: "dev" environment for development, "main" environment for production
-    modal_env = os.getenv("MODAL_ENVIRONMENT", "main")
-    
-    # Map Modal environment names to our env tags
-    if modal_env == "dev":
-        return "dev"
-    else:
-        # "main" or any other environment is considered prod
-        return "prod"
+    # We use: "dev" for development, "main" for production
+    # Just return the Modal environment name directly
+    return os.getenv("MODAL_ENVIRONMENT", "main")
 
 
 # ============================================================================

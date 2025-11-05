@@ -331,11 +331,11 @@ Navigate to Traces → filter for `Agent.stream` operations.
 - Agent doesn't consistently use tools when it should
 - Doesn't "vibe" as a support bot
 - **Why?** The agent doesn't know its purpose or when to use tools!
-- **New:** All traces are tagged with `env=dev` (you can filter by this in Weave)
+- **New:** All traces are tagged with `env=dev` (from Modal's dev environment)
 
 This is what we'll fix in Step 3.
 
-**📌 Tip:** Keep `uv run modal serve` running in a terminal. It will auto-reload when you make changes to your code in Step 3!
+**📌 Tip:** Keep `uv run modal serve --env dev` running in a terminal. It will auto-reload when you make changes to your code in Step 3!
 
 ---
 
@@ -767,9 +767,9 @@ Select `buzz_agent_prod/buzz` in the Playground and try the same test prompts fr
 Navigate to Traces → filter for `Agent.stream` operations.
 
 **What to notice:**
-- Traces from production (main environment) are tagged with `env=prod`
+- Traces from production (main environment) are tagged with `env=main`
 - Traces from development (dev environment) are tagged with `env=dev`
-- You can filter by environment in Weave UI: `env=dev` vs `env=prod`
+- You can filter by environment in Weave UI: `env=dev` vs `env=main`
 - Same observability in both environments!
 
 ### Update Your Deployment
@@ -806,7 +806,7 @@ uv run modal app stop agentic-support-bot
 | **Persistence** | Ephemeral (stops when you Ctrl+C) | Persistent (runs 24/7) |
 | **Auto-reload** | Yes (watches for file changes) | No (manual redeploy) |
 | **URL suffix** | `-dev` | (none) |
-| **Weave tags** | `env=dev` | `env=prod` |
+| **Weave tags** | `env=dev` | `env=main` |
 | **Use case** | Development and testing | Production usage |
 
 **Key Insight:** With Weave, your production traces look identical to your development traces - no separate instrumentation needed. The same `server.py` works for both environments, and Weave automatically tags traces so you can filter development vs production traffic.
