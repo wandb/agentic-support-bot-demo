@@ -226,35 +226,45 @@ uv run modal setup
 
 This creates a Modal account (free) and saves your credentials locally.
 
-**2. Create Modal secrets:**
+**2. Create Modal environments:**
 
-Modal secrets store your API keys securely and inject them as environment variables.
-
-Create the Modal secret:
+Modal [Environments](https://modal.com/docs/guide/environments#environments) let you separate dev and prod deployments. Create a `dev` environment (the `main` environment already exists for production):
 
 ```bash
-uv run modal secret create agentic-support-bot-secrets \
+uv run modal environment create dev
+```
+
+**3. Create Modal secret:**
+
+Create a secret in the `main` environment that will be shared by both dev and prod:
+
+```bash
+# First, load your .env variables into your shell
+export $(cat .env | grep -v '^#' | xargs)
+
+# Create the secret in the main environment
+uv run modal secret create agentic-support-bot-secrets --env main \
   WANDB_API_KEY=$WANDB_API_KEY \
   AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY
 ```
 
-This reads the variables from your shell environment (loaded from `.env`). The `AGENTIC_SUPPORT_BOT_API_KEY` is set to "dummy" in `.env.example` (good enough for this demo).
+This creates a shared secret that both `dev` and `main` environments can access.
 
-**3. Add to W&B Team Secrets** (W&B Admins only, optional):
+**4. (Optional) Add to W&B Team Secrets** (W&B Admins only):
    - Navigate to your W&B project → team **Settings** → **Team Secrets**
    - Click **New secret**
    - Name: `AGENTIC_SUPPORT_BOT_API_KEY`
    - Value: Same as your Modal secret
    - Click **Add secret**
 
-   **Note:** If your team already has `AGENTIC_SUPPORT_BOT_API_KEY` set, you can use that value in the Modal secret above.
+   **Note:** If your team already has `AGENTIC_SUPPORT_BOT_API_KEY` set, you can use that value when creating the Modal secret.
 
    See [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets) for details.
 
-**4. Start the development server:**
+**5. Start the development server:**
 
 ```bash
-MODAL_ENVIRONMENT=dev uv run modal serve workspace/server.py
+uv run modal serve --env dev workspace/server.py
 ```
 
 Modal will:
@@ -277,7 +287,7 @@ Serving... (Ctrl+C to stop)
 
 Copy the URL (e.g., `https://yourname--agentic-support-bot-dev.modal.run`).
 
-**5. Connect Weave Playground:**
+**6. Connect Weave Playground:**
 
 1. Go to your W&B project → navigate to **Playground**
 2. In model dropdown: **+ Add AI provider** → **Custom provider**
@@ -706,11 +716,13 @@ After iterating in the playground and building confidence through systematic eva
 
 ### Deploy to Production
 
-In Step 2 Part B, you used `modal serve` for development. This creates an ephemeral deployment that auto-reloads when you change code. For production, you want a persistent deployment that stays running:
+In Step 2 Part B, you used `modal serve --env dev` for development. This creates an ephemeral deployment in the `dev` environment that auto-reloads when you change code. For production, deploy to the `main` environment:
 
 ```bash
-MODAL_ENVIRONMENT=prod uv run modal deploy workspace/server.py
+uv run modal deploy workspace/server.py
 ```
+
+(No `--env` flag needed - Modal defaults to the `main` environment for production)
 
 Modal will:
 - Build a production container image
@@ -755,9 +767,9 @@ Select `buzz_agent_prod/buzz` in the Playground and try the same test prompts fr
 Navigate to Traces → filter for `Agent.stream` operations.
 
 **What to notice:**
-- Traces from production are tagged with `env=prod` (from `MODAL_ENVIRONMENT=prod`)
-- Traces from development are tagged with `env=dev` (from `MODAL_ENVIRONMENT=dev`)
-- You can filter by environment: `env=dev` vs `env=prod` in Weave UI
+- Traces from production (main environment) are tagged with `env=prod`
+- Traces from development (dev environment) are tagged with `env=dev`
+- You can filter by environment in Weave UI: `env=dev` vs `env=prod`
 - Same observability in both environments!
 
 ### Update Your Deployment
@@ -766,7 +778,7 @@ Made improvements to your agent? Just redeploy:
 
 ```bash
 # Make changes to workspace/tyler-chat-config.yaml or workspace/tools.py
-MODAL_ENVIRONMENT=prod uv run modal deploy workspace/server.py
+uv run modal deploy workspace/server.py
 ```
 
 Modal will update your production deployment. The update typically completes in under 1 minute.
@@ -788,12 +800,13 @@ uv run modal app stop agentic-support-bot
 
 ### Key Differences: Development vs Production
 
-| Aspect | `MODAL_ENVIRONMENT=dev modal serve` | `MODAL_ENVIRONMENT=prod modal deploy` |
+| Aspect | `modal serve --env dev` | `modal deploy` (main) |
 |--------|-------------------|---------------------|
+| **Environment** | dev | main (default) |
 | **Persistence** | Ephemeral (stops when you Ctrl+C) | Persistent (runs 24/7) |
 | **Auto-reload** | Yes (watches for file changes) | No (manual redeploy) |
-| **URL** | `...--agentic-support-bot-modal-endpoint-dev.modal.run` | `...--agentic-support-bot-modal-endpoint.modal.run` |
-| **Weave tags** | `env=dev` (from MODAL_ENVIRONMENT) | `env=prod` (from MODAL_ENVIRONMENT) |
+| **URL suffix** | `-dev` | (none) |
+| **Weave tags** | `env=dev` | `env=prod` |
 | **Use case** | Development and testing | Production usage |
 
 **Key Insight:** With Weave, your production traces look identical to your development traces - no separate instrumentation needed. The same `server.py` works for both environments, and Weave automatically tags traces so you can filter development vs production traffic.

@@ -58,13 +58,18 @@ def get_environment() -> str:
     Detect if running in dev or prod mode.
     
     Returns:
-        "dev" if running with `modal serve`, "prod" if running with `modal deploy`
+        "dev" if running in Modal's dev environment, "prod" if running in main environment
     """
-    # Use MODAL_ENVIRONMENT which can be set when running commands:
-    # MODAL_ENVIRONMENT=dev modal serve ...
-    # MODAL_ENVIRONMENT=prod modal deploy ...
-    # Defaults to "dev" if not set
-    return os.getenv("MODAL_ENVIRONMENT", "dev")
+    # Modal sets MODAL_ENVIRONMENT to the environment name
+    # We use: "dev" environment for development, "main" environment for production
+    modal_env = os.getenv("MODAL_ENVIRONMENT", "main")
+    
+    # Map Modal environment names to our env tags
+    if modal_env == "dev":
+        return "dev"
+    else:
+        # "main" or any other environment is considered prod
+        return "prod"
 
 
 # ============================================================================
@@ -510,8 +515,10 @@ async def chat_completions(
 
 @app.function(
     image=image,
+    # Reference shared secret from main environment (accessible from all environments)
     secrets=[modal.Secret.from_name(
         "agentic-support-bot-secrets",
+        environment_name="main",
         required_keys=["WANDB_API_KEY", "AGENTIC_SUPPORT_BOT_API_KEY"]
     )],
     timeout=300,  # 5 minute timeout

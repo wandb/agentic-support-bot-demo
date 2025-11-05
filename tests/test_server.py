@@ -36,23 +36,30 @@ def client():
 # Unit Tests - Environment Detection
 # ============================================================================
 
-def test_get_environment_dev_default():
-    """Test environment detection returns 'dev' by default (no MODAL_ENVIRONMENT)."""
-    with patch.dict(os.environ, {}, clear=True):
-        env = get_environment()
-        assert env == "dev"
-
-
-def test_get_environment_dev_explicit():
-    """Test environment detection returns 'dev' when MODAL_ENVIRONMENT=dev."""
+def test_get_environment_dev():
+    """Test environment detection returns 'dev' for dev environment."""
     with patch.dict(os.environ, {'MODAL_ENVIRONMENT': 'dev'}, clear=True):
         env = get_environment()
         assert env == "dev"
 
 
-def test_get_environment_prod():
-    """Test environment detection returns 'prod' when MODAL_ENVIRONMENT=prod."""
-    with patch.dict(os.environ, {'MODAL_ENVIRONMENT': 'prod'}, clear=True):
+def test_get_environment_prod_main():
+    """Test environment detection returns 'prod' for main environment."""
+    with patch.dict(os.environ, {'MODAL_ENVIRONMENT': 'main'}, clear=True):
+        env = get_environment()
+        assert env == "prod"
+
+
+def test_get_environment_prod_default():
+    """Test environment detection defaults to 'prod' (main) if MODAL_ENVIRONMENT not set."""
+    with patch.dict(os.environ, {}, clear=True):
+        env = get_environment()
+        assert env == "prod"
+
+
+def test_get_environment_prod_other():
+    """Test environment detection returns 'prod' for any non-dev environment."""
+    with patch.dict(os.environ, {'MODAL_ENVIRONMENT': 'staging'}, clear=True):
         env = get_environment()
         assert env == "prod"
 
