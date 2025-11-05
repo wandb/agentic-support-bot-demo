@@ -767,43 +767,13 @@ Navigate to Traces → filter for `Agent.stream` operations.
 
 ### Create a Saved View for Production Traces
 
-Now that you have both dev and prod traces, let's create a [Saved View](https://docs.wandb.ai/weave/guides/tools/saved-views) in Weave to quickly filter your production traffic:
+Now that you have both dev and prod traces, create a [Saved View](https://docs.wandb.ai/weave/guides/tools/saved-views) in Weave to quickly access your production traffic:
 
-**1. Navigate to Traces:**
-   - Go to your W&B project → **Traces** tab
+1. Go to your W&B project → **Traces** tab
+2. Add filters for production: `attributes.env` = `main` and operation = `Agent.stream`
+3. Save the view as "Production Dashboard"
 
-**2. Add a filter for production:**
-   - Click **+ Add filter** (or the filter icon)
-   - In the filter dropdown:
-     - **Field**: Select `attributes.env` (or type it manually)
-     - **Operator**: Select `equals` (=)
-     - **Value**: Type `main`
-   - The table now shows only traces from your production deployment
-
-**3. Customize the view (optional):**
-   - Sort by **Started at** (descending) to see newest traces first
-   - Add/remove columns to show what's relevant
-   - Adjust page size for your preference
-
-**4. Save the view:**
-   - In the upper right corner, click **Save view**
-   - Name it: `Production (main environment)`
-   - Click **Save**
-
-**5. Switch between views:**
-   - Click the hamburger menu next to the **Traces** tab title
-   - You'll see your saved views:
-     - `Production (main environment)` - filtered to env=main
-     - `Traces` (default) - all traces
-   - Click any view to switch
-
-**Why this is useful:**
-- Quickly focus on production traffic vs development experiments
-- Share views with your team
-- Monitor production performance without dev noise
-- Create additional views for specific scenarios (errors, slow requests, etc.)
-
-**💡 Pro tip:** Create a second saved view for `env=dev` to quickly switch between reviewing development and production traces!
+This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
 
 ---
 
