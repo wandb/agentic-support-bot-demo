@@ -88,7 +88,7 @@ WANDB_PROJECT=agentic-support-bot-demo-alice  # ← Add your name here!
 
 In order to make testing the support tools more realistic, we have a small db to persist tickets and allow tools to actually work.
 
-**Set up sample data:**
+**Set up workspace and sample data:**
 ```bash
 mkdir -p workspace/db
 cp db/tickets.sample.json workspace/db/tickets.json
@@ -135,7 +135,7 @@ I'm getting API timeout errors when logging predictions. Can you help?
 ```
 
 ```
-What's the status of ticket #123?
+What's the status of ticket #10234?
 ```
 
 ```
@@ -239,16 +239,11 @@ uv run modal environment create dev
 Create a secret in the `main` environment that will be shared by both dev and prod:
 
 ```bash
-# First, load your .env variables into your shell
-export $(cat .env | grep -v '^#' | xargs)
-
 # Create the secret in the main environment
 uv run modal secret create agentic-support-bot-secrets --env main \
   WANDB_API_KEY=$WANDB_API_KEY \
   AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY
 ```
-
-This creates a shared secret that both `dev` and `main` environments can access.
 
 **4. (Optional) Add to W&B Team Secrets** (W&B Admins only):
    - Navigate to your W&B project → team **Settings** → **Team Secrets**
@@ -311,7 +306,7 @@ I'm getting API timeout errors when logging predictions. Can you help?
 ```
 
 ```
-What's the status of ticket #123?
+What's the status of ticket #10234?
 ```
 
 ```
@@ -472,7 +467,7 @@ I'm getting API timeout errors when logging predictions. Can you help?
 ```
 
 ```
-What's the status of ticket #123?
+What's the status of ticket #10234?
 ```
 
 ```
@@ -771,45 +766,6 @@ Navigate to Traces → filter for `Agent.stream` operations.
 - Traces from development (dev environment) are tagged with `env=dev`
 - You can filter by environment in Weave UI: `env=dev` vs `env=main`
 - Same observability in both environments!
-
-### Update Your Deployment
-
-Made improvements to your agent? Just redeploy:
-
-```bash
-# Make changes to workspace/tyler-chat-config.yaml or workspace/tools.py
-uv run modal deploy workspace/server.py
-```
-
-Modal will update your production deployment. The update typically completes in under 1 minute.
-
-### Monitor Your Production Deployment
-
-**View logs:**
-```bash
-uv run modal app logs agentic-support-bot
-```
-
-**Check deployment status:**
-Visit https://modal.com/apps and find your `agentic-support-bot` app.
-
-**Stop production deployment:**
-```bash
-uv run modal app stop agentic-support-bot
-```
-
-### Key Differences: Development vs Production
-
-| Aspect | `modal serve --env dev` | `modal deploy` (main) |
-|--------|-------------------|---------------------|
-| **Environment** | dev | main (default) |
-| **Persistence** | Ephemeral (stops when you Ctrl+C) | Persistent (runs 24/7) |
-| **Auto-reload** | Yes (watches for file changes) | No (manual redeploy) |
-| **URL suffix** | `-dev` | (none) |
-| **Weave tags** | `env=dev` | `env=main` |
-| **Use case** | Development and testing | Production usage |
-
-**Key Insight:** With Weave, your production traces look identical to your development traces - no separate instrumentation needed. The same `server.py` works for both environments, and Weave automatically tags traces so you can filter development vs production traffic.
 
 ---
 
