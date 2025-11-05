@@ -187,14 +187,11 @@ def serialize_chunk_to_sse(chunk) -> str:
     Returns:
         SSE-formatted string: "data: {json}\\n\\n"
     """
-    # Get model name with safe fallback when AGENT_CONFIG is None (e.g., in tests)
-    default_model = AGENT_CONFIG.get("model_name") if AGENT_CONFIG else "unknown"
-    
     chunk_dict = {
         "id": getattr(chunk, 'id', f'chatcmpl-{uuid.uuid4()}'),
         "object": getattr(chunk, 'object', 'chat.completion.chunk'),
         "created": getattr(chunk, 'created', int(time.time())),
-        "model": getattr(chunk, 'model', default_model),
+        "model": getattr(chunk, 'model', AGENT_CONFIG["model_name"]),
         "choices": []
     }
     

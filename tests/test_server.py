@@ -17,6 +17,7 @@ sys.path.insert(0, str(step2_partb_dir))
 # Mock modal before importing server
 sys.modules['modal'] = MagicMock()
 
+import server as server_module
 from server import (
     web_app,
     serialize_chunk_to_sse,
@@ -24,6 +25,9 @@ from server import (
     get_environment,
     ChatMessage,
 )
+
+# Mock AGENT_CONFIG for tests that use serialize_chunk_to_sse
+server_module.AGENT_CONFIG = {"model_name": "gpt-4o"}
 
 
 @pytest.fixture
