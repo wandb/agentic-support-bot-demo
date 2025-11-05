@@ -705,7 +705,7 @@ Continue to **Step 5** to deploy your agent where it matters - in front of real 
 
 ## Step 5: Production Deployment 🚀
 
-**Goal:** Deploy your agent as a persistent production service accessible 24/7.
+**Goal:** Deploy your agent as a persistent production service.
 
 After iterating in the playground and building confidence through systematic evaluation, it's time to deploy your agent to production! The same code you've been developing with `modal serve` can be deployed to a persistent production environment with one command.
 
@@ -716,8 +716,6 @@ In Step 2 Part B, you used `modal serve --env dev` for development. This creates
 ```bash
 uv run modal deploy workspace/server.py
 ```
-
-(No `--env` flag needed - Modal defaults to the `main` environment for production)
 
 Modal will:
 - Build a production container image
@@ -743,19 +741,19 @@ Now you can create a separate AI provider in Weave Playground for your productio
 1. Go to your W&B project → navigate to **Playground**
 2. In model dropdown: **+ Add AI provider** → **Custom provider**
 3. Fill in:
-   - **Provider name**: `buzz_agent_prod`
-   - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (same as before)
-   - **Base URL**: `<your-production-modal-url>/v1`
+   - **Provider name**: `agentic-support-bot-main`
+   - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
+   - **Base URL**: `<your-production-modal-url>/v1` (append `/v1` to the Modal URL)
    - **Models**: `buzz`
 4. Click **Add provider**
 
 Now you have two providers:
-- `buzz_agent` → Development (modal serve)
-- `buzz_agent_prod` → Production (modal deploy)
+- `agentic-support-bot-dev/buzz` → Development (modal serve)
+- `agentic-support-bot-main/buzz` → Production (modal deploy)
 
 ### Test Your Production Deployment
 
-Select `buzz_agent_prod/buzz` in the Playground and try the same test prompts from Step 2.
+Select `agentic-support-bot-main/buzz` in the Playground and try the same test prompts from Step 2.
 
 **🔍 Check traces in Weave:**
 
@@ -766,6 +764,46 @@ Navigate to Traces → filter for `Agent.stream` operations.
 - Traces from development (dev environment) are tagged with `env=dev`
 - You can filter by environment in Weave UI: `env=dev` vs `env=main`
 - Same observability in both environments!
+
+### Create a Saved View for Production Traces
+
+Now that you have both dev and prod traces, let's create a [Saved View](https://docs.wandb.ai/weave/guides/tools/saved-views) in Weave to quickly filter your production traffic:
+
+**1. Navigate to Traces:**
+   - Go to your W&B project → **Traces** tab
+
+**2. Add a filter for production:**
+   - Click **+ Add filter** (or the filter icon)
+   - In the filter dropdown:
+     - **Field**: Select `attributes.env` (or type it manually)
+     - **Operator**: Select `equals` (=)
+     - **Value**: Type `main`
+   - The table now shows only traces from your production deployment
+
+**3. Customize the view (optional):**
+   - Sort by **Started at** (descending) to see newest traces first
+   - Add/remove columns to show what's relevant
+   - Adjust page size for your preference
+
+**4. Save the view:**
+   - In the upper right corner, click **Save view**
+   - Name it: `Production (main environment)`
+   - Click **Save**
+
+**5. Switch between views:**
+   - Click the hamburger menu next to the **Traces** tab title
+   - You'll see your saved views:
+     - `Production (main environment)` - filtered to env=main
+     - `Traces` (default) - all traces
+   - Click any view to switch
+
+**Why this is useful:**
+- Quickly focus on production traffic vs development experiments
+- Share views with your team
+- Monitor production performance without dev noise
+- Create additional views for specific scenarios (errors, slow requests, etc.)
+
+**💡 Pro tip:** Create a second saved view for `env=dev` to quickly switch between reviewing development and production traces!
 
 ---
 
