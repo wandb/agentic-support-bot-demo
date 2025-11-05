@@ -748,14 +748,14 @@ wheels = [
 
 [[package]]
 name = "directive"
-version = "1.0.0"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mcp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/82/7f/2accc2947a2e63c7a31c34f04b4a887b12cc3c11efbe64591db04319adaa/directive-1.0.0.tar.gz", hash = "sha256:82bcf4a7e92e913e57ed9b61992e34d993b3d11e88027900050d14fb638718c9", size = 20461, upload-time = "2025-10-31T16:00:40.616Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/6b/a1b7f4773545855e673dab7cf692033287f9a0c6c28b2a4e426b8d88f26f/directive-1.2.0.tar.gz", hash = "sha256:d18bb2993942ec5e690f937af263c38141c7592240daa55aba0dcd440756ece5", size = 20999, upload-time = "2025-11-05T23:05:37.158Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/6b/5494b638933939ad15ec36a75b42a9cdfd30ffbedeb002c64ea3d58f3839/directive-1.0.0-py3-none-any.whl", hash = "sha256:18cb747a34f0e28ce2df5712b0d7e7b47c11b77d0d8ee8ac015baa3e219c31ff", size = 28077, upload-time = "2025-10-31T16:00:39.81Z" },
+    { url = "https://files.pythonhosted.org/packages/25/ae/8fb6d037277f439282ec6367455a279fcd9078eee96df7477610ec8531df/directive-1.2.0-py3-none-any.whl", hash = "sha256:82fa7f4fcfa428a29baa1f289b877511a20991130b6e412224334ccaa4f3fb3f", size = 27863, upload-time = "2025-11-05T23:05:36.138Z" },
 ]
 
 [[package]]

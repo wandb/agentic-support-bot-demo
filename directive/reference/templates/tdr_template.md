@@ -1,7 +1,8 @@
 # Technical Design Review (TDR) — <Feature Name>
 
+**Spec ID**: YYYYMMDD  
+**Created**: YYYY-MM-DD  
 **Author**: <agent or engineer>  
-**Date**: <YYYY-MM-DD>  
 **Links**: Spec (`/directive/specs/<feature>/spec.md`), Impact (`/directive/specs/<feature>/impact.md`), related issues/PRs, designs
 
 ---

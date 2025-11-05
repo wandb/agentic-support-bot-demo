@@ -9,13 +9,24 @@ Authoritative sources (read first):
 - Technical best practices → @directive/reference/agent_context.md
 - Your workflow & gates (how to code the Directive way) → @directive/reference/agent_operating_procedure.md
 
+🚨 FIRST STEP — FEATURE BRANCH (BEFORE ANYTHING ELSE):
+- Check current branch: `git branch --show-current`
+- If not on a feature branch, create one from main: `feature/YYYYMMDD-feature-name` (must match spec folder)
+- NEVER work directly on main or master
+
+**Naming Convention**:
+- All new specs use date-based prefixes: `YYYYMMDD-feature-name/`
+- Use the current date when creating the spec (e.g., `20251105-cursor-rules-alignment/`)
+- If multiple specs created same day, use distinct feature names to differentiate
+- Example: For a spec created on November 5, 2025 → `/directive/specs/20251105-feature-name/` → branch `feature/20251105-feature-name`
+
 Pre‑implementation gates (must exist and be approved before any code):
-1) Spec → `/directive/specs/<feature>/spec.md`
-2) Impact Analysis → `/directive/specs/<feature>/impact.md`
-3) TDR (high‑level, decisive about interfaces) → `/directive/specs/<feature>/tdr.md`
+1) Spec → `/directive/specs/YYYYMMDD-feature/spec.md`
+2) Impact Analysis → `/directive/specs/YYYYMMDD-feature/impact.md`
+3) TDR (high‑level, decisive about interfaces) → `/directive/specs/YYYYMMDD-feature/tdr.md`
 
 Location for new feature docs:
-- Create all new Spec, Impact, and TDR files under `/directive/specs/<feature>/` (one subfolder per feature).
+- Create all new Spec, Impact, and TDR files under `/directive/specs/YYYYMMDD-feature/` (one subfolder per feature).
 
 Collaboration and approval:
 - Draft each document (Spec, Impact, TDR) collaboratively with the engineer.
@@ -31,3 +42,4 @@ Templates:
 @directive/reference/templates/spec_template.md
 @directive/reference/templates/impact_template.md
 @directive/reference/templates/tdr_template.md
+@directive/reference/templates/implementation_summary_template.md
