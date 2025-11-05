@@ -66,8 +66,9 @@ tyler_chat.db
 chat.db
 *.db-journal
 
-# Support ticket database (working copy - sample is tracked)
+# Support ticket database (working copy is in workspace/db/, sample is tracked at db/)
 db/tickets.json
+workspace/db/tickets.json
 
 # Flask stuff:
 instance/
