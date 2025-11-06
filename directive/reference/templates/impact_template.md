@@ -1,5 +1,8 @@
 # Impact Analysis — <Feature Name>
 
+**Spec ID**: YYYYMMDD  
+**Created**: YYYY-MM-DD  
+
 ## Modules/packages likely touched
 -  
 
