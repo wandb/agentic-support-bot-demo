@@ -105,7 +105,7 @@ class HealthResponse(BaseModel):
 def load_agent(config_path: str = "/workspace/tyler-chat-config.yaml") -> tuple[Agent, dict]:
     """Load Tyler agent from configuration file using Agent.from_config()."""
     # Validate required secrets
-    required_secrets = ["WANDB_API_KEY", "AGENTIC_SUPPORT_BOT_API_KEY"]
+    required_secrets = ["WANDB_API_KEY", "AGENTIC_SUPPORT_BOT_API_KEY", "OPENAI_API_KEY"]
     missing_secrets = [s for s in required_secrets if not os.getenv(s)]
     if missing_secrets:
         error_msg = (
@@ -114,7 +114,8 @@ def load_agent(config_path: str = "/workspace/tyler-chat-config.yaml") -> tuple[
             f"Please create Modal secrets with:\n"
             f"  modal secret create agentic-support-bot-secrets \\\n"
             f"    WANDB_API_KEY=<your-key> \\\n"
-            f"    AGENTIC_SUPPORT_BOT_API_KEY=<your-key>\n\n"
+            f"    AGENTIC_SUPPORT_BOT_API_KEY=<your-key> \\\n"
+            f"    OPENAI_API_KEY=<your-key>\n\n"
             f"Then restart the server.\n"
             f"{'='*70}\n"
         )
@@ -481,7 +482,7 @@ async def chat_completions(
     secrets=[modal.Secret.from_name(
         "agentic-support-bot-secrets",
         environment_name="main",
-        required_keys=["WANDB_API_KEY", "AGENTIC_SUPPORT_BOT_API_KEY"]
+        required_keys=["WANDB_API_KEY", "AGENTIC_SUPPORT_BOT_API_KEY", "OPENAI_API_KEY"]
     )],
     timeout=300,
 )

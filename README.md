@@ -71,17 +71,19 @@ cp .env.example .env
 - `WANDB_API_KEY` - Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)
   - Used for both Weave observability and LLM API (we use W&B Inference with DeepSeek)
 
-**b) Customize your project name:**
+**b) Add your OpenAI API key:**
+- `OPENAI_API_KEY` - Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+  - Required for Step 6 guardrails (uses OpenAI's Moderation API)
+
+**c) Customize your project name:**
 - `WANDB_PROJECT` - Add a unique suffix to avoid conflicts (e.g., `agentic-support-bot-demo-yourname`)
   - This is the Weave project where your traces, datasets, and evaluations will appear
   - **Important:** Multiple people using the same project name will overwrite each other's datasets and evaluations
 
-**c) (Optional) Add OpenAI API key:**
-- `OPENAI_API_KEY` - Required for Step 6 guardrails (moderation API) or if you plan on using OpenAI models
-
 Example `.env`:
 ```bash
-WANDB_API_KEY=your_api_key_here
+WANDB_API_KEY=your_wandb_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
 WANDB_PROJECT=agentic-support-bot-demo-alice  # ← Add your name here!
 ```
 
@@ -245,8 +247,11 @@ Create a secret in the `main` environment that will be shared by both dev and pr
 # Create the secret in the main environment
 uv run modal secret create agentic-support-bot-secrets --env main \
   WANDB_API_KEY=$WANDB_API_KEY \
-  AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY
+  AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
+  OPENAI_API_KEY=$OPENAI_API_KEY
 ```
+
+**Note:** The `OPENAI_API_KEY` is required for Step 6 guardrails (uses OpenAI's Moderation API). If you haven't set it in your `.env` file yet, add it before running this command.
 
 **4. (Optional) Add to W&B Team Secrets** (W&B Admins only):
    - Navigate to your W&B project → team **Settings** → **Team Secrets**
@@ -803,7 +808,18 @@ Guardrails use Weave's built-in ML-based scorers that run with minimal latency (
 
 **Prerequisites:**
 
-Make sure you add an OpenAI API key to your `.env` file for the input moderation guardrail
+1. Complete Step 5 (Modal deployment)
+2. Add `OPENAI_API_KEY` to your `.env` file for the input moderation guardrail (get key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys))
+3. Update your Modal secret to include the OpenAI key:
+
+```bash
+uv run modal secret create agentic-support-bot-secrets --env main \
+  WANDB_API_KEY=$WANDB_API_KEY \
+  AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
+  OPENAI_API_KEY=$OPENAI_API_KEY
+```
+
+**Note:** If you already created the Modal secret in Step 5 without `OPENAI_API_KEY`, you'll need to recreate it with all three keys.
 
 **Copy the files:**
 
@@ -1117,7 +1133,7 @@ This is where everything comes together: evaluation → deployment → monitorin
 **Modal Issues:**
 - `modal: command not found` → Run `uv sync` to ensure Modal is installed
 - `Authentication error` → Run `uv run modal setup` to re-authenticate
-- `Missing secrets` → Create Modal secrets: `uv run modal secret create agentic-support-bot-secrets WANDB_API_KEY=xxx AGENTIC_SUPPORT_BOT_API_KEY=xxx`
+- `Missing secrets` → Create Modal secrets: `uv run modal secret create agentic-support-bot-secrets --env main WANDB_API_KEY=xxx AGENTIC_SUPPORT_BOT_API_KEY=xxx OPENAI_API_KEY=xxx`
 - Server not responding → Check Modal logs: `uv run modal app logs agentic-support-bot`
 
 **Step 6 Guardrails Issues:**
