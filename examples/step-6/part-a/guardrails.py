@@ -85,13 +85,24 @@ class InputToxicityGuardrail(weave.Scorer):
         
         try:
             # Use OpenAI Moderation API
-            # Note: Call score method directly (it's wrapped with @weave.op internally)
-            # OpenAIModerationScorer's score method expects 'output' parameter
-            moderation_result = self._moderation_scorer.score(output=input)
+            # Call the scorer's score method directly
+            # It may return a coroutine or a direct result
+            result = self._moderation_scorer.score(output=input)
             
-            # If result is a coroutine, await it
-            if hasattr(moderation_result, '__await__'):
-                moderation_result = await moderation_result
+            # Handle async result
+            if hasattr(result, '__await__'):
+                moderation_result = await result
+            else:
+                moderation_result = result
+            
+            # Debug: Check what we got back
+            if not isinstance(moderation_result, dict):
+                return {
+                    "flagged": True,
+                    "reason": f"Safety check unavailable: Unexpected result type {type(moderation_result)}",
+                    "score": 0.0,
+                    "error": f"Expected dict, got {type(moderation_result)}"
+                }
             
             # Extract results
             flagged = moderation_result.get("flagged", False)
