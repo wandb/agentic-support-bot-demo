@@ -244,14 +244,14 @@ uv run modal environment create dev
 Create a secret in the `main` environment that will be shared by both dev and prod:
 
 ```bash
-# Create the secret in the main environment
-uv run modal secret create agentic-support-bot-secrets --env main \
+# Load environment variables and create the secret
+source .env && uv run modal secret create agentic-support-bot-secrets --env main \
   WANDB_API_KEY=$WANDB_API_KEY \
   AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
   OPENAI_API_KEY=$OPENAI_API_KEY
 ```
 
-**Note:** The `OPENAI_API_KEY` is required for Step 6 guardrails (uses OpenAI's Moderation API). If you haven't set it in your `.env` file yet, add it before running this command.
+**Note:** The `source .env` command loads your environment variables before creating the secret, ensuring all keys are properly set.
 
 **4. (Optional) Add to W&B Team Secrets** (W&B Admins only):
    - Navigate to your W&B project → team **Settings** → **Team Secrets**
@@ -813,13 +813,14 @@ Guardrails use Weave's built-in ML-based scorers that run with minimal latency (
 3. Update your Modal secret to include the OpenAI key:
 
 ```bash
-uv run modal secret create agentic-support-bot-secrets --env main \
+# Load environment variables and update the secret
+source .env && uv run modal secret create agentic-support-bot-secrets --env main \
   WANDB_API_KEY=$WANDB_API_KEY \
   AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
   OPENAI_API_KEY=$OPENAI_API_KEY
 ```
 
-**Note:** If you already created the Modal secret in Step 5 without `OPENAI_API_KEY`, you'll need to recreate it with all three keys.
+**Note:** If you already created the Modal secret in Step 5 without `OPENAI_API_KEY`, recreate it with all three keys. The `source .env` ensures your variables are loaded.
 
 **Copy the files:**
 
@@ -1133,7 +1134,7 @@ This is where everything comes together: evaluation → deployment → monitorin
 **Modal Issues:**
 - `modal: command not found` → Run `uv sync` to ensure Modal is installed
 - `Authentication error` → Run `uv run modal setup` to re-authenticate
-- `Missing secrets` → Create Modal secrets: `uv run modal secret create agentic-support-bot-secrets --env main WANDB_API_KEY=xxx AGENTIC_SUPPORT_BOT_API_KEY=xxx OPENAI_API_KEY=xxx`
+- `Missing secrets` → Create Modal secrets: `source .env && uv run modal secret create agentic-support-bot-secrets --env main WANDB_API_KEY=$WANDB_API_KEY AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY OPENAI_API_KEY=$OPENAI_API_KEY`
 - Server not responding → Check Modal logs: `uv run modal app logs agentic-support-bot`
 
 **Step 6 Guardrails Issues:**
