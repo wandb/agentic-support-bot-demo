@@ -85,28 +85,28 @@ class InputToxicityGuardrail(weave.Scorer):
         
         try:
             # Use OpenAI Moderation API
-            # Call the scorer's score method directly
-            # It may return a coroutine or a direct result
+            # Call the scorer's score method - returns object with 'passed' and 'metadata' attributes
             result = self._moderation_scorer.score(output=input)
             
             # Handle async result
             if hasattr(result, '__await__'):
-                moderation_result = await result
+                score_result = await result
             else:
-                moderation_result = result
+                score_result = result
             
-            # Debug: Check what we got back
-            if not isinstance(moderation_result, dict):
-                return {
-                    "flagged": True,
-                    "reason": f"Safety check unavailable: Unexpected result type {type(moderation_result)}",
-                    "score": 0.0,
-                    "error": f"Expected dict, got {type(moderation_result)}"
-                }
+            # Extract from the score result object
+            # OpenAIModerationScorer returns an object with 'passed' and 'metadata' attributes
+            passed = getattr(score_result, 'passed', True)  # Default to passed if attribute missing
+            metadata = getattr(score_result, 'metadata', {})
             
-            # Extract results
-            flagged = moderation_result.get("flagged", False)
-            categories = moderation_result.get("categories", {})
+            # Extract flagged status and categories from metadata
+            if isinstance(metadata, dict):
+                flagged = metadata.get("flagged", False)
+                categories = metadata.get("categories", {})
+            else:
+                # Fallback: check if flagged is directly on the result
+                flagged = not passed
+                categories = {}
             
             # Ensure categories is a dict
             if not isinstance(categories, dict):
