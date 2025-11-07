@@ -806,22 +806,6 @@ Guardrails use Weave's built-in ML-based scorers that run with minimal latency (
 - **INPUT guardrail**: OpenAI Moderation API (checks user prompts)
 - **OUTPUT guardrail**: WeaveToxicityScorerV1 (local ML model, checks agent responses)
 
-**Prerequisites:**
-
-1. Complete Step 5 (Modal deployment)
-2. Add `OPENAI_API_KEY` to your `.env` file for the input moderation guardrail (get key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys))
-3. Update your Modal secret to include the OpenAI key:
-
-```bash
-# Load environment variables and update the secret
-source .env && uv run modal secret create agentic-support-bot-secrets --env main \
-  WANDB_API_KEY=$WANDB_API_KEY \
-  AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
-  OPENAI_API_KEY=$OPENAI_API_KEY
-```
-
-**Note:** If you already created the Modal secret in Step 5 without `OPENAI_API_KEY`, recreate it with all three keys. The `source .env` ensures your variables are loaded.
-
 **Copy the files:**
 
 ```bash

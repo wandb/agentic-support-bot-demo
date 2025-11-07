@@ -97,6 +97,10 @@ class InputToxicityGuardrail(weave.Scorer):
             flagged = moderation_result.get("flagged", False)
             categories = moderation_result.get("categories", {})
             
+            # Ensure categories is a dict
+            if not isinstance(categories, dict):
+                categories = {}
+            
             if flagged:
                 # Build reason from flagged categories
                 flagged_cats = [cat for cat, val in categories.items() if val]
