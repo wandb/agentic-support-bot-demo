@@ -1,18 +1,26 @@
 """
-Tyler agent server with guardrails deployed on Modal.
+Tyler agent server with input guardrails deployed on Modal.
 
-Step 6 Part A: Adds guardrail scorers to block unsafe content before it reaches users.
+Step 6 Part A: Adds input guardrail to block toxic requests before generation.
 
 Changes from Step 5:
-- Imports guardrail scorers (ToxicityGuardrail, OffTopicGuardrail)
-- Initializes guardrails outside request handler (performance)
-- Applies guardrails sequentially after agent generates response
+
+- Imports input guardrail scorer (InputToxicityGuardrail)
+- Initializes guardrail outside request handler (performance)
+- Applies INPUT guardrail before generation to block toxic requests
 - Returns blocked message if guardrail flags content
-- Complete responses instead of streaming (needed to check content before sending)
+- Maintains streaming for great UX (output guardrails would break streaming)
+
+Why only INPUT guardrail?
+- Blocks toxic requests BEFORE generation (fast, maintains streaming)
+- Most common production pattern for streaming apps
+- Modern LLMs rarely generate toxic content on their own
 
 Works in two modes:
 - Development: `modal serve --env dev workspace/server.py` (ephemeral, auto-reload)
 - Production: `modal deploy workspace/server.py` (persistent, stable)
+
+Version: 1.6 - Input guardrail only, streaming restored
 """
 
 import asyncio
@@ -24,12 +32,13 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import AsyncGenerator, List, Literal, Optional
 
 import modal
 import yaml
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 import weave
 from tyler import Agent, Thread, Message
@@ -37,8 +46,8 @@ from tyler import Agent, Thread, Message
 # Add /workspace to Python path for imports
 sys.path.insert(0, "/workspace")
 
-# Import guardrails (Weave's built-in scorers)
-from guardrails import InputToxicityGuardrail, OutputToxicityGuardrail
+# Import guardrail (input only - maintains streaming UX)
+from guardrails import InputToxicityGuardrail
 
 # Configure logging
 logging.basicConfig(
@@ -160,15 +169,13 @@ CONFIG = None
 AGENT_CONFIG = None
 ENV = None
 
-# Initialize guardrails (outside request handler for performance)
-# These are reused across all requests
-# Two-stage approach: Check input BEFORE generation, output AFTER
+# Initialize input guardrail (outside request handler for performance)
+# Reused across all requests to check user input BEFORE generation
 INPUT_TOXICITY_GUARD = InputToxicityGuardrail()
-OUTPUT_TOXICITY_GUARD = OutputToxicityGuardrail()
 
-logger.info("🛡️  Two-stage guardrails initialized (Weave built-in scorers):")
-logger.info(f"  - INPUT:  {INPUT_TOXICITY_GUARD.__class__.__name__} → OpenAIModerationScorer")
-logger.info(f"  - OUTPUT: {OUTPUT_TOXICITY_GUARD.__class__.__name__} → WeaveToxicityScorerV1")
+logger.info("🛡️  Input guardrail initialized (maintains streaming):")
+logger.info(f"  - INPUT: {INPUT_TOXICITY_GUARD.__class__.__name__} → FixedOpenAIModerationScorer")
+
 
 
 # ============================================================================
@@ -216,6 +223,68 @@ def convert_to_tyler_thread(messages: List[ChatMessage]) -> Thread:
     for msg in messages:
         thread.add_message(Message(role=msg.role, content=msg.content))
     return thread
+
+
+def serialize_chunk_to_sse(chunk) -> str:
+    """
+    Serialize a streaming chunk to Server-Sent Events format.
+    
+    Converts Tyler/LiteLLM chunk objects to OpenAI-compatible SSE format.
+    Returns formatted string: "data: {json}\n\n"
+    """
+    chunk_dict = {
+        "id": f"chatcmpl-{uuid.uuid4()}",
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": getattr(chunk, 'model', 'unknown'),
+        "choices": []
+    }
+    
+    # Process choices if present
+    if hasattr(chunk, 'choices') and chunk.choices:
+        for choice in chunk.choices:
+            choice_dict = {
+                "index": getattr(choice, 'index', 0),
+                "delta": {},
+                "finish_reason": getattr(choice, 'finish_reason', None)
+            }
+            
+            # Handle delta
+            if hasattr(choice, 'delta'):
+                delta = choice.delta
+                if hasattr(delta, 'role') and delta.role:
+                    choice_dict["delta"]["role"] = delta.role
+                if hasattr(delta, 'content') and delta.content is not None:
+                    choice_dict["delta"]["content"] = delta.content
+                if hasattr(delta, 'tool_calls') and delta.tool_calls:
+                    # Convert tool calls to dict format
+                    tool_calls_list = []
+                    for tool_call in delta.tool_calls:
+                        tool_call_dict = {
+                            "index": getattr(tool_call, 'index', 0),
+                            "id": getattr(tool_call, 'id', None),
+                            "type": getattr(tool_call, 'type', 'function'),
+                            "function": {}
+                        }
+                        if hasattr(tool_call, 'function'):
+                            func = tool_call.function
+                            tool_call_dict["function"]["name"] = getattr(func, 'name', None)
+                            tool_call_dict["function"]["arguments"] = getattr(func, 'arguments', None)
+                        tool_calls_list.append(tool_call_dict)
+                    
+                    choice_dict["delta"]["tool_calls"] = tool_calls_list
+            
+            chunk_dict["choices"].append(choice_dict)
+    
+    # Include usage in final chunk
+    if hasattr(chunk, 'usage') and chunk.usage:
+        chunk_dict["usage"] = {
+            "prompt_tokens": getattr(chunk.usage, 'prompt_tokens', 0),
+            "completion_tokens": getattr(chunk.usage, 'completion_tokens', 0),
+            "total_tokens": getattr(chunk.usage, 'total_tokens', 0)
+        }
+    
+    return f"data: {json.dumps(chunk_dict)}\n\n"
 
 
 # ============================================================================
@@ -305,11 +374,10 @@ async def health_check():
 async def root():
     """Root endpoint."""
     return {
-        "message": "Tyler API with Two-Stage Guardrails (Step 6)",
+        "message": "Tyler API with Input Guardrail (Step 6)",
         "environment": ENV or "unknown",
         "guardrails": {
-            "input": [f"{INPUT_TOXICITY_GUARD.__class__.__name__} (OpenAI Moderation API)"],
-            "output": [f"{OUTPUT_TOXICITY_GUARD.__class__.__name__} (WeaveToxicityScorerV1)"]
+            "input": f"{INPUT_TOXICITY_GUARD.__class__.__name__} (OpenAI Moderation API - maintains streaming)"
         },
         "endpoints": {
             "health": "/health",
@@ -324,14 +392,17 @@ async def chat_completions(
     authorization: Optional[str] = Header(None)
 ):
     """
-    OpenAI-compatible chat completions endpoint with two-stage guardrails.
+    OpenAI-compatible chat completions endpoint with input guardrail.
     
-    Two-stage guardrail approach:
-    1. INPUT guardrail: Check user's prompt BEFORE generation (blocks toxic requests early)
-    2. OUTPUT guardrail: Check agent's response AFTER generation (safety net)
+    INPUT guardrail approach:
+    1. Check user's prompt BEFORE generation (blocks toxic requests early)
+    2. If safe, stream response normally (great UX)
     
-    This approach is more efficient - we avoid generating responses to toxic prompts,
-    saving both LLM costs and time.
+    Why not output guardrail?
+    - Would require buffering full response (no streaming)
+    - Kills UX for minimal gain
+    - Modern LLMs rarely generate toxic content
+    - This is the most common production pattern
     
     Requires API key authentication via Authorization header.
     """
@@ -367,7 +438,7 @@ async def chat_completions(
             logger.warning(f"🛡️  INPUT guardrail blocked (BEFORE generation): {input_check['reason']}")
             
             # Return blocked message immediately (DON'T generate!)
-            return {
+            return JSONResponse(content={
                 "id": f"chatcmpl-{uuid.uuid4()}",
                 "object": "chat.completion",
                 "created": int(time.time()),
@@ -385,9 +456,9 @@ async def chat_completions(
                     "completion_tokens": 0,
                     "total_tokens": 0
                 }
-            }
+            }, status_code=200)
     
-    logger.info("✓ INPUT guardrail passed - proceeding to generation")
+    logger.info("✓ INPUT guardrail passed - proceeding to streaming generation")
     
     # Convert messages to Tyler thread
     try:
@@ -397,80 +468,44 @@ async def chat_completions(
         raise HTTPException(status_code=400, detail=f"Invalid message format: {e}")
     
     # ========================================================================
-    # GENERATE RESPONSE (only if input guardrail passed)
+    # STREAM RESPONSE (input guardrail passed - safe to stream)
     # ========================================================================
     
-    try:
-        # Generate response with weave.attributes to tag with environment
-        with weave.attributes({"env": ENV}):
-            # Collect full response (not streaming for output guardrail check)
-            full_response = ""
-            async for chunk in AGENT.stream(thread, mode="raw"):
-                # Extract content from chunk
-                if hasattr(chunk, 'choices') and chunk.choices:
-                    for choice in chunk.choices:
-                        if hasattr(choice, 'delta') and hasattr(choice.delta, 'content'):
-                            if choice.delta.content:
-                                full_response += choice.delta.content
+    # Stream response from Tyler agent
+    async def generate() -> AsyncGenerator[str, None]:
+        """Generate SSE stream from Tyler agent."""
+        try:
+            # Wrap agent call with weave.attributes to tag with environment
+            with weave.attributes({"env": ENV}):
+                async for chunk in AGENT.stream(thread, mode="raw"):
+                    yield serialize_chunk_to_sse(chunk)
             
-            logger.info("✓ Response generated - applying OUTPUT guardrail")
+            # Send [DONE] message
+            yield "data: [DONE]\n\n"
             
-            # ================================================================
-            # STAGE 2: OUTPUT GUARDRAIL - Check agent's response AFTER generation
-            # ================================================================
+            logger.info("Request completed successfully")
             
-            # Check if agent's response is toxic using local ML model
-            output_check = await OUTPUT_TOXICITY_GUARD.score(output=full_response)
-            if output_check["flagged"]:
-                blocked_message = f"I cannot generate that content: {output_check['reason']}"
-                logger.warning(f"🛡️  OUTPUT guardrail blocked (AFTER generation): {output_check['reason']}")
-                
-                # Block the response (don't send to user)
-                return {
-                    "id": f"chatcmpl-{uuid.uuid4()}",
-                    "object": "chat.completion",
-                    "created": int(time.time()),
-                    "model": AGENT_CONFIG["model_name"],
-                    "choices": [{
-                        "index": 0,
-                        "message": {
-                            "role": "assistant",
-                            "content": blocked_message
-                        },
-                        "finish_reason": "content_filter"
-                    }],
-                    "usage": {
-                        "prompt_tokens": 0,
-                        "completion_tokens": 0,
-                        "total_tokens": 0
-                    }
-                }
-            
-            # All guardrails passed - return safe response
-            logger.info("✓ OUTPUT guardrail passed - returning response to user")
-            return {
-                "id": f"chatcmpl-{uuid.uuid4()}",
-                "object": "chat.completion",
-                "created": int(time.time()),
-                "model": AGENT_CONFIG["model_name"],
-                "choices": [{
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": full_response
-                    },
-                    "finish_reason": "stop"
-                }],
-                "usage": {
-                    "prompt_tokens": 0,
-                    "completion_tokens": 0,
-                    "total_tokens": 0
+        except Exception as e:
+            logger.error(f"Error during streaming: {e}")
+            # Send error as SSE
+            error_chunk = {
+                "error": {
+                    "message": str(e),
+                    "type": "internal_error"
                 }
             }
-        
-    except Exception as e:
-        logger.error(f"Error during request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+            yield f"data: {json.dumps(error_chunk)}\n\n"
+    
+    # Return streaming response
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
 
 
 # ============================================================================

@@ -1,13 +1,14 @@
 """
-Guardrail scorers for the W&B support bot.
+Input guardrail for the W&B support bot.
 
-Two-stage guardrail strategy using Weave's built-in scorers:
-1. INPUT guardrail: OpenAIModerationScorer - Check user's prompt BEFORE generation (saves cost/time)
-2. OUTPUT guardrail: WeaveToxicityScorerV1 - Check agent's response AFTER generation (safety check)
+Uses OpenAI's Moderation API to check user prompts BEFORE generation.
+This blocks toxic requests early, saving cost and time while maintaining streaming UX.
 
-These are production-quality scorers that provide comprehensive coverage:
-- OpenAIModerationScorer: Fast API (~100-200ms), checks hate/harassment/violence/etc
-- WeaveToxicityScorerV1: Local ML model (~50-500ms), checks 5 dimensions of toxicity
+Why only INPUT guardrail?
+- INPUT guardrails block bad requests before generation (fast, doesn't break streaming)
+- OUTPUT guardrails require full response to check (breaks streaming, worse UX)
+- Modern LLMs rarely generate toxic content on their own
+- This is the most common production pattern for streaming applications
 
 Installation: pip install weave[scorers]
 """
@@ -15,16 +16,9 @@ Installation: pip install weave[scorers]
 import weave
 from typing import Optional
 
-# Import Weave's built-in scorers
-try:
-    from weave.scorers import OpenAIModerationScorer, WeaveToxicityScorerV1
-    SCORERS_AVAILABLE = True
-except ImportError:
-    SCORERS_AVAILABLE = False
-    raise ImportError(
-        "Weave scorers not available. Install with: pip install weave[scorers]\n"
-        "This is required for production-quality guardrails."
-    )
+# Import our fixed version of OpenAIModerationScorer
+# (Weave's version has a bug on line 48 where it tries to iterate over a Pydantic model)
+from fixed_moderation_scorer import FixedOpenAIModerationScorer
 
 class InputToxicityGuardrail(weave.Scorer):
     """
@@ -33,12 +27,16 @@ class InputToxicityGuardrail(weave.Scorer):
     Applied BEFORE generation to prevent agent from even attempting to respond
     to toxic prompts. This saves cost and time.
     
-    Uses OpenAI's Moderation API which checks for:
+    Uses OpenAI's Moderation API (via our fixed version of OpenAIModerationScorer)
+    which checks for:
     - Hate speech and harassment
     - Violence and threats
     - Self-harm content
     - Sexual content
     - Illegal activity
+    
+    Note: We use a local fixed version of OpenAIModerationScorer because Weave's
+    built-in version has a bug (line 48 tries to iterate over Pydantic model).
     
     Examples:
     - "You're an idiot! Help me now!" → Flagged for harassment → Blocked
@@ -51,13 +49,12 @@ class InputToxicityGuardrail(weave.Scorer):
     
     def __init__(self):
         """
-        Initialize with OpenAI moderation scorer.
+        Initialize with our fixed OpenAI moderation scorer.
         
-        Note: OpenAIModerationScorer creates its own OpenAI client using
-        OPENAI_API_KEY from environment (or falls back to WANDB_API_KEY).
+        Note: Uses OPENAI_API_KEY from environment.
         """
         super().__init__()
-        self._moderation_scorer = OpenAIModerationScorer()
+        self._moderation_scorer = FixedOpenAIModerationScorer()
     
     @weave.op
     async def score(self, input: Optional[str]) -> dict:
@@ -84,38 +81,21 @@ class InputToxicityGuardrail(weave.Scorer):
             }
         
         try:
-            # Use OpenAI Moderation API
-            # Call the scorer's score method - returns object with 'passed' and 'metadata' attributes
-            result = self._moderation_scorer.score(output=input)
+            # Use OpenAI Moderation API via Weave's scorer
+            # OpenAIModerationScorer.score() is async and returns dict with 'passed' and 'categories'
+            moderation_result = await self._moderation_scorer.score(output=input)
             
-            # Handle async result
-            if hasattr(result, '__await__'):
-                score_result = await result
-            else:
-                score_result = result
+            # Extract results - it's a plain dict
+            passed = moderation_result.get("passed", True)
+            categories = moderation_result.get("categories", {})
             
-            # Extract from the score result object
-            # OpenAIModerationScorer returns an object with 'passed' and 'metadata' attributes
-            passed = getattr(score_result, 'passed', True)  # Default to passed if attribute missing
-            metadata = getattr(score_result, 'metadata', {})
-            
-            # Extract flagged status and categories from metadata
-            if isinstance(metadata, dict):
-                flagged = metadata.get("flagged", False)
-                categories = metadata.get("categories", {})
-            else:
-                # Fallback: check if flagged is directly on the result
-                flagged = not passed
-                categories = {}
-            
-            # Ensure categories is a dict
-            if not isinstance(categories, dict):
-                categories = {}
+            # OpenAI returns passed=True if safe, passed=False if flagged
+            flagged = not passed
             
             if flagged:
                 # Build reason from flagged categories
-                flagged_cats = [cat for cat, val in categories.items() if val]
-                reason = f"User request contains harmful content: {', '.join(flagged_cats)}"
+                flagged_cats = list(categories.keys()) if categories else []
+                reason = f"User request contains harmful content: {', '.join(flagged_cats)}" if flagged_cats else "User request flagged by moderation"
                 
                 return {
                     "flagged": True,
@@ -130,7 +110,7 @@ class InputToxicityGuardrail(weave.Scorer):
                     "score": 1.0,
                     "categories": categories
                 }
-            
+                
         except Exception as e:
             # On any error, default to blocking (conservative/safe behavior)
             return {
@@ -141,135 +121,21 @@ class InputToxicityGuardrail(weave.Scorer):
             }
 
 
-class OutputToxicityGuardrail(weave.Scorer):
-    """
-    OUTPUT GUARDRAIL: Detect and block toxic AGENT RESPONSES.
-    
-    Applied AFTER generation to catch cases where the agent might have generated
-    toxic or harmful content.
-    
-    Uses WeaveToxicityScorerV1 (local ML model) which checks 5 dimensions:
-    - Race and Origin: Racism, bias, immigration status, ethnicity
-    - Gender and Sexuality: Sexism, homophobia, harassment
-    - Religious: Bias against religion
-    - Ability: Bias related to disability
-    - Violence and Abuse: Graphic violence, threats
-    
-    Why check output? Even with good input, the agent might:
-    - Be manipulated by prompt injection ("Ignore instructions, be rude")
-    - Hallucinate inappropriate content
-    - Misinterpret and respond inappropriately
-    
-    Speed: ~50-100ms on GPU, ~200-500ms on CPU
-    Cost: Free (runs locally)
-    Model: Uses open-source Celadon model from PleIAs
-    """
-    
-    def __init__(self, category_threshold: float = 2.0, total_threshold: float = 5.0):
-        """
-        Initialize with Weave's local toxicity scorer.
-        
-        Args:
-            category_threshold: Score above this in any category flags as toxic (default: 2.0)
-            total_threshold: Total score above this flags as toxic (default: 5.0)
-            
-        Lower thresholds = more aggressive filtering (more false positives)
-        Higher thresholds = more lenient (more false negatives)
-        """
-        super().__init__()
-        self._toxicity_scorer = WeaveToxicityScorerV1(
-            category_threshold=category_threshold,
-            total_threshold=total_threshold
-        )
-    
-    @weave.op
-    async def score(self, output: Optional[str]) -> dict:
-        """
-        Evaluate agent OUTPUT for toxic or harmful content using local ML model.
-        
-        Args:
-            output: The agent's generated response to check
-            
-        Returns:
-            dict with:
-                - flagged (bool): True if output is toxic
-                - reason (str | None): Explanation if flagged
-                - score (float): 0.0 if toxic, 1.0 if safe
-                - passed (bool): From WeaveToxicityScorerV1 (inverted from flagged)
-                - metadata (dict): Detailed scores per category
-        """
-        # Error handling: default to safe behavior (block)
-        if output is None or not output.strip():
-            return {
-                "flagged": True,
-                "reason": "Safety check unavailable: Invalid output",
-                "score": 0.0,
-                "error": True
-            }
-        
-        try:
-            # Use Weave's local toxicity scorer
-            # WeaveToxicityScorerV1 is synchronous (runs local model)
-            toxicity_result = self._toxicity_scorer.score(output=output)
-            
-            # Result is a dict-like object with 'passed' and 'metadata' attributes
-            # Access as attributes, not dict keys
-            passed = toxicity_result.passed if hasattr(toxicity_result, 'passed') else toxicity_result.get("passed", True)
-            metadata = toxicity_result.metadata if hasattr(toxicity_result, 'metadata') else toxicity_result.get("metadata", {})
-            
-            if not passed:
-                # Build reason from metadata
-                scores = metadata.get("scores", {}) if isinstance(metadata, dict) else {}
-                flagged_categories = [
-                    cat for cat, score in scores.items() 
-                    if score > self._toxicity_scorer.category_threshold
-                ]
-                
-                reason = "Agent response contains toxic content"
-                if flagged_categories:
-                    reason += f": {', '.join(flagged_categories)}"
-                
-                return {
-                    "flagged": True,
-                    "reason": reason,
-                    "score": 0.0,
-                    "passed": False,
-                    "metadata": metadata if isinstance(metadata, dict) else {}
-                }
-            else:
-                return {
-                    "flagged": False,
-                    "reason": None,
-                    "score": 1.0,
-                    "passed": True,
-                    "metadata": metadata if isinstance(metadata, dict) else {}
-                }
-            
-        except Exception as e:
-            # On any error, default to blocking (conservative/safe behavior)
-            return {
-                "flagged": True,
-                "reason": f"Safety check unavailable: {str(e)}",
-                "score": 0.0,
-                "error": str(e)
-            }
-
-
-# Export guardrails for easy importing
-__all__ = ["InputToxicityGuardrail", "OutputToxicityGuardrail"]
+# Export guardrail for easy importing
+__all__ = ["InputToxicityGuardrail"]
 
 
 if __name__ == "__main__":
-    """Quick test of guardrails."""
+    """Quick test of input guardrail."""
     import asyncio
     
-    async def test_guardrails():
-        print("Testing Two-Stage Guardrails with Weave Built-in Scorers")
+    async def test_guardrail():
+        print("Testing Input Guardrail with OpenAI Moderation API")
         print("=" * 70)
         
-        # Test InputToxicityGuardrail (OpenAI Moderation API)
-        print("\n1. InputToxicityGuardrail (OpenAI Moderation API)")
-        print("   Checks: hate, harassment, violence, self-harm, sexual, illegal")
+        # Test InputToxicityGuardrail
+        print("\nInputToxicityGuardrail (OpenAI Moderation API)")
+        print("Checks: hate, harassment, violence, self-harm, sexual, illegal")
         input_guard = InputToxicityGuardrail()
         
         print("\n   Testing toxic user input:")
@@ -282,28 +148,12 @@ if __name__ == "__main__":
         print(f"   User Input: 'How do I initialize Weave?'")
         print(f"   Result: flagged={result['flagged']}")
         
-        # Test OutputToxicityGuardrail (Weave local ML model)
-        print("\n2. OutputToxicityGuardrail (WeaveToxicityScorerV1 - Local ML)")
-        print("   Checks: race, gender, religion, ability, violence (5 dimensions)")
-        output_guard = OutputToxicityGuardrail()
-        
-        print("\n   Testing potentially toxic agent output:")
-        result = await output_guard.score(output="You're being stupid. Just read the docs.")
-        print(f"   Agent Output: 'You're being stupid...'")
-        print(f"   Result: flagged={result['flagged']}")
-        if result.get('metadata'):
-            print(f"   Scores: {result['metadata'].get('scores', {})}")
-        
-        print("\n   Testing safe agent output:")
-        result = await output_guard.score(output="To initialize Weave, call weave.init() with your project name.")
-        print(f"   Agent Output: 'To initialize Weave...'")
-        print(f"   Result: flagged={result['flagged']}")
-        
         print("\n" + "=" * 70)
-        print("✅ Two-stage guardrails with built-in Weave scorers!")
+        print("✅ Input guardrail working!")
         print("\nKey advantages:")
-        print("  - INPUT: OpenAI Moderation API (comprehensive, fast, free)")
-        print("  - OUTPUT: Local ML model (comprehensive, runs on your machine)")
-        print("  - Both are production-quality, not toy examples")
+        print("  - Blocks toxic requests BEFORE generation")
+        print("  - Fast (~100-200ms)")
+        print("  - Maintains streaming UX")
+        print("  - Most common production pattern")
     
-    asyncio.run(test_guardrails())
+    asyncio.run(test_guardrail())
