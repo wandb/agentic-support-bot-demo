@@ -287,6 +287,30 @@ def serialize_chunk_to_sse(chunk) -> str:
     return f"data: {json.dumps(chunk_dict)}\n\n"
 
 
+def create_blocked_message_stream(message: str, model: str, finish_reason: str = "content_filter") -> str:
+    """
+    Create a streaming SSE response for blocked/filtered messages.
+    
+    Used when guardrails block a request - maintains streaming consistency.
+    Returns a complete chunk with the blocked message in SSE format.
+    """
+    chunk_dict = {
+        "id": f"chatcmpl-{uuid.uuid4()}",
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [{
+            "index": 0,
+            "delta": {
+                "role": "assistant",
+                "content": message
+            },
+            "finish_reason": finish_reason
+        }]
+    }
+    return f"data: {json.dumps(chunk_dict)}\n\n"
+
+
 # ============================================================================
 # Lifecycle Management
 # ============================================================================
@@ -434,29 +458,30 @@ async def chat_completions(
         # Check for toxic user input using OpenAI Moderation API
         input_check = await INPUT_TOXICITY_GUARD.score(input=user_input)
         if input_check["flagged"]:
-            blocked_message = f"I cannot process that request: {input_check['reason']}"
+            blocked_message = f"I apologize, but I cannot process your request as it was flagged for: {input_check['reason']}"
             logger.warning(f"🛡️  INPUT guardrail blocked (BEFORE generation): {input_check['reason']}")
             
-            # Return blocked message immediately (DON'T generate!)
-            return JSONResponse(content={
-                "id": f"chatcmpl-{uuid.uuid4()}",
-                "object": "chat.completion",
-                "created": int(time.time()),
-                "model": AGENT_CONFIG["model_name"],
-                "choices": [{
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": blocked_message
-                    },
-                    "finish_reason": "content_filter"
-                }],
-                "usage": {
-                    "prompt_tokens": 0,
-                    "completion_tokens": 0,
-                    "total_tokens": 0
+            # Stream blocked message (maintains streaming consistency)
+            async def generate_blocked() -> AsyncGenerator[str, None]:
+                """Stream the blocked message in SSE format."""
+                # Send blocked message chunk
+                yield create_blocked_message_stream(
+                    message=blocked_message,
+                    model=AGENT_CONFIG["model_name"],
+                    finish_reason="content_filter"
+                )
+                # Send [DONE] message
+                yield "data: [DONE]\n\n"
+            
+            return StreamingResponse(
+                generate_blocked(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no"
                 }
-            }, status_code=200)
+            )
     
     logger.info("✓ INPUT guardrail passed - proceeding to streaming generation")
     
