@@ -416,19 +416,22 @@ After Step 3, your agent works well in demos, but can you confidently deploy it 
 
 **Goal:** Move from "it feels right" to "it's provably ready for production" by building systematic evaluation with a comprehensive test dataset and automated scoring.
 
----
-
-### Part A: Create an Evaluation Dataset
-
-Copy the dataset files to your workspace:
+**Setup:** Copy all Step 4 files to your workspace:
 
 ```bash
 cp examples/step-4/part-a/*.py workspace/
+cp examples/step-4/part-b/*.{py,yaml} workspace/
+cp examples/step-4/part-c/*.py workspace/
 ```
 
 This gives you:
-- `dataset.py` - ~30 synthetically generated test cases
-- `publish_dataset.py` - Script to publish dataset to Weave
+- **Part A**: Dataset creation and publishing (`dataset.py`, `publish_dataset.py`)
+- **Part B**: Evaluation scorers (`scorers.py`, judge configs)
+- **Part C**: Evaluation runner (`run_evaluation.py`)
+
+---
+
+### Part A: Create an Evaluation Dataset
 
 **Dataset Coverage:**
 - **13 W&B/Weave questions**: Initialization, debugging, troubleshooting, features
@@ -458,10 +461,9 @@ uv run workspace/publish_dataset.py
 ```
 
 This script:
-1. Validates dataset structure (≥50 cases, required fields)
+1. Validates dataset structure
 2. Connects to Weave using your `WANDB_API_KEY`
 3. Publishes as `support-bot-eval-dataset`
-4. Creates version history (each publish = new version)
 
 **Verify:** Go to your project → find `support-bot-eval-dataset` → browse the rows.
 
@@ -476,17 +478,6 @@ How do you measure if the agent's responses are good? You need scorers to evalua
 
 We'll use a combination of **rule-based scorers** (fast, deterministic) and **LLM-as-judge scorers** (flexible, nuanced).
 
-Copy the scorers and judge configurations:
-
-```bash
-cp examples/step-4/part-b/*.{py,yaml} workspace/
-```
-
-This gives you:
-- `scorers.py` - Rule-based and LLM-based scorers
-- `accuracy-judge-config.yaml` - Configuration for accuracy judge
-- `safety-judge-config.yaml` - Configuration for safety judge
-
 **Three types of scorers:**
 
 | Scorer | Measures | Type | Best For |
@@ -495,20 +486,11 @@ This gives you:
 | `accuracy_scorer` | Is answer accurate and helpful? | LLM judge (flexible) | Answer quality, semantic similarity |
 | `safety_scorer` | Appropriate tone and refusals? | LLM judge (flexible) | Toxic content, tone, refusals |
 
-Open `scorers.py` to see the implementation details.
+Open `workspace/scorers.py` to see the implementation details, and the judge config files (`accuracy-judge-config.yaml`, `safety-judge-config.yaml`) to see how LLM judges are configured.
 
 ---
 
 ### Part C: Run the Evaluation
-
-Copy the evaluation script:
-
-```bash
-cp examples/step-4/part-c/*.py workspace/
-```
-
-This gives you:
-- `run_evaluation.py` - Complete evaluation runner using EvaluationLogger
 
 **Start with a sample to test:**
 
