@@ -71,25 +71,25 @@ cp .env.example .env
 - `WANDB_API_KEY` - Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)
   - Used for both Weave observability and LLM API (we use W&B Inference with DeepSeek)
 
-**b) Add your OpenAI API key:**
-- `OPENAI_API_KEY` - Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-  - Required for Step 6 guardrails (uses OpenAI's Moderation API)
-
-**c) Customize your project name:**
+**b) Customize your project name:**
 - `WANDB_PROJECT` - Add a unique suffix to avoid conflicts (e.g., `agentic-support-bot-demo-yourname`)
   - This is the Weave project where your traces, datasets, and evaluations will appear
   - **Important:** Multiple people using the same project name will overwrite each other's datasets and evaluations
 
+**c) Add your OpenAI API key:**
+- `OPENAI_API_KEY` - Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+  - Required for Step 6 guardrails (uses OpenAI's Moderation API)
+
 Example `.env`:
 ```bash
 WANDB_API_KEY=your_wandb_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
 WANDB_PROJECT=agentic-support-bot-demo-alice  # ← Add your name here!
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-**Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers) by modifying the `model_name`, `base_url`, and `api_key` in `workspace/tyler-chat-config.yaml`.
+**Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
 
-4. **Set up the `workspace/` directory where you will work**
+1. **Set up the `workspace/` directory where you will work**
 
 In order to make testing the support tools more realistic, we have a small db to persist tickets and allow tools to actually work.
 
@@ -188,36 +188,6 @@ This adds:
 - `tyler-chat-config.yaml` - Updated config with tools and MCP enabled
 - `server.py` - OpenAI-compatible API server for Weave Playground (deployed on Modal)
 
-
-Open `workspace/tools.py` (line 54) and look at the TOOLS list. Notice the tool definitions have NO descriptions or parameters - just function names. This is intentional! You'll add these in Step 3 to teach the agent when and how to use each tool.
-
-Your updated `workspace/tyler-chat-config.yaml` now includes:
-
-```yaml
-name: "agent"
-model_name: "openai/deepseek-ai/DeepSeek-R1-0528"
-purpose: "You are a helpful AI assistant."
-
-# W&B Inference endpoint configuration
-base_url: "https://api.inference.wandb.ai/v1"
-api_key: "${WANDB_API_KEY}"
-
-temperature: 0.7
-max_tool_iterations: 10
-reasoning: "low"
-
-# Tool Configuration
-tools:
-  - "./tools.py"
-
-# MCP Server Configuration for W&B documentation search
-mcp:
-  servers:
-    - name: "wandb"
-      transport: "streamablehttp"
-      url: "https://docs.wandb.ai/mcp"
-```
-
 **Test in Weave Playground**
 
 We'll deploy your agent server on Modal so Weave Playground can connect to it. Modal provides a simple serverless platform that works for both development (with auto-reload) and production deployment.
@@ -251,9 +221,7 @@ source .env && uv run modal secret create agentic-support-bot-secrets --env main
   OPENAI_API_KEY=$OPENAI_API_KEY
 ```
 
-**Note:** The `source .env` command loads your environment variables before creating the secret, ensuring all keys are properly set.
-
-**4. (Optional) Add to W&B Team Secrets** (W&B Admins only):
+**4. Add to W&B Team Secrets**:
    - Navigate to your W&B project → team **Settings** → **Team Secrets**
    - Click **New secret**
    - Name: `AGENTIC_SUPPORT_BOT_API_KEY`
@@ -282,10 +250,6 @@ You'll see output like:
 ├── 🔨 Created function modal_app.
 └── 🔨 Created web function modal_app => https://yourname--agentic-support-bot-dev.modal.run
 ✓ App deployed in 3.14s
-
-View app at https://modal.com/apps/yourname/agentic-support-bot
-
-Serving... (Ctrl+C to stop)
 ```
 
 Copy the URL (e.g., `https://yourname--agentic-support-bot-dev.modal.run`).
@@ -383,86 +347,26 @@ Open `workspace/tyler-chat-config.yaml` - the `purpose` field is currently `"You
 
 ---
 
-#### **Iteration 2: Add Tool Descriptions**
+#### **Iteration 2: Copy Pre-Configured Tools**
 
-Open `tools.py` (line 54). The `TOOLS` list currently has no descriptions or parameters - the agent doesn't know WHEN or HOW to use these tools!
+Now that you've given your agent a clear purpose, let's add properly configured tools so it can actually help users.
 
-**Your task:** Add complete tool definitions for both tools. For each, add:
+Copy the fully configured tools:
 
-1. **`description`** - When should the agent use this tool? What scenarios?
-2. **`parameters`** - What arguments does it accept?
-3. **Parameter descriptions** - What should each contain? Include examples!
-4. **`required`** - Which parameters are mandatory?
-
-**Structure to fill in:**
-
-```python
-{
-    "definition": {
-        "type": "function",
-        "function": {
-            "name": "support-create_issue",
-            "description": "YOUR DESCRIPTION HERE - explain when to use this tool",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "YOUR DESCRIPTION - what should title contain?"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "YOUR DESCRIPTION - what should description contain?"
-                    },
-                    "priority": {
-                        "type": "string",
-                        "description": "YOUR DESCRIPTION - how should agent choose priority?",
-                        "enum": ["low", "medium", "high"],
-                        "default": "medium"
-                    }
-                },
-                "required": ["title", "description"]
-            }
-        }
-    },
-    "implementation": create_issue
-}
+```bash
+cp examples/step-3/tools.py workspace/tools.py
 ```
 
-**Tips for good tool descriptions:**
-- **Description**: Explain when this tool should be called - give examples of user requests
-- **Parameters**: Be specific! Include examples of good values
-- **Think from the agent's perspective**: What info would you need to decide when/how to use this?
+**What changed?** Open `workspace/tools.py` and notice:
+- Detailed tool descriptions (when to use each tool)
+- Complete parameter definitions (what arguments to pass)
+- Examples and guidance for the agent
 
-**Do this for both tools:**
-- `support-create_issue` - When to create tickets? What makes a good title vs description?
-- `support-get_issue` - When to retrieve status? What does the user need to provide?
-
-💡 **Stuck?** See `examples/step-3/tools.py` for fully documented definitions, but try your own first!
-
-**Test:** Save `tools.py` → restart playground server (`uv run workspace/playground_server.py`) → test the prompts.
-
-**🔍 Observe in Weave:** Do you see better tool usage now?
+💡 **Optional:** You can iterate on these tool descriptions to improve agent behavior. Good tool descriptions help the agent know WHEN and HOW to use each tool.
 
 ---
 
-#### **Iteration 3: Compare and Refine**
-
-After making your changes:
-
-1. **Test** with the same prompts
-2. **Check Weave traces** - compare before and after:
-   - Are tools being called appropriately?
-   - Are parameters correct?
-   - Does it feel like a support bot?
-3. **Iterate more** - tool descriptions are hard to get right the first time!
-   - Agent doesn't call tools? → Improve `description`
-   - Wrong parameter values? → Improve parameter descriptions
-   - Tone off? → Refine `purpose` statement
-
----
-
-#### **Iteration 4: Verify Your Improvements**
+#### **Iteration 3: Verify Your Improvements**
 
 **Test these prompts again** in Weave Playground:
 
@@ -508,7 +412,7 @@ Navigate to Traces → filter for `Agent.stream` → compare new traces side-by-
 
 ## Step 4: Dataset & Evaluation - From Vibes to Production-Ready
 
-After Step 3, your agent works well in demos. But can you confidently deploy it to real users?
+After Step 3, your agent works well in demos, but can you confidently deploy it to real users?
 
 **Goal:** Move from "it feels right" to "it's provably ready for production" by building systematic evaluation with a comprehensive test dataset and automated scoring.
 
@@ -523,7 +427,7 @@ cp examples/step-4/part-a/*.py workspace/
 ```
 
 This gives you:
-- `dataset.py` - 30 synthetically generated test cases
+- `dataset.py` - ~30 synthetically generated test cases
 - `publish_dataset.py` - Script to publish dataset to Weave
 
 **Dataset Coverage:**

@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "directive>=0.0.9",
     "slide-lye>=5.2.1",
-    "weave>=0.51.14",
+    "weave>=0.52.16",
     "python-dotenv>=1.0.0",
     "slide-tyler>=5.2.1",
     "fastapi>=0.119.0",
