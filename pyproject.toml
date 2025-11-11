@@ -7,13 +7,18 @@ requires-python = ">=3.12"
 dependencies = [
     "directive>=0.0.9",
     "slide-lye>=5.2.1",
-    "weave>=0.51.14",
+    "weave>=0.52.16",
     "python-dotenv>=1.0.0",
     "slide-tyler>=5.2.1",
     "fastapi>=0.119.0",
     "uvicorn[standard]>=0.37.0",
     "tinydb>=4.8.0",
     "modal>=0.64.0",
+    # Step 6: Guardrails using Weave's built-in scorers
+    "torch>=2.0.0",  # Required for WeaveToxicityScorerV1
+    "transformers>=4.30.0",  # Required for local ML models
+    "sentencepiece>=0.1.99",  # Required for tokenization
+    "protobuf>=3.20.0",  # Required for model loading
 ]
 
 [dependency-groups]
@@ -21,5 +26,10 @@ dev = [
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
+    "pytest-asyncio>=0.23.0",  # Required for async guardrail tests
     "pyyaml>=6.0.3",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"  # Automatically detect and run async tests
+asyncio_default_fixture_loop_scope = "function"
