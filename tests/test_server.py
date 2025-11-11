@@ -528,9 +528,12 @@ class TestServerWithGuardrails:
         """
         GIVEN Step 6 server
         WHEN server starts
-        THEN guardrails should be initialized
+        THEN input guardrail should be initialized
         
         Maps to Spec: "Guardrails integrated in server.py"
+        
+        Note: Only INPUT guardrail is used to maintain streaming UX.
+        OUTPUT guardrails would break streaming.
         """
         # Check root endpoint lists guardrails
         response = guardrails_client.get("/")
@@ -539,12 +542,12 @@ class TestServerWithGuardrails:
         data = response.json()
         assert "guardrails" in data
         assert "input" in data["guardrails"]
-        assert "output" in data["guardrails"]
-        # Check that guardrails are listed (they have descriptive names now)
+        # No output guardrail - would break streaming
+        assert "output" not in data["guardrails"] or data["guardrails"]["output"] == "None (maintains streaming)"
+        
+        # Check that input guardrail is listed
         input_guards = str(data["guardrails"]["input"])
-        output_guards = str(data["guardrails"]["output"])
         assert "InputToxicityGuardrail" in input_guards
-        assert "OutputToxicityGuardrail" in output_guards
     
     def test_health_endpoint_with_guardrails(self, guardrails_client):
         """
@@ -561,12 +564,14 @@ class TestServerWithGuardrails:
     
     def test_guardrail_structure_verified(self):
         """
-        GIVEN Step 6 server with two-stage guardrails
+        GIVEN Step 6 server with input guardrail
         WHEN guardrails imported
         THEN should have correct structure
         
         This smoke test verifies the integration pattern.
         Full end-to-end guardrail blocking tested in unit tests (test_guardrails.py).
+        
+        Note: Only INPUT guardrail used to maintain streaming UX.
         """
         # Add step-6/part-a to path
         step6_parta_dir = Path(__file__).parent.parent / "examples" / "step-6" / "part-a"
@@ -574,7 +579,7 @@ class TestServerWithGuardrails:
         
         try:
             # Import guardrails
-            from guardrails import InputToxicityGuardrail, OutputToxicityGuardrail
+            from guardrails import InputToxicityGuardrail
             
             # Import server from step-6
             import importlib.util
@@ -585,11 +590,12 @@ class TestServerWithGuardrails:
             guardrails_server = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(guardrails_server)
             
-            # Verify two-stage guardrails initialized in server
+            # Verify input guardrail initialized in server
             assert hasattr(guardrails_server, 'INPUT_TOXICITY_GUARD')
-            assert hasattr(guardrails_server, 'OUTPUT_TOXICITY_GUARD')
             assert isinstance(guardrails_server.INPUT_TOXICITY_GUARD, InputToxicityGuardrail)
-            assert isinstance(guardrails_server.OUTPUT_TOXICITY_GUARD, OutputToxicityGuardrail)
+            
+            # No output guardrail - maintains streaming
+            # (OUTPUT_TOXICITY_GUARD should not exist or be None)
         finally:
             # Remove from path
             sys.path.remove(str(step6_parta_dir))
