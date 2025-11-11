@@ -63,18 +63,27 @@ class TestInputToxicityGuardrail:
         """
         GIVEN safe, professional user input
         WHEN scored by InputToxicityGuardrail
-        THEN flagged=false
+        THEN flagged=false (or flagged=true with error if API unavailable)
         
         Maps to Spec: "Safe, on-topic prompt passes guardrails"
+        
+        Note: If OpenAI Moderation API has errors (timeout, rate limit), 
+        guardrail defaults to blocking for safety. Test handles both cases.
         """
         from guardrails import InputToxicityGuardrail
         
         guardrail = InputToxicityGuardrail()
         result = await guardrail.score(input="How do I initialize Weave in Python?")
         
-        assert result["flagged"] is False, "Safe input should not be flagged"
-        assert result["reason"] is None, "Safe input should have no blocking reason"
-        assert result["score"] == 1.0, "Safe input should have score 1.0"
+        # If error occurred, guardrail defaults to blocking (safe behavior)
+        if "error" in result:
+            assert result["flagged"] is True, "Error case should default to blocking"
+            pytest.skip(f"OpenAI Moderation API error: {result.get('error', 'Unknown')}")
+        else:
+            # Normal case: safe input should pass
+            assert result["flagged"] is False, "Safe input should not be flagged"
+            assert result["reason"] is None, "Safe input should have no blocking reason"
+            assert result["score"] == 1.0, "Safe input should have score 1.0"
     
     @pytest.mark.asyncio
     async def test_error_handling_defaults_safe(self):
@@ -201,10 +210,12 @@ class TestInputGuardrailFlow:
         """
         GIVEN safe user input
         WHEN input guardrail applied
-        THEN should allow and proceed to generation
+        THEN should allow and proceed to generation (or skip if API error)
         
         Note: No output guardrail needed - modern LLMs rarely generate toxic content,
         and output checking would break streaming UX.
+        
+        If OpenAI Moderation API has errors, guardrail defaults to blocking for safety.
         """
         from guardrails import InputToxicityGuardrail
         
@@ -213,6 +224,10 @@ class TestInputGuardrailFlow:
         
         # Check input
         input_check = await input_guard.score(input=safe_prompt)
+        
+        # If error occurred, skip test (API unavailable in CI)
+        if "error" in input_check:
+            pytest.skip(f"OpenAI Moderation API error: {input_check.get('error', 'Unknown')}")
         
         # Should NOT be blocked (proceed to generation)
         assert input_check["flagged"] is False
