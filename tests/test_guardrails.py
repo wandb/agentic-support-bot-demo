@@ -75,13 +75,19 @@ class TestInputToxicityGuardrail:
         guardrail = InputToxicityGuardrail()
         result = await guardrail.score(input="How do I initialize Weave in Python?")
         
-        # If error occurred, guardrail defaults to blocking (safe behavior)
-        if "error" in result:
+        # Check if error occurred (either explicit error key or error message in reason)
+        has_error = "error" in result or (
+            result.get("reason") and "unavailable" in result.get("reason", "").lower()
+        )
+        
+        if has_error:
+            # Error case: guardrail defaults to blocking (safe behavior)
             assert result["flagged"] is True, "Error case should default to blocking"
-            pytest.skip(f"OpenAI Moderation API error: {result.get('error', 'Unknown')}")
+            error_msg = result.get("error") or result.get("reason") or "Unknown error"
+            pytest.skip(f"OpenAI Moderation API error: {error_msg}")
         else:
             # Normal case: safe input should pass
-            assert result["flagged"] is False, "Safe input should not be flagged"
+            assert result["flagged"] is False, f"Safe input should not be flagged. Result: {result}"
             assert result["reason"] is None, "Safe input should have no blocking reason"
             assert result["score"] == 1.0, "Safe input should have score 1.0"
     
@@ -225,12 +231,18 @@ class TestInputGuardrailFlow:
         # Check input
         input_check = await input_guard.score(input=safe_prompt)
         
-        # If error occurred, skip test (API unavailable in CI)
-        if "error" in input_check:
-            pytest.skip(f"OpenAI Moderation API error: {input_check.get('error', 'Unknown')}")
+        # Check if error occurred (either explicit error key or error message in reason)
+        has_error = "error" in input_check or (
+            input_check.get("reason") and "unavailable" in input_check.get("reason", "").lower()
+        )
+        
+        if has_error:
+            # Error case: skip test (API unavailable in CI)
+            error_msg = input_check.get("error") or input_check.get("reason") or "Unknown error"
+            pytest.skip(f"OpenAI Moderation API error: {error_msg}")
         
         # Should NOT be blocked (proceed to generation)
-        assert input_check["flagged"] is False
+        assert input_check["flagged"] is False, f"Safe input should not be flagged. Result: {input_check}"
 
 
 if __name__ == "__main__":
