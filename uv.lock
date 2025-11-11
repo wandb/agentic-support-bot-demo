@@ -63,7 +63,7 @@ requires-dist = [
     { name = "torch", specifier = ">=2.0.0" },
     { name = "transformers", specifier = ">=4.30.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.37.0" },
-    { name = "weave", specifier = ">=0.51.14" },
+    { name = "weave", specifier = ">=0.52.16" },
 ]
 
 [package.metadata.requires-dev]
@@ -7015,7 +7015,7 @@ wheels = [
 
 [[package]]
 name = "weave"
-version = "0.52.14"
+version = "0.52.16"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -7031,9 +7031,9 @@ dependencies = [
     { name = "tzdata", marker = "sys_platform == 'win32'" },
     { name = "wandb" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/78/00/29c5b9786cfed56444e5bef4607c4117dea9d8711d6f879e084130ecb38b/weave-0.52.14.tar.gz", hash = "sha256:4cb1c8da067ec42d06e478504bfda17d0b7bdab3faed4f0a4c357f368db4ea52", size = 601568, upload-time = "2025-10-31T20:42:12.999Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/30/b795b5a857e8a908e68f3ed969587bb2bc63527ef2260f72ac1a6fd983e8/weave-0.52.16.tar.gz", hash = "sha256:7bb8fdce0393007e9c40fb1769d0606bfe55401c4cd13146457ccac4b49c695d", size = 607024, upload-time = "2025-11-07T19:45:30.898Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d6/84/8ec2732fb78b7d71e1c6d1ac4d05a4440fa05bb1cb623bfd4174040fb4ca/weave-0.52.14-py3-none-any.whl", hash = "sha256:d15d88e55ecaddcbe100a1a2dd11bc8634be0f3717558bce86e3357eaa636920", size = 757062, upload-time = "2025-10-31T20:42:11.167Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/87/a54513796605dfaef2c3c23c2733bcb4b24866a623635c057b2ffdb74052/weave-0.52.16-py3-none-any.whl", hash = "sha256:85985b8cf233032c6d915dfac95b3bcccb1304444d99a6b4a61f3666b58146ce", size = 764366, upload-time = "2025-11-07T19:45:28.878Z" },
 ]
 
 [[package]]
