@@ -783,67 +783,167 @@ def _(mo):
 
     ## Step 3: Iterate to Make it Vibe as a Support Agent
 
-    Make the agent understand its role and know when/how to use its tools.
+    **What You're Learning:** The core Weave workflow - **observe → diagnose → fix → verify**.
+
+    **The Problem:**
+
+    Looking at your Weave traces from Step 2:
+    - Agent responds but doesn't consistently use tools when it should
+    - Feels like a generic assistant, not a support bot
+    - ❌ Generic purpose ("helpful AI assistant")
+    - ❌ Tool definitions missing descriptions and parameters
+
+    **🎯 Your Goal:** Make the agent understand its role as a W&B support bot and know when/how to use its tools.
+
+    ---
+
+    ### Iteration 1: Give Your Agent a Clear Purpose
+
+    The `purpose` field in `workspace/tyler-chat-config.yaml` is currently `"You are a helpful AI assistant."` (too generic!)
+
+    **Your task:** Rewrite `purpose` to be specific to a W&B support bot. Consider:
+    - What's the bot's role? (support for Weights & Biases products)
+    - What should it do? (answer questions, create tickets, search docs)
+    - What tone? (professional, helpful, concise)
+
+    **Hints:**
+    - Be specific about the product/company
+    - List key capabilities
+    - Add a `notes` section for operational guidelines
     """)
     return
 
 
 @app.cell
-def _(Path, mo):
-    # Load current config
-    config_path = Path("workspace/tyler-chat-config.yaml")
-    if config_path.exists():
-        current_config_text = config_path.read_text()
-    else:
-        current_config_text = "# Config file not found. Copy Step 2B files first."
+def _(mo):
+    # Create an accordion showing the example purpose
+    example_purpose_accordion = mo.accordion(
+        {
+            "💡 Stuck? Click to see an example purpose (but try your own first!)": mo.md("""
+            Here's the `purpose` and `notes` from `examples/step-3/tyler-chat-config.yaml`:
 
-    config_editor = mo.ui.code_editor(
-        value=current_config_text,
-        language="yaml",
-        label="Edit tyler-chat-config.yaml"
+            ```yaml
+            purpose: |
+              You are a support bot for Weights & Biases (W&B), helping users with their ML tooling needs.
+              
+              Your role is to:
+              1. Help users with questions about W&B features and functionality (Models, Weave, Training, Evaluation etc.)
+              2. Search the W&B documentation when users ask how-to questions
+              3. Create and manage support tickets for issues users report
+              
+              Always be friendly, clear, and helpful in your responses.
+
+            notes: |
+              - Use the search_docs tool for questions about W&B features and usage
+              - Use create_issue for when users report problems or need help with W&B
+              - Use get_issue to check on existing support tickets
+              - Ask clarifying questions if the user's request is unclear
+              - Be proactive in suggesting next steps
+            ```
+
+            **Remember:** This is just one approach. Feel free to adapt it to your own style!
+            """)
+        }
     )
-    config_editor
-    return config_editor, config_path
+    example_purpose_accordion
+    return (example_purpose_accordion,)
 
 
 @app.cell
 def _(mo):
-    save_config_btn = mo.ui.button(
-        label="💾 Save Config",
-        value=0,
-        on_click=lambda v: v + 1
-    )
-    save_config_btn
-    return (save_config_btn,)
+    mo.md("""
+    **Edit your agent's purpose and notes below:**
+    """)
+    return
 
 
 @app.cell
-def _(config_editor, config_path, mo, save_config_btn, yaml):
-    if save_config_btn.value and config_editor.value:
+def _(Path, mo, yaml):
+    # Load current config and extract purpose/notes
+    config_path = Path("workspace/tyler-chat-config.yaml")
+    _current_purpose = ""
+    _current_notes = ""
+    
+    if config_path.exists():
         try:
-            # Validate YAML
-            yaml.safe_load(config_editor.value)
+            _config_data = yaml.safe_load(config_path.read_text())
+            _current_purpose = _config_data.get("purpose", "")
+            _current_notes = _config_data.get("notes", "")
+        except:
+            _current_purpose = "# Config file not found or invalid. Copy Step 2B files first."
+            _current_notes = ""
+    
+    purpose_input = mo.ui.text_area(
+        value=_current_purpose,
+        placeholder="You are a support bot for Weights & Biases...",
+        label="Purpose (What is the bot's role?)",
+        rows=8,
+        full_width=True
+    )
+    
+    notes_input = mo.ui.text_area(
+        value=_current_notes,
+        placeholder="- Use search_docs for questions about W&B features\n- Use create_issue when users report problems\n...",
+        label="Notes (Operational guidelines for the bot)",
+        rows=6,
+        full_width=True
+    )
+    
+    mo.vstack([purpose_input, notes_input])
+    return config_path, purpose_input, notes_input
 
-            # Write file
-            config_path.parent.mkdir(parents=True, exist_ok=True)
-            config_path.write_text(config_editor.value)
 
+@app.cell
+def _(mo):
+    save_purpose_btn = mo.ui.button(
+        label="💾 Save Purpose & Notes to Config",
+        value=0,
+        on_click=lambda v: v + 1
+    )
+    save_purpose_btn
+    return (save_purpose_btn,)
+
+
+@app.cell
+def _(config_path, mo, save_purpose_btn, purpose_input, notes_input, yaml):
+    if save_purpose_btn.value:
+        if not purpose_input.value.strip():
             _output = mo.callout(
-                mo.md("""
-                ✅ **Config saved successfully!**
-
-                Your `modal serve` should auto-reload with the new config.
-                Test in Weave Playground to see the improvements!
-                """),
-                kind="success"
+                mo.md("⚠️ **Please fill in the Purpose field before saving**"),
+                kind="warn"
             )
-        except yaml.YAMLError as e:
-            _output = mo.callout(
-                mo.md(f"❌ **Invalid YAML syntax:** {str(e)}"),
-                kind="danger"
-            )
-        except Exception as e:
-            _output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
+        else:
+            try:
+                # Read existing config
+                if config_path.exists():
+                    _config_data = yaml.safe_load(config_path.read_text())
+                else:
+                    _output = mo.callout(
+                        mo.md("❌ **Config file not found.** Copy Step 2B files first!"),
+                        kind="danger"
+                    )
+                    _config_data = None
+                
+                if _config_data:
+                    # Update purpose and notes
+                    _config_data["purpose"] = purpose_input.value
+                    _config_data["notes"] = notes_input.value
+                    
+                    # Write back to file
+                    config_path.parent.mkdir(parents=True, exist_ok=True)
+                    config_path.write_text(yaml.dump(_config_data, default_flow_style=False, sort_keys=False))
+                    
+                    _output = mo.callout(
+                        mo.md("""
+                        ✅ **Purpose and Notes saved successfully!**
+                        
+                        Your `modal serve` should auto-reload with the new config.
+                        Test in Weave Playground to see the improvements!
+                        """),
+                        kind="success"
+                    )
+            except Exception as e:
+                _output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
     else:
         _output = mo.md("")
     
@@ -854,7 +954,22 @@ def _(config_editor, config_path, mo, save_config_btn, yaml):
 @app.cell
 def _(mo):
     mo.md("""
-    **Optionally copy improved tools:**
+    **🔍 Test your changes:** After saving, test in Weave Playground with the same prompts from Step 2.
+
+    **Observe in Weave:** Does it feel more like a support bot? Check traces to see how `purpose` influences behavior.
+
+    ---
+
+    ### Iteration 2: Copy Pre-Configured Tools
+
+    Now that you've given your agent a clear purpose, let's add properly configured tools so it can actually help users.
+
+    **What will change?** The fully configured tools include:
+    - Detailed tool descriptions (when to use each tool)
+    - Complete parameter definitions (what arguments to pass)
+    - Examples and guidance for the agent
+
+    💡 **Optional:** You can iterate on these tool descriptions to improve agent behavior. Good tool descriptions help the agent know WHEN and HOW to use each tool.
     """)
     return
 
@@ -898,6 +1013,56 @@ def _(Path, copy_tools_btn, mo, shutil):
             _output = mo.md("")
     
     _output
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ---
+
+    ### Iteration 3: Verify Your Improvements
+
+    **Test these prompts again** in Weave Playground:
+
+    ```
+    How do I initialize Weave in my Python code?
+    ```
+
+    ```
+    I'm getting API timeout errors when logging predictions. Can you help?
+    ```
+
+    ```
+    What's the status of ticket #10234?
+    ```
+
+    ```
+    Can you explain how to track model performance in wandb?
+    ```
+
+    ```
+    I need to create a support ticket for authentication issues
+    ```
+
+    **🔍 Use Weave to compare before and after:**
+
+    Navigate to Traces → filter for `Agent.stream` → compare new traces side-by-side with old traces from Step 2.
+
+    **Ask yourself:**
+    - ✅ Does the agent search docs when appropriate?
+    - ✅ Create tickets when users report issues?
+    - ✅ Retrieve ticket status correctly?
+    - ✅ Feel like a support bot now?
+    - ✅ Fill tool parameters correctly?
+
+    **Keep iterating if needed:**
+    - Tools not called correctly? → Refine descriptions in the config editor above
+    - Tone off? → Adjust `purpose` in the config editor
+    - Wrong parameters? → Improve parameter descriptions in `tools.py`
+
+    💡 **Reference:** Compare your work with `examples/step-3/` - but remember, there's no single "right" way!
+    """)
     return
 
 
