@@ -27,8 +27,8 @@ def _():
     import re
     import sys
 
-    # Load environment variables
-    load_dotenv()
+    # Load environment variables (suppress output)
+    _ = load_dotenv()
     return Path, glob, mo, os, shutil, sys, yaml
 
 
@@ -194,20 +194,20 @@ def _(mo, Path, os):
     
     # Display with descriptions
     mo.vstack([
-        mo.md("**a) Add your W&B API key** - Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
+        mo.md("**Add your W&B API key** - Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
         mo.md("*Used for both Weave observability and LLM API (we use W&B Inference with DeepSeek)*"),
         wandb_key_input,
         mo.md(""),
-        mo.md("**b) Customize your project name** - Add a unique suffix (e.g., `agentic-support-bot-demo-yourname`)"),
+        mo.md("**Customize your project name** - Add a unique suffix (e.g., `agentic-support-bot-demo-yourname`)"),
         mo.md("*This is the Weave project where your traces, datasets, and evaluations will appear*"),
         mo.md("⚠️ **Important:** Multiple people using the same project name will overwrite each other's data"),
         wandb_project_input,
         mo.md(""),
-        mo.md("**c) Add your OpenAI API key** - Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)"),
+        mo.md("**Add your OpenAI API key** - Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)"),
         mo.md("*Required for Step 6 guardrails (uses OpenAI's Moderation API)*"),
         openai_key_input,
         mo.md(""),
-        mo.md("**d) Add your support bot API key** - Choose any random string (e.g., `my-secret-key-123`)"),
+        mo.md("**Add your support bot API key** - Choose any random string (e.g., `my-secret-key-123`)"),
         mo.md("*Used to authenticate requests to your Modal deployment and in W&B Team Secrets*"),
         bot_key_input,
     ])
@@ -294,14 +294,7 @@ def _(save_env_btn, wandb_key_input, wandb_project_input, openai_key_input, bot_
 
 @app.cell
 def _(mo):
-    mo.md("""
-    Example `.env`:
-    ```bash
-    WANDB_API_KEY=your_wandb_api_key_here
-    WANDB_PROJECT=agentic-support-bot-demo-alice  # ← Add your name here!
-    OPENAI_API_KEY=your_openai_api_key_here
-    ```
-    
+    mo.md("""    
     **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
     
     ### Set up the `workspace/` directory
