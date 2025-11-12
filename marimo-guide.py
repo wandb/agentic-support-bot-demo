@@ -197,13 +197,11 @@ def _(mo, Path, os):
     mo.vstack([
         wandb_key_input,
         mo.md("**Add your W&B API key** - Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
-        mo.md("*Used for both Weave observability and LLM API (we use W&B Inference with DeepSeek)*"),
         mo.md(""),
         mo.md("---"),
         mo.md(""),
         wandb_project_input,
         mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb-designers/agentic-support-bot-yourname`)"),
-        mo.md("*This is the Weave project where your traces, datasets, and evaluations will appear*"),
         mo.md("⚠️ **Important:** Include your entity name (check [W&B Settings](https://wandb.ai/settings)) and add unique suffix to project"),
         mo.md(""),
         mo.md("---"),
@@ -529,21 +527,25 @@ def _(mo):
     mo.md("""
     **Set up Modal** (if not done already):
 
-    Run these commands in your **terminal**:
-
+    **1. Authenticate with Modal** (opens browser for login):
     ```bash
-    # 1. Authenticate with Modal
     uv run modal setup
-
-    # 2. Create dev environment
-    uv run modal environment create dev
-
-    # 3. Create Modal secrets
-    source .env && uv run modal secret create agentic-support-bot-secrets --env main   WANDB_API_KEY=$WANDB_API_KEY   AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY   OPENAI_API_KEY=$OPENAI_API_KEY
     ```
 
-    **Start the dev server:**
+    **2. Create dev environment:**
+    ```bash
+    uv run modal environment create dev
+    ```
 
+    **3. Create Modal secrets:**
+    ```bash
+    source .env && uv run modal secret create agentic-support-bot-secrets --env main \
+      WANDB_API_KEY=$WANDB_API_KEY \
+      AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
+      OPENAI_API_KEY=$OPENAI_API_KEY
+    ```
+
+    **4. Start the dev server:**
     ```bash
     uv run modal serve --env dev workspace/server.py
     ```
