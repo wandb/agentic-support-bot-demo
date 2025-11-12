@@ -20,6 +20,7 @@ def _():
     import subprocess
     import shutil
     import yaml
+    import json
     from pathlib import Path
     from typing import Literal
     from dotenv import load_dotenv
@@ -29,7 +30,7 @@ def _():
 
     # Load environment variables (suppress output)
     _ = load_dotenv()
-    return Path, glob, mo, os, shutil, sys, yaml
+    return Path, glob, json, mo, os, shutil, sys, yaml
 
 
 @app.cell
@@ -651,8 +652,19 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, Path):
+    # Load saved Modal URL if it exists
+    _state_file = Path(".marimo-state.json")
+    _saved_modal_url = ""
+    if _state_file.exists():
+        try:
+            _state = json.loads(_state_file.read_text())
+            _saved_modal_url = _state.get("modal_dev_url", "")
+        except:
+            pass
+    
     modal_url_input = mo.ui.text(
+        value=_saved_modal_url,
         placeholder="https://yourname--agentic-support-bot-dev.modal.run",
         label="Modal Dev Server URL",
         full_width=True
@@ -662,8 +674,19 @@ def _(mo):
 
 
 @app.cell
-def _(mo, modal_url_input, weave_entity, weave_project):
+def _(mo, modal_url_input, weave_entity, weave_project, Path):
     if modal_url_input.value:
+        # Save the Modal URL to state file for persistence
+        _state_file = Path(".marimo-state.json")
+        try:
+            _state = {}
+            if _state_file.exists():
+                _state = json.loads(_state_file.read_text())
+            _state["modal_dev_url"] = modal_url_input.value
+            _state_file.write_text(json.dumps(_state, indent=2))
+        except:
+            pass
+        
         _base_url = modal_url_input.value.rstrip('/').replace('/v1', '')
         _api_url = f"{_base_url}/v1"
 
@@ -722,6 +745,8 @@ def _(mo, modal_url_input, weave_entity, weave_project):
             **📌 Tip:** Keep `uv run modal serve --env dev` running in a terminal. It will auto-reload when you make changes to your code in Step 3!
             """)
         ])
+    else:
+        mo.md("👆 Paste your Modal dev server URL above to see Playground connection instructions")
     return
 
 
@@ -994,8 +1019,19 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, Path):
+    # Load saved production URL if it exists
+    _state_file = Path(".marimo-state.json")
+    _saved_prod_url = ""
+    if _state_file.exists():
+        try:
+            _state = json.loads(_state_file.read_text())
+            _saved_prod_url = _state.get("modal_prod_url", "")
+        except:
+            pass
+    
     prod_url_input = mo.ui.text(
+        value=_saved_prod_url,
         placeholder="https://yourname--agentic-support-bot.modal.run",
         label="Production Server URL",
         full_width=True
@@ -1005,8 +1041,19 @@ def _(mo):
 
 
 @app.cell
-def _(mo, prod_url_input, weave_entity, weave_project):
+def _(mo, prod_url_input, weave_entity, weave_project, Path):
     if prod_url_input.value:
+        # Save the production URL to state file for persistence
+        _state_file = Path(".marimo-state.json")
+        try:
+            _state = {}
+            if _state_file.exists():
+                _state = json.loads(_state_file.read_text())
+            _state["modal_prod_url"] = prod_url_input.value
+            _state_file.write_text(json.dumps(_state, indent=2))
+        except:
+            pass
+        
         _base_url = prod_url_input.value.rstrip('/').replace('/v1', '')
         _api_url = f"{_base_url}/v1"
 

@@ -215,6 +215,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 .marimo/  # Marimo state directory (may contain notebook execution state)
+.marimo-state.json  # Marimo guide user state (Modal URLs, etc.)
 
 # Workspace - User's working directory for tutorial (not tracked)
 workspace/
