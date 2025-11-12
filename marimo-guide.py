@@ -187,10 +187,9 @@ def _(mo, Path, os):
     
     bot_key_input = mo.ui.text(
         value=_current_bot_key,
-        placeholder="your_bot_api_key_here",
+        placeholder="my-secret-key-123",
         label="AGENTIC_SUPPORT_BOT_API_KEY",
-        full_width=True,
-        kind="password"
+        full_width=True
     )
     
     # Display with descriptions
@@ -614,18 +613,37 @@ def _(mo):
       AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
       OPENAI_API_KEY=$OPENAI_API_KEY
     ```
+    """)
+    return
 
-    **4. Add to W&B Team Secrets:**
-    - Navigate to your W&B project → team **Settings** → **Team Secrets**
-    - Click **New secret**
-    - Name: `AGENTIC_SUPPORT_BOT_API_KEY`
-    - Value: Same as your Modal secret
-    - Click **Add secret**
 
-    **Note:** If your team already has `AGENTIC_SUPPORT_BOT_API_KEY` set, you can use that value when creating the Modal secret.
+@app.cell
+def _(mo, bot_key_input):
+    # Show W&B Team Secrets instructions with actual value
+    if bot_key_input.value:
+        _output = mo.md(f"""
+        **4. Add to W&B Team Secrets:**
+        
+        - Navigate to your W&B project → team **Settings** → **Team Secrets**
+        - Click **New secret**
+        - Name: `AGENTIC_SUPPORT_BOT_API_KEY`
+        - Value: `{bot_key_input.value}`
+        - Click **Add secret**
+        
+        **Note:** If your team already has `AGENTIC_SUPPORT_BOT_API_KEY` set, you can use that value when creating the Modal secret.
+        
+        See [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets) for details.
+        """)
+    else:
+        _output = mo.md("")
+    
+    _output
+    return
 
-    See [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets) for details.
 
+@app.cell
+def _(mo):
+    mo.md("""
     **5. Start the development server:**
 
     ```bash
@@ -674,7 +692,7 @@ def _(mo, Path):
 
 
 @app.cell
-def _(mo, modal_url_input, weave_entity, weave_project, Path):
+def _(mo, modal_url_input, weave_entity, weave_project, Path, json):
     if modal_url_input.value:
         # Save the Modal URL to state file for persistence
         _state_file = Path(".marimo-state.json")
@@ -696,7 +714,7 @@ def _(mo, modal_url_input, weave_entity, weave_project, Path):
         else:
             _playground_url = "https://wandb.ai//playground"
 
-        mo.vstack([
+        _output = mo.vstack([
             mo.md(f"""
             **6. Connect Weave Playground:**
 
@@ -746,7 +764,9 @@ def _(mo, modal_url_input, weave_entity, weave_project, Path):
             """)
         ])
     else:
-        mo.md("👆 Paste your Modal dev server URL above to see Playground connection instructions")
+        _output = mo.md("👆 Paste your Modal dev server URL above to see Playground connection instructions")
+    
+    _output
     return
 
 
