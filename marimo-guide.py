@@ -618,13 +618,19 @@ def _(mo):
 
 
 @app.cell
-def _(mo, bot_key_input):
+def _(mo, bot_key_input, weave_entity):
     # Show W&B Team Secrets instructions with actual value
     if bot_key_input.value:
+        # Build team settings URL
+        if weave_entity:
+            _team_settings_url = f"https://wandb.ai/{weave_entity}/settings"
+        else:
+            _team_settings_url = "https://wandb.ai/settings"
+        
         _output = mo.md(f"""
         **4. Add to W&B Team Secrets:**
         
-        - Navigate to your W&B project → team **Settings** → **Team Secrets**
+        - Navigate to [your team Settings → Team Secrets]({_team_settings_url})
         - Click **New secret**
         - Name: `AGENTIC_SUPPORT_BOT_API_KEY`
         - Value: `{bot_key_input.value}`
@@ -729,7 +735,7 @@ def _(mo, modal_url_input, weave_entity, weave_project, Path, json):
 
             **Test your agent:**
 
-            Select `agentic-support-bot-dev/buzz`, delete the default system message, and try these prompts:
+            You should now be able to select `agentic-support-bot-dev/buzz` in the model dropdown, delete the default system message, and try these prompts:
             ```
             How do I initialize Weave in my Python code?
             ```
