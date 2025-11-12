@@ -19,6 +19,8 @@ dependencies = [
     "transformers>=4.30.0",  # Required for local ML models
     "sentencepiece>=0.1.99",  # Required for tokenization
     "protobuf>=3.20.0",  # Required for model loading
+    # Marimo: Interactive tutorial guide
+    "marimo>=0.17.0,<0.18.0",  # Interactive notebook for guided tutorial
 ]
 
 [dependency-groups]

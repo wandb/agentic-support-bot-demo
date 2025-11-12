@@ -33,20 +33,20 @@ Build a support bot for Weights & Biases that can:
 
 ---
 
-# Let's Go! 🚀
+# Getting Started 🚀
 
-## Step 1: Project Setup
+## Installation
 
-This repo includes dependencies, configuration files, and example code so you can focus on agent-specific decisions rather than boilerplate setup.
+Everyone completes these steps regardless of which path you choose:
 
-1. **Clone the repository**
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/wandb/agentic-support-bot-demo.git
 cd agentic-support-bot-demo
 ```
 
-2. **Install dependencies**
+### 2. Install dependencies
 
 We use [uv](https://github.com/astral-sh/uv) for fast, reliable Python package management.
 
@@ -54,11 +54,60 @@ We use [uv](https://github.com/astral-sh/uv) for fast, reliable Python package m
 # Install uv if you don't have it
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install project dependencies
+# Install project dependencies (includes Marimo)
 uv sync
 ```
 
-3. **Configure environment variables**
+---
+
+## Choose Your Path
+
+You can complete this tutorial using either:
+
+### Option A: Interactive Guide (Marimo) 🎮 ← **Recommended**
+
+**Guided experience with one-click actions, progress tracking, and less context switching.**
+
+Launch the interactive guide:
+
+```bash
+uv run marimo run marimo-guide.py
+```
+
+The guide will open in your browser and walk you through:
+- ✅ Environment validation and setup
+- ✅ One-click file copying and deployments
+- ✅ Inline config editing
+- ✅ Contextual links to Weave UI
+- ✅ Progress indicators for each step
+
+**Benefits:**
+- Faster completion (less time debugging commands)
+- Visual feedback and error prevention
+- Structured navigation (tabs instead of scrolling)
+- Still uses Weave UI for all analysis and testing
+
+**Note:** You'll still need a terminal open for some commands (like `tyler chat` and `modal serve`), but the guide provides copy buttons and clear instructions.
+
+---
+
+### Option B: Traditional Guide (README) 📖
+
+**Classic markdown tutorial - continue reading below for the full step-by-step guide.**
+
+If you prefer working directly in the terminal or can't use the Marimo interface, follow the steps below starting with [Step 1: Project Setup](#step-1-project-setup).
+
+Both paths cover the same content and learning objectives. Choose whichever you're more comfortable with!
+
+---
+
+# Step-by-Step Guide (README Path)
+
+## Step 1: Project Setup
+
+This repo includes dependencies, configuration files, and example code so you can focus on agent-specific decisions rather than boilerplate setup.
+
+### Configure environment variables
 
 ```bash
 # Create your .env file
@@ -89,7 +138,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 
 **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
 
-1. **Set up the `workspace/` directory where you will work**
+### Set up the `workspace/` directory
 
 In order to make testing the support tools more realistic, we have a small db to persist tickets and allow tools to actually work.
 
