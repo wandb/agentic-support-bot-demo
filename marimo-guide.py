@@ -26,11 +26,10 @@ def _():
     from glob import glob
     import re
     import sys
-    import weave
 
     # Load environment variables (suppress output)
     _ = load_dotenv()
-    return Path, glob, mo, os, shutil, sys, yaml, weave
+    return Path, glob, mo, os, shutil, sys, yaml
 
 
 @app.cell
@@ -362,9 +361,17 @@ def _(mo):
 
     ## Step 2: Get a Basic Agent Running
 
+    Build your agent incrementally, starting simple and adding complexity. Use **Weave at each stage** to understand what's happening.
+
+    **Note:** This demo uses the [Slide framework](https://slide.mintlify.app) to get an agent running quickly so you can focus on Weave's observability and evaluation workflow.
+
+    ---
+
     ### Part A: Create Your First Agent
 
-    Get a minimal agent running and see your first Weave trace.
+    **Goal:** Get a minimal agent running and see your first Weave trace.
+
+    Copy the basic agent files to your workspace:
     """)
     return
 
@@ -408,7 +415,16 @@ def _(Path, copy_2a_btn, glob, mo, shutil):
         except Exception as e:
             _output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
     else:
-        _output = mo.md("")
+        # Check if files already exist
+        _main_exists = Path("workspace/main.py").exists()
+        _config_exists = Path("workspace/tyler-chat-config.yaml").exists()
+        if _main_exists and _config_exists:
+            _output = mo.callout(
+                mo.md("✅ **Step 2A files already exist** - you can skip this or re-copy to reset"),
+                kind="success"
+            )
+        else:
+            _output = mo.md("")
     
     _output
     return
@@ -417,28 +433,49 @@ def _(Path, copy_2a_btn, glob, mo, shutil):
 @app.cell
 def _(mo):
     mo.md("""
-    **Test your agent** by running this in your **terminal**:
+    This gives you:
+    - `main.py` - Basic agent execution script
+    - `tyler-chat-config.yaml` - Minimal agent configuration (generic purpose, no tools yet)
+
+    **Test it using Slide's chat CLI:**
+
+    Run this in your **terminal**:
 
     ```bash
     uv run tyler chat --config workspace/tyler-chat-config.yaml
     ```
 
     Try these prompts:
-    - "How do I initialize Weave in my Python code?"
-    - "I'm getting API timeout errors. Can you help?"
-    - "What's the status of ticket #10234?"
+    ```
+    How do I initialize Weave in my Python code?
+    ```
+    ```
+    I'm getting API timeout errors when logging predictions. Can you help?
+    ```
+    ```
+    What's the status of ticket #10234?
+    ```
+    ```
+    Can you explain how to track model performance in wandb?
+    ```
+    ```
+    I need to create a support ticket for authentication issues
+    ```
 
-    Then check your traces in Weave (link below) to see what the agent did.
+    The agent should respond conversationally but won't call any tools.
+
+    **Chat Commands:**
+    - `/quit` or `/exit` - Exit the chat
+    - `/help` - Show available commands
     """)
     return
 
 
 @app.cell
-def _(mo, os, weave):
-    # Initialize weave client and parse entity from WANDB_PROJECT
+def _(mo, os):
+    # Parse entity/project from WANDB_PROJECT env var
     _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
     
-    # Parse entity/project from WANDB_PROJECT env var
     if "/" in _project:
         weave_entity, weave_project = _project.split("/", 1)
     else:
@@ -446,23 +483,27 @@ def _(mo, os, weave):
         weave_entity = None
         weave_project = _project
     
-    try:
-        import warnings
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            weave_client = weave.init(_project)
-    except Exception:
-        # Init failed (no WANDB_API_KEY yet) but we can still build URLs
-        weave_client = None
-    
     # Build traces URL
     if weave_entity:
         _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
     else:
         _traces_url = f"https://wandb.ai//{_project}/weave/traces"
 
-    mo.md(f"[🔍 View Traces in Weave]({_traces_url})")
-    return (weave_client, weave_entity, weave_project)
+    mo.md(f"""
+    **🔍 Explore Weave:**
+
+    1. [View your Weave Traces]({_traces_url}) and look for Agent.stream operations
+    2. Click into a trace to see the full interaction
+
+    **Questions to explore:**
+    - How many traces do you see? (one per chat message?)
+    - What information does Weave automatically capture?
+    - What steps did the agent go through to respond?
+    - Did the agent call any tools? Why not?
+
+    **Key insight:** The agent works and Weave captured everything automatically, but the agent can't DO anything yet - it has no tools!
+    """)
+    return (weave_entity, weave_project)
 
 
 @app.cell
@@ -470,9 +511,11 @@ def _(mo):
     mo.md("""
     ---
 
-    ### Part B: Add Tools & MCP Server
+    ### Part B: Add Tools and MCP Server
 
-    Give your agent capabilities with support ticket tools and deploy to Modal.
+    **Goal:** Give your agent capabilities (local tools + documentation search).
+
+    Copy the new files with tools and MCP enabled:
     """)
     return
 
@@ -516,7 +559,16 @@ def _(Path, copy_2b_btn, glob, mo, shutil):
         except Exception as e:
             _output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
     else:
-        _output = mo.md("")
+        # Check if files already exist
+        _tools_exists = Path("workspace/tools.py").exists()
+        _server_exists = Path("workspace/server.py").exists()
+        if _tools_exists and _server_exists:
+            _output = mo.callout(
+                mo.md("✅ **Step 2B files already exist** - you can skip this or re-copy to update"),
+                kind="success"
+            )
+        else:
+            _output = mo.md("")
     
     _output
     return
@@ -525,19 +577,36 @@ def _(Path, copy_2b_btn, glob, mo, shutil):
 @app.cell
 def _(mo):
     mo.md("""
-    **Set up Modal** (if not done already):
+    This adds:
+    - `tools.py` - Two support ticket tools: `create_issue` and `get_issue`
+    - `tyler-chat-config.yaml` - Updated config with tools and MCP enabled
+    - `server.py` - OpenAI-compatible API server for Weave Playground (deployed on Modal)
 
-    **1. Authenticate with Modal** (opens browser for login):
+    **Test in Weave Playground**
+
+    We'll deploy your agent server on Modal so Weave Playground can connect to it. Modal provides a simple serverless platform that works for both development (with auto-reload) and production deployment.
+
+    **1. Set up Modal:**
+
+    Authenticate with Modal (opens browser for login):
     ```bash
     uv run modal setup
     ```
 
-    **2. Create dev environment:**
+    This creates a Modal account (free) and saves your credentials locally.
+
+    **2. Create Modal environments:**
+
+    Modal [Environments](https://modal.com/docs/guide/environments#environments) let you separate dev and prod deployments. Create a `dev` environment (the `main` environment already exists for production):
+
     ```bash
     uv run modal environment create dev
     ```
 
-    **3. Create Modal secrets:**
+    **3. Create Modal secret:**
+
+    Create a secret in the `main` environment that will be shared by both dev and prod:
+
     ```bash
     source .env && uv run modal secret create agentic-support-bot-secrets --env main \
       WANDB_API_KEY=$WANDB_API_KEY \
@@ -545,12 +614,38 @@ def _(mo):
       OPENAI_API_KEY=$OPENAI_API_KEY
     ```
 
-    **4. Start the dev server:**
+    **4. Add to W&B Team Secrets:**
+    - Navigate to your W&B project → team **Settings** → **Team Secrets**
+    - Click **New secret**
+    - Name: `AGENTIC_SUPPORT_BOT_API_KEY`
+    - Value: Same as your Modal secret
+    - Click **Add secret**
+
+    **Note:** If your team already has `AGENTIC_SUPPORT_BOT_API_KEY` set, you can use that value when creating the Modal secret.
+
+    See [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets) for details.
+
+    **5. Start the development server:**
+
     ```bash
     uv run modal serve --env dev workspace/server.py
     ```
 
-    Copy the Modal URL and paste it below:
+    Modal will:
+    - Build a container image with your dependencies
+    - Include your `workspace/` directory in the image
+    - Deploy to Modal's infrastructure
+    - Provide an HTTPS URL
+
+    You'll see output like:
+    ```
+    ✓ Created objects.
+    ├── 🔨 Created function modal_app.
+    └── 🔨 Created web function modal_app => https://yourname--agentic-support-bot-dev.modal.run
+    ✓ App deployed in 3.14s
+    ```
+
+    Copy the URL (e.g., `https://yourname--agentic-support-bot-dev.modal.run`) and paste it below:
     """)
     return
 
@@ -578,26 +673,55 @@ def _(mo, modal_url_input, weave_entity, weave_project):
         else:
             _playground_url = "https://wandb.ai//playground"
 
-        mo.callout(
+        mo.vstack([
             mo.md(f"""
-            **🎮 Connect to Weave Playground:**
+            **6. Connect Weave Playground:**
 
-            1. [Open Weave Playground]({_playground_url})
-            2. Click **+ Add AI provider** → **Custom provider**
+            1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
+            2. In model dropdown: **+ Add AI provider** → **Custom provider**
             3. Fill in:
                - **Provider name**: `agentic-support-bot-dev`
-               - **API key**: Your `AGENTIC_SUPPORT_BOT_API_KEY`
-               - **Base URL**: `{_api_url}`
+               - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
+               - **Base URL**: `{_api_url}` (append `/v1` to the Modal URL)
                - **Models**: `buzz`
             4. Click **Add provider**
 
-            **Test prompts:**
-            - "How do I initialize Weave in Python?"
-            - "What's the status of ticket #10234?"
-            - "I need to create a support ticket"
+            **Test your agent:**
+
+            Select `agentic-support-bot-dev/buzz`, delete the default system message, and try these prompts:
+            ```
+            How do I initialize Weave in my Python code?
+            ```
+            ```
+            I'm getting API timeout errors when logging predictions. Can you help?
+            ```
+            ```
+            What's the status of ticket #10234?
+            ```
+            ```
+            Can you explain how to track model performance in wandb?
+            ```
+            ```
+            I need to create a support ticket for authentication issues
+            ```
             """),
-            kind="success"
-        )
+            mo.md("""
+            **🔍 Check traces in Weave:**
+
+            Navigate to Traces → filter for `Agent.stream` operations.
+
+            **What to notice:**
+            - Some traces show tool calls, others don't
+            - Agent doesn't consistently use tools when it should
+            - Doesn't "vibe" as a support bot
+            - **Why?** The agent doesn't know its purpose or when to use tools!
+            - **New:** All traces are tagged with `env=dev` (from Modal's dev environment)
+
+            This is what we'll fix in Step 3.
+
+            **📌 Tip:** Keep `uv run modal serve --env dev` running in a terminal. It will auto-reload when you make changes to your code in Step 3!
+            """)
+        ])
     return
 
 
@@ -715,7 +839,12 @@ def _(Path, copy_tools_btn, mo, shutil):
         except Exception as e:
             _output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
     else:
-        _output = mo.md("")
+        # Check if improved tools exist (we can't easily tell if it's the improved version)
+        _tools_exists = Path("workspace/tools.py").exists()
+        if _tools_exists:
+            _output = mo.md("ℹ️ `tools.py` exists - click to overwrite with improved version")
+        else:
+            _output = mo.md("")
     
     _output
     return
@@ -781,7 +910,17 @@ def _(Path, copy_step4_btn, glob, mo, shutil):
         except Exception as e:
             _output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
     else:
-        _output = mo.md("")
+        # Check if key Step 4 files exist
+        _dataset_exists = Path("workspace/dataset.py").exists()
+        _scorers_exists = Path("workspace/scorers.py").exists()
+        _eval_exists = Path("workspace/run_evaluation.py").exists()
+        if _dataset_exists and _scorers_exists and _eval_exists:
+            _output = mo.callout(
+                mo.md("✅ **Step 4 files already exist** - you can skip this or re-copy to update"),
+                kind="success"
+            )
+        else:
+            _output = mo.md("")
     
     _output
     return
@@ -942,7 +1081,15 @@ def _(Path, copy_step6_btn, glob, mo, shutil):
         except Exception as e:
             _output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
     else:
-        _output = mo.md("")
+        # Check if guardrails files exist
+        _guardrails_exists = Path("workspace/guardrails.py").exists()
+        if _guardrails_exists:
+            _output = mo.callout(
+                mo.md("✅ **Step 6 files already exist** - you can skip this or re-copy to update"),
+                kind="success"
+            )
+        else:
+            _output = mo.md("")
     
     _output
     return
