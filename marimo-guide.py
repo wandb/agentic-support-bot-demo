@@ -26,10 +26,11 @@ def _():
     from glob import glob
     import re
     import sys
+    import weave
 
     # Load environment variables (suppress output)
     _ = load_dotenv()
-    return Path, glob, mo, os, shutil, sys, yaml
+    return Path, glob, mo, os, shutil, sys, yaml, weave
 
 
 @app.cell
@@ -171,7 +172,7 @@ def _(mo, Path, os):
     
     wandb_project_input = mo.ui.text(
         value=_current_wandb_project,
-        placeholder="agentic-support-bot-demo-yourname",
+        placeholder="your-entity/agentic-support-bot-demo-yourname",
         label="WANDB_PROJECT",
         full_width=True
     )
@@ -194,22 +195,28 @@ def _(mo, Path, os):
     
     # Display with descriptions
     mo.vstack([
+        wandb_key_input,
         mo.md("**Add your W&B API key** - Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
         mo.md("*Used for both Weave observability and LLM API (we use W&B Inference with DeepSeek)*"),
-        wandb_key_input,
         mo.md(""),
-        mo.md("**Customize your project name** - Add a unique suffix (e.g., `agentic-support-bot-demo-yourname`)"),
-        mo.md("*This is the Weave project where your traces, datasets, and evaluations will appear*"),
-        mo.md("⚠️ **Important:** Multiple people using the same project name will overwrite each other's data"),
+        mo.md("---"),
+        mo.md(""),
         wandb_project_input,
+        mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb-designers/agentic-support-bot-yourname`)"),
+        mo.md("*This is the Weave project where your traces, datasets, and evaluations will appear*"),
+        mo.md("⚠️ **Important:** Include your entity name (check [W&B Settings](https://wandb.ai/settings)) and add unique suffix to project"),
         mo.md(""),
+        mo.md("---"),
+        mo.md(""),
+        openai_key_input,
         mo.md("**Add your OpenAI API key** - Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)"),
         mo.md("*Required for Step 6 guardrails (uses OpenAI's Moderation API)*"),
-        openai_key_input,
         mo.md(""),
+        mo.md("---"),
+        mo.md(""),
+        bot_key_input,
         mo.md("**Add your support bot API key** - Choose any random string (e.g., `my-secret-key-123`)"),
         mo.md("*Used to authenticate requests to your Modal deployment and in W&B Team Secrets*"),
-        bot_key_input,
     ])
     return wandb_key_input, wandb_project_input, openai_key_input, bot_key_input
 
@@ -379,7 +386,8 @@ def _(mo):
 def _(Path, copy_2a_btn, glob, mo, shutil):
     if copy_2a_btn.value:
         try:
-            _source_files = glob("examples/step-2/part-a/*")
+            # Use same pattern as README: *.{py,yaml}
+            _source_files = glob("examples/step-2/part-a/*.py") + glob("examples/step-2/part-a/*.yaml")
             _dest = Path("workspace")
             _dest.mkdir(parents=True, exist_ok=True)
 
@@ -428,16 +436,35 @@ def _(mo):
 
 
 @app.cell
-def _(mo, os):
-    wandb_project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
-    if "/" in wandb_project:
-        _entity, _project = wandb_project.split("/", 1)
-        _traces_url = f"https://wandb.ai/{_entity}/{_project}/weave/traces"
+def _(mo, os, weave):
+    # Initialize weave client and parse entity from WANDB_PROJECT
+    _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+    
+    # Parse entity/project from WANDB_PROJECT env var
+    if "/" in _project:
+        weave_entity, weave_project = _project.split("/", 1)
     else:
-        _traces_url = f"https://wandb.ai//{wandb_project}/weave/traces"
+        # No entity specified - will result in broken URLs
+        weave_entity = None
+        weave_project = _project
+    
+    try:
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            weave_client = weave.init(_project)
+    except Exception:
+        # Init failed (no WANDB_API_KEY yet) but we can still build URLs
+        weave_client = None
+    
+    # Build traces URL
+    if weave_entity:
+        _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+    else:
+        _traces_url = f"https://wandb.ai//{_project}/weave/traces"
 
     mo.md(f"[🔍 View Traces in Weave]({_traces_url})")
-    return (wandb_project,)
+    return (weave_client, weave_entity, weave_project)
 
 
 @app.cell
@@ -467,7 +494,8 @@ def _(mo):
 def _(Path, copy_2b_btn, glob, mo, shutil):
     if copy_2b_btn.value:
         try:
-            _source_files = glob("examples/step-2/part-b/*")
+            # Use same pattern as README: *.{py,yaml}
+            _source_files = glob("examples/step-2/part-b/*.py") + glob("examples/step-2/part-b/*.yaml")
             _dest = Path("workspace")
 
             _copied = []
@@ -537,16 +565,16 @@ def _(mo):
 
 
 @app.cell
-def _(mo, modal_url_input, wandb_project):
+def _(mo, modal_url_input, weave_entity, weave_project):
     if modal_url_input.value:
         _base_url = modal_url_input.value.rstrip('/').replace('/v1', '')
         _api_url = f"{_base_url}/v1"
 
-        if "/" in wandb_project:
-            _entity, _project = wandb_project.split("/", 1)
-            _playground_url = f"https://wandb.ai/{_entity}/{_project}/playground"
+        # Get playground URL
+        if weave_entity:
+            _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/playground"
         else:
-            _playground_url = f"https://wandb.ai//{wandb_project}/playground"
+            _playground_url = "https://wandb.ai//playground"
 
         mo.callout(
             mo.md(f"""
@@ -718,15 +746,27 @@ def _(mo):
 def _(Path, copy_step4_btn, glob, mo, shutil):
     if copy_step4_btn.value:
         try:
+            # Use same pattern as README: part-a/*.py part-b/*.{py,yaml} part-c/*.py
             _all_files = []
-            for _part in ["part-a", "part-b", "part-c"]:
-                _source_files = glob(f"examples/step-4/{_part}/*")
-                _dest = Path("workspace")
-
-                for _src in _source_files:
-                    _filename = Path(_src).name
-                    shutil.copy2(_src, _dest / _filename)
-                    _all_files.append(_filename)
+            _dest = Path("workspace")
+            
+            # Part A: *.py
+            for _src in glob("examples/step-4/part-a/*.py"):
+                _filename = Path(_src).name
+                shutil.copy2(_src, _dest / _filename)
+                _all_files.append(_filename)
+            
+            # Part B: *.{py,yaml}
+            for _src in glob("examples/step-4/part-b/*.py") + glob("examples/step-4/part-b/*.yaml"):
+                _filename = Path(_src).name
+                shutil.copy2(_src, _dest / _filename)
+                _all_files.append(_filename)
+            
+            # Part C: *.py
+            for _src in glob("examples/step-4/part-c/*.py"):
+                _filename = Path(_src).name
+                shutil.copy2(_src, _dest / _filename)
+                _all_files.append(_filename)
 
             _output = mo.callout(
                 mo.md(f"""
@@ -779,12 +819,12 @@ def _(mo):
 
 
 @app.cell
-def _(mo, wandb_project):
-    if "/" in wandb_project:
-        _entity, _project = wandb_project.split("/", 1)
-        _evals_url = f"https://wandb.ai/{_entity}/{_project}/weave/evaluations"
+def _(mo, weave_entity, weave_project):
+    # Get evaluations URL
+    if weave_entity:
+        _evals_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/evaluations"
     else:
-        _evals_url = f"https://wandb.ai//{wandb_project}/weave/evaluations"
+        _evals_url = "https://wandb.ai//weave/evaluations"
 
     mo.md(f"""
         **After running evaluation**, view results:
@@ -824,16 +864,16 @@ def _(mo):
 
 
 @app.cell
-def _(mo, prod_url_input, wandb_project):
+def _(mo, prod_url_input, weave_entity, weave_project):
     if prod_url_input.value:
         _base_url = prod_url_input.value.rstrip('/').replace('/v1', '')
         _api_url = f"{_base_url}/v1"
 
-        if "/" in wandb_project:
-            _entity, _project = wandb_project.split("/", 1)
-            _playground_url = f"https://wandb.ai/{_entity}/{_project}/playground"
+        # Get playground URL
+        if weave_entity:
+            _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/playground"
         else:
-            _playground_url = f"https://wandb.ai//{wandb_project}/playground"
+            _playground_url = "https://wandb.ai//playground"
 
         mo.callout(
             mo.md(f"""
@@ -879,7 +919,8 @@ def _(mo):
 def _(Path, copy_step6_btn, glob, mo, shutil):
     if copy_step6_btn.value:
         try:
-            _source_files = glob("examples/step-6/part-a/*")
+            # Use same pattern as README: *.{py,yaml}
+            _source_files = glob("examples/step-6/part-a/*.py") + glob("examples/step-6/part-a/*.yaml")
             _dest = Path("workspace")
 
             _copied = []

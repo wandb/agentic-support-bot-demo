@@ -121,8 +121,9 @@ cp .env.example .env
   - Used for both Weave observability and LLM API (we use W&B Inference with DeepSeek)
 
 **b) Customize your project name:**
-- `WANDB_PROJECT` - Add a unique suffix to avoid conflicts (e.g., `agentic-support-bot-demo-yourname`)
+- `WANDB_PROJECT` - Use format `your-entity/project-name` (e.g., `wandb-designers/agentic-support-bot-yourname`)
   - This is the Weave project where your traces, datasets, and evaluations will appear
+  - **Important:** Include your entity (find it at [wandb.ai/settings](https://wandb.ai/settings)) and add unique suffix
   - **Important:** Multiple people using the same project name will overwrite each other's datasets and evaluations
 
 **c) Add your OpenAI API key:**
@@ -132,8 +133,9 @@ cp .env.example .env
 Example `.env`:
 ```bash
 WANDB_API_KEY=your_wandb_api_key_here
-WANDB_PROJECT=agentic-support-bot-demo-alice  # ← Add your name here!
+WANDB_PROJECT=your-entity/agentic-support-bot-demo-alice  # ← Use entity/project format!
 OPENAI_API_KEY=your_openai_api_key_here
+AGENTIC_SUPPORT_BOT_API_KEY=your_bot_api_key_here
 ```
 
 **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
