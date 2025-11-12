@@ -710,9 +710,9 @@ def _(mo, modal_url_input, weave_entity, weave_project, Path, json):
 
         # Get playground URL
         if weave_entity:
-            _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/playground"
+            _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
         else:
-            _playground_url = "https://wandb.ai//playground"
+            _playground_url = "https://wandb.ai//weave/playground"
 
         _output = mo.vstack([
             mo.md(f"""
@@ -1079,9 +1079,9 @@ def _(mo, prod_url_input, weave_entity, weave_project, Path):
 
         # Get playground URL
         if weave_entity:
-            _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/playground"
+            _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
         else:
-            _playground_url = "https://wandb.ai//playground"
+            _playground_url = "https://wandb.ai//weave/playground"
 
         mo.callout(
             mo.md(f"""
