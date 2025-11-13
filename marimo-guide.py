@@ -362,8 +362,8 @@ def _(mo, copy_2a_btn, copy_2b_btn, modal_url_input, weave_entity, weave_project
             copy_2b_output = mo.md("")
     
     # Handle Modal URL input and display playground instructions
+    # Save the Modal URL to state file for persistence
     if modal_url_input.value:
-        # Save the Modal URL to state file for persistence
         _state_file = Path(".marimo-state.json")
         try:
             _state = {}
@@ -373,62 +373,15 @@ def _(mo, copy_2a_btn, copy_2b_btn, modal_url_input, weave_entity, weave_project
             _state_file.write_text(json.dumps(_state, indent=2))
         except:
             pass
-        
+    
+    # Generate API URL instruction (always show instructions, just update URL)
+    _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
+    if modal_url_input.value:
         _base_url = modal_url_input.value.rstrip('/').replace('/v1', '')
         _api_url = f"{_base_url}/v1"
-        _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
-
-        modal_instructions = mo.vstack([
-            mo.md(f"""
-            **6. Connect Weave Playground:**
-
-            1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
-            2. In model dropdown: **+ Add AI provider** → **Custom provider**
-            3. Fill in:
-               - **Provider name**: `agentic-support-bot-dev`
-               - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
-               - **Base URL**: `{_api_url}` (append `/v1` to the Modal URL)
-               - **Models**: `buzz`
-            4. Click **Add provider**
-
-            **Test your agent:**
-
-            You should now be able to select `agentic-support-bot-dev/buzz` in the model dropdown, delete the default system message, and try these prompts:
-            ```
-            How do I initialize Weave in my Python code?
-            ```
-            ```
-            I'm getting API timeout errors when logging predictions. Can you help?
-            ```
-            ```
-            What's the status of ticket #10234?
-            ```
-            ```
-            Can you explain how to track model performance in wandb?
-            ```
-            ```
-            I need to create a support ticket for authentication issues
-            ```
-            """),
-            mo.md("""
-            **🔍 Check traces in Weave:**
-
-            Navigate to Traces → filter for `Agent.stream` operations.
-
-            **What to notice:**
-            - Some traces show tool calls, others don't
-            - Agent doesn't consistently use tools when it should
-            - Doesn't "vibe" as a support bot
-            - **Why?** The agent doesn't know its purpose or when to use tools!
-            - **New:** All traces are tagged with `env=dev` (from Modal's dev environment)
-
-            This is what we'll fix in Step 3.
-
-            **📌 Tip:** Keep `uv run modal serve --env dev` running in a terminal. It will auto-reload when you make changes to your code in Step 3!
-            """)
-        ])
+        _api_url_instruction = f"`{_api_url}` (append `/v1` to the Modal URL)"
     else:
-        modal_instructions = mo.md("👆 Paste your Modal dev server URL above to see Playground connection instructions")
+        _api_url_instruction = "`<your-modal-dev-url>/v1` (append `/v1` to the Modal URL you paste above)"
     
     # W&B Team Secrets instructions
     if bot_key_input.value:
@@ -449,15 +402,16 @@ def _(mo, copy_2a_btn, copy_2b_btn, modal_url_input, weave_entity, weave_project
     else:
         team_secrets_output = mo.md("")
     
-    return copy_2a_output, copy_2b_output, modal_instructions, team_secrets_output
+    return copy_2a_output, copy_2b_output, _api_url_instruction, team_secrets_output
 
 
 @app.cell
-def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_input, modal_instructions, team_secrets_output, weave_entity, weave_project):
+def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_input, _api_url_instruction, team_secrets_output, weave_entity, weave_project):
     # ============================================================================
     # STEP 2: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+    _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
     
     step2_content = mo.vstack([
         mo.md("""
@@ -601,7 +555,52 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
             Copy the URL (e.g., `https://yourname--agentic-support-bot-dev.modal.run`) and paste it below:
         """),
         modal_url_input,
-        modal_instructions,
+        mo.md(f"""
+        **6. Connect Weave Playground:**
+
+        1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
+        2. In model dropdown: **+ Add AI provider** → **Custom provider**
+        3. Fill in:
+           - **Provider name**: `agentic-support-bot-dev`
+           - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
+           - **Base URL**: {_api_url_instruction}
+           - **Models**: `buzz`
+        4. Click **Add provider**
+
+        **Test your agent:**
+
+        You should now be able to select `agentic-support-bot-dev/buzz` in the model dropdown, delete the default system message, and try these prompts:
+        ```
+        How do I initialize Weave in my Python code?
+        ```
+        ```
+        I'm getting API timeout errors when logging predictions. Can you help?
+        ```
+        ```
+        What's the status of ticket #10234?
+        ```
+        ```
+        Can you explain how to track model performance in wandb?
+        ```
+        ```
+        I need to create a support ticket for authentication issues
+        ```
+
+        **🔍 Check traces in Weave:**
+
+        Navigate to Traces → filter for `Agent.stream` operations.
+
+        **What to notice:**
+        - Some traces show tool calls, others don't
+        - Agent doesn't consistently use tools when it should
+        - Doesn't "vibe" as a support bot
+        - **Why?** The agent doesn't know its purpose or when to use tools!
+        - **New:** All traces are tagged with `env=dev` (from Modal's dev environment)
+
+        This is what we'll fix in Step 3.
+
+        **📌 Tip:** Keep `uv run modal serve --env dev` running in a terminal. It will auto-reload when you make changes to your code in Step 3!
+        """),
         mo.md("---"),
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've deployed your dev server and tested in Weave Playground, continue to **Vibe** (iteration) using the tabs above."),
