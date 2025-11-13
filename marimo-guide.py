@@ -474,20 +474,18 @@ def _(mo):
 @app.cell
 def _(mo, os):
     # Parse entity/project from WANDB_PROJECT env var
+    # Expected format: "entity/project" (e.g., "wandb-designers/agentic-support-bot-demo-alice")
     _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
     
     if "/" in _project:
         weave_entity, weave_project = _project.split("/", 1)
     else:
-        # No entity specified - will result in broken URLs
-        weave_entity = None
+        # Fallback if no entity specified (shouldn't happen with proper .env setup)
+        weave_entity = _project
         weave_project = _project
     
     # Build traces URL
-    if weave_entity:
-        _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
-    else:
-        _traces_url = f"https://wandb.ai//{_project}/weave/traces"
+    _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
 
     mo.md(f"""
     **🔍 Explore Weave:**
@@ -622,10 +620,7 @@ def _(mo, bot_key_input, weave_entity):
     # Show W&B Team Secrets instructions with actual value
     if bot_key_input.value:
         # Build team settings URL
-        if weave_entity:
-            _team_settings_url = f"https://wandb.ai/{weave_entity}/settings"
-        else:
-            _team_settings_url = "https://wandb.ai/settings"
+        _team_settings_url = f"https://wandb.ai/{weave_entity}/settings"
         
         _output = mo.md(f"""
         **4. Add to W&B Team Secrets:**
@@ -715,10 +710,7 @@ def _(mo, modal_url_input, weave_entity, weave_project, Path, json):
         _api_url = f"{_base_url}/v1"
 
         # Get playground URL
-        if weave_entity:
-            _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
-        else:
-            _playground_url = "https://wandb.ai//weave/playground"
+        _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
 
         _output = mo.vstack([
             mo.md(f"""
@@ -1234,10 +1226,7 @@ def _(mo):
 @app.cell
 def _(mo, weave_entity, weave_project):
     # Get evaluations URL
-    if weave_entity:
-        _evals_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/evaluations"
-    else:
-        _evals_url = "https://wandb.ai//weave/evaluations"
+    _evals_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/evaluations"
 
     mo.md(f"""
     ---
@@ -1384,12 +1373,8 @@ def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
         _api_url = f"{_base_url}/v1"
 
         # Get playground URL and traces URL
-        if weave_entity:
-            _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
-            _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
-        else:
-            _playground_url = "https://wandb.ai//weave/playground"
-            _traces_url = "https://wandb.ai//weave/traces"
+        _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
+        _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
 
         mo.vstack([
         mo.callout(
