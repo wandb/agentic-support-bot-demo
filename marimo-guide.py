@@ -28,6 +28,23 @@ def _():
     import re
     import sys
 
+    # Auto-setup on notebook start
+    # Create .env from example if it doesn't exist
+    _env_path = Path(".env")
+    if not _env_path.exists():
+        _example_path = Path(".env.example")
+        if _example_path.exists():
+            _env_path.write_text(_example_path.read_text())
+    
+    # Create workspace/db directory and copy sample data if needed
+    _workspace_db = Path("workspace/db")
+    _workspace_db.mkdir(parents=True, exist_ok=True)
+    _tickets_file = _workspace_db / "tickets.json"
+    if not _tickets_file.exists():
+        _sample_file = Path("db/tickets.sample.json")
+        if _sample_file.exists():
+            shutil.copy2(_sample_file, _tickets_file)
+    
     # Load environment variables (suppress output)
     _ = load_dotenv()
     return Path, glob, json, load_dotenv, mo, os, re, shutil, subprocess, sys, yaml
@@ -149,7 +166,6 @@ def _(mo, os, Path, shutil):
     wandb_key_input = mo.ui.text(
         value=_current_wandb_key,
         placeholder="your_wandb_api_key_here",
-        label="WANDB_API_KEY",
         full_width=True,
         kind="password",
         on_change=lambda value: _save_env_var("WANDB_API_KEY", value) if value else None
@@ -158,7 +174,6 @@ def _(mo, os, Path, shutil):
     wandb_project_input = mo.ui.text(
         value=_current_wandb_project,
         placeholder="your-entity/agentic-support-bot-demo-yourname",
-        label="WANDB_PROJECT",
         full_width=True,
         on_change=lambda value: _save_env_var("WANDB_PROJECT", value) if value else None
     )
@@ -166,7 +181,6 @@ def _(mo, os, Path, shutil):
     openai_key_input = mo.ui.text(
         value=_current_openai_key,
         placeholder="your_openai_api_key_here",
-        label="OPENAI_API_KEY",
         full_width=True,
         kind="password",
         on_change=lambda value: _save_env_var("OPENAI_API_KEY", value) if value else None
@@ -175,16 +189,8 @@ def _(mo, os, Path, shutil):
     bot_key_input = mo.ui.text(
         value=_current_bot_key,
         placeholder="my-secret-key-123",
-        label="AGENTIC_SUPPORT_BOT_API_KEY",
         full_width=True,
         on_change=lambda value: _save_env_var("AGENTIC_SUPPORT_BOT_API_KEY", value) if value else None
-    )
-    
-    # Button to create workspace
-    workspace_btn = mo.ui.button(
-        label="🏗️ Create workspace/db/ and copy sample data",
-        value=0,
-        on_click=lambda v: v + 1
     )
     
     return (
@@ -192,92 +198,52 @@ def _(mo, os, Path, shutil):
         wandb_project_input,
         openai_key_input,
         bot_key_input,
-        workspace_btn,
     )
 
 
 @app.cell
-def _(mo, workspace_btn, Path, shutil):
-    # ============================================================================
-    # STEP 1: BUTTON LOGIC (Separate from render to avoid re-triggering on input changes)
-    # ============================================================================
-    
-    # Handle workspace setup
-    if workspace_btn.value:
-        try:
-            Path("workspace/db").mkdir(parents=True, exist_ok=True)
-            shutil.copy2("db/tickets.sample.json", "workspace/db/tickets.json")
-            workspace_output = mo.callout(
-                mo.md("""
-                ✅ **Workspace created successfully!**
-
-                - Created `workspace/db/` directory  
-                - Copied sample data to `workspace/db/tickets.json`
-                """),
-                kind="success"
-            )
-        except Exception as e:
-            workspace_output = mo.callout(
-                mo.md(f"❌ **Error:** {str(e)}"),
-                kind="danger"
-            )
-    else:
-        _workspace_exists = Path("workspace/db").exists()
-        if _workspace_exists:
-            workspace_output = mo.callout(mo.md("✅ **Workspace already exists**"), kind="success")
-        else:
-            workspace_output = mo.md("")
-    
-    return (workspace_output,)
+def _(mo):
+    # Step 1 has no button logic - everything is auto-created or auto-saved
+    return
 
 
 @app.cell
-def _(mo, workspace_output, workspace_btn, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input):
+def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input):
     # ============================================================================
     # STEP 1: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     step1_content = mo.vstack([
-    mo.md("""
-            ## Step 1: Project Setup
+        mo.md("""
+        ## Project Setup
 
-            This repo includes dependencies, configuration files, and example code so you can focus on agent-specific decisions rather than boilerplate setup.
+        This repo includes dependencies, configuration files, and example code so you can focus on agent-specific decisions rather than boilerplate setup.
 
-            ### Configure environment variables
-            
-            ✨ *Values are automatically saved to `.env` when you finish editing each field (saved to disk, loaded in next steps)*
-            """),
-            wandb_key_input,
-            mo.md("**Add your W&B API key** - Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
-            mo.md(""),
-            mo.md("---"),
-            mo.md(""),
-            wandb_project_input,
-            mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb-designers/agentic-support-bot-yourname`)"),
-            mo.md("⚠️ **Important:** Include your entity name (check [W&B Settings](https://wandb.ai/settings)) and add unique suffix to project"),
-            mo.md(""),
-            mo.md("---"),
-            mo.md(""),
-            openai_key_input,
-            mo.md("**Add your OpenAI API key** - Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)"),
-            mo.md("*Required for Step 6 guardrails (uses OpenAI's Moderation API)*"),
-            mo.md(""),
-            mo.md("---"),
-            mo.md(""),
-            bot_key_input,
-            mo.md("**Add your support bot API key** - Choose any random string (e.g., `my-secret-key-123`)"),
-            mo.md("*Used to authenticate requests to your Modal deployment and in W&B Team Secrets*"),
-            mo.md(""),
-            mo.md("""    
-            **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
-            
-            ### Set up the `workspace/` directory
-            
-            In order to make testing the support tools more realistic, we have a small db to persist tickets and allow tools to actually work.
-            
-            **Set up workspace and sample data:**
-            """),
-        workspace_btn,
-        workspace_output,
+        ✅ **Auto-setup complete:** The `.env` file and `workspace/db/` directory have been created automatically.
+
+        ### Configure environment variables
+        """),
+        mo.md("### W&B API key"),
+        mo.md("Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
+        wandb_key_input,
+        mo.md("--"),
+        mo.md("### W&B Project Name"),
+        mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb-designers/agentic-support-bot-yourname`)"),
+        mo.md("⚠️ **Important:** Include your entity name (check [W&B Settings](https://wandb.ai/settings)) and add unique suffix to project"),
+        wandb_project_input,
+        mo.md("--"),
+        mo.md("### OpenAI API key"),
+        mo.md("Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)"),
+        openai_key_input,
+        mo.md("*Required for guardrails (uses OpenAI's Moderation API)*"),
+        mo.md("--"),
+        mo.md("### Support bot API key"),
+        mo.md("Choose any random string (e.g., `my-secret-key-123`)"),
+        mo.md("*Used to authenticate requests to your Modal deployment and in W&B Team Secrets*"),
+        bot_key_input,
+        mo.md("--"),
+        mo.md("""    
+        **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
+        """)
     ])
     
     return (step1_content,)
@@ -488,8 +454,8 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
     _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
     
     step2_content = mo.vstack([
-    mo.md("""
-        ## Step 2: Get a Basic Agent Running
+        mo.md("""
+        ## Get a Basic Agent Running
 
         Build your agent incrementally, starting simple and adding complexity. Use **Weave at each stage** to understand what's happening.
 
@@ -796,7 +762,7 @@ def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, pur
     # ============================================================================
     step3_content = mo.vstack([
         mo.md("""
-        ## Step 3: Iterate to Make it Vibe as a Support Agent
+        ## Iterate to Make it Vibe as a Support Agent
 
         **What You're Learning:** The core Weave workflow - **observe → diagnose → fix → verify**.
 
@@ -980,9 +946,9 @@ def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project):
     
     step4_content = mo.vstack([
         mo.md("""
-        ## Step 4: Dataset & Evaluation - From Vibes to Production-Ready
+        ## Dataset & Evaluation - From Vibes to Production-Ready
 
-        After Step 3, your agent works well in demos, but can you confidently deploy it to real users?
+        After iterating on your agent, it works well in demos, but can you confidently deploy it to real users?
 
         **Goal:** Move from "it feels right" to "it's provably ready for production" by building systematic evaluation with a comprehensive test dataset and automated scoring.
 
@@ -1204,7 +1170,7 @@ def _(mo, prod_url_input, weave_entity, weave_project):
     
     step5_content = mo.vstack([
         mo.md("""
-        ## Step 5: Production Deployment 🚀
+        ## Production Deployment 🚀
 
         **Goal:** Deploy your agent as a persistent production service.
 
@@ -1346,7 +1312,7 @@ def _(mo, copy_step6_btn, copy_step6_output):
     # ============================================================================
     step6_content = mo.vstack([
         mo.md("""
-        ## Step 6: Online Monitoring & Guardrails 🛡️
+        ## Online Monitoring & Guardrails 🛡️
 
         **Goal:** Add production safety controls and quality monitoring to your deployed agent.
 
@@ -1578,12 +1544,12 @@ def _(
     # Use tabs for step navigation - content variables prevent re-rendering issues
     mo.ui.tabs({
         f"{mo.icon('lucide:home')} Introduction": intro_content,
-        f"{mo.icon('lucide:settings')} Step 1: Setup": step1_content,
-        f"{mo.icon('lucide:bot')} Step 2: Basic Agent": step2_content,
-        f"{mo.icon('lucide:refresh-cw')} Step 3: Iteration": step3_content,
-        f"{mo.icon('lucide:database')} Step 4: Evaluation": step4_content,
-        f"{mo.icon('lucide:rocket')} Step 5: Deployment": step5_content,
-        f"{mo.icon('lucide:shield')} Step 6: Monitoring": step6_content,
+        f"{mo.icon('lucide:settings')} Project Setup": step1_content,
+        f"{mo.icon('lucide:bot')} Basic Agent": step2_content,
+        f"{mo.icon('lucide:refresh-cw')} Vibe": step3_content,
+        f"{mo.icon('lucide:database')} Evaluate": step4_content,
+        f"{mo.icon('lucide:rocket')} Deploy": step5_content,
+        f"{mo.icon('lucide:shield')} Monitor": step6_content,
     })
 
 
