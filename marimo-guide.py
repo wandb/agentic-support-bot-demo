@@ -61,9 +61,10 @@ def _(mo):
 
 
 @app.cell
-def _(mo, os):
-    # Parse entity/project from WANDB_PROJECT env var (used across all pages)
-    _project = os.getenv("WANDB_PROJECT", "wandb/agentic-support-bot-demo")
+def _(mo, os, wandb_project_input):
+    # Parse entity/project from WANDB_PROJECT (use input value if set, otherwise env var)
+    # This ensures URLs update when user changes the project input
+    _project = wandb_project_input.value if wandb_project_input.value else os.getenv("WANDB_PROJECT", "wandb/agentic-support-bot-demo")
     
     if "/" in _project:
         weave_entity, weave_project = _project.split("/", 1)
