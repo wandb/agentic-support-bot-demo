@@ -1631,23 +1631,21 @@ def _(
         mo.Html('''
             <div style="margin: 40px auto 20px; text-align: center;"></div>
             <script>
-                // Add click listener to any button in the page
+                // Add event listener to button for scrolling
                 setTimeout(() => {
                     const buttons = document.querySelectorAll('button');
                     buttons.forEach(button => {
-                        const originalOnClick = button.onclick;
-                        button.onclick = function(e) {
-                            // Scroll to top
+                        // Remove any previous listener
+                        button.removeEventListener('click', window._scrollToTop);
+                        // Add new listener
+                        window._scrollToTop = function() {
                             setTimeout(() => {
-                                document.getElementById('top').scrollIntoView({behavior: 'smooth'});
-                            }, 150);
-                            // Call original handler if exists
-                            if (originalOnClick) {
-                                originalOnClick.call(this, e);
-                            }
+                                document.getElementById('top')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+                            }, 200);
                         };
+                        button.addEventListener('click', window._scrollToTop);
                     });
-                }, 100);
+                }, 50);
             </script>
         '''),
         nav_button.center(),
