@@ -1628,21 +1628,23 @@ def _(
     mo.vstack([
         mo.Html('<a id="top"></a>'),  # Anchor for scrolling
         _tabs_ui,
-        mo.Html(f'''
+        mo.Html('''
             <div style="margin: 40px auto 20px; text-align: center;"></div>
-            <script>
-                // Scroll to top when tab index changes
-                (function() {{
-                    const currentTab = {_tab_idx};
-                    const lastTab = window.lastTabIdx || 0;
-                    if (currentTab !== lastTab) {{
-                        window.scrollTo({{top: 0, behavior: 'smooth'}});
-                    }}
-                    window.lastTabIdx = currentTab;
-                }})();
-            </script>
         '''),
         nav_button.center(),
+        # Scroll to top after button is rendered
+        mo.Html('''
+            <script>
+                // Use requestAnimationFrame to ensure DOM is ready, then scroll
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        window.location.hash = '#top';
+                        // Clear hash from URL bar
+                        history.replaceState(null, null, ' ');
+                    });
+                });
+            </script>
+        '''),
     ])
 
 
