@@ -55,7 +55,7 @@ def _(mo):
     # Header with title, anchor, and resource links
     mo.vstack([
         mo.Html('<a id="top"></a>'),
-        mo.md("# 🤖 Agentic Support Bot - Interactive Guide"),
+        mo.md("# Building an Agentic Chatbot with Weave"),
         mo.md("""
         **Resources:** [GitHub](https://github.com/wandb/agentic-support-bot-demo) | 
         [Weave Docs](https://docs.wandb.ai/weave) | 
@@ -88,8 +88,6 @@ def _(mo):
     # ============================================================================
     intro_content = mo.vstack([
     mo.md("""
-    # Building an Agentic Chatbot with Weave
-
     ## Goal
 
     Using our own products regularly helps us better empathize with and understand our users' needs. This repo provides a streamlined guide to experience how Weave works in a typical AI development workflow.
@@ -1562,37 +1560,35 @@ def _(mo):
     # ============================================================================
     # SCROLL TO TOP BUTTON
     # ============================================================================
-    # Create a floating scroll to top button using HTML
+    # Create a centered scroll to top button using HTML
     scroll_button = mo.Html("""
     <style>
-        .scroll-to-top {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
+        .scroll-to-top-centered {
+            display: block;
+            margin: 40px auto 20px;
             background-color: #2563eb;
             color: white;
             text-decoration: none;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 24px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             transition: background-color 0.3s, transform 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            text-align: center;
+            width: fit-content;
         }
-        .scroll-to-top:hover {
+        .scroll-to-top-centered:hover {
             background-color: #1d4ed8;
-            transform: scale(1.1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
         }
-        .scroll-to-top:active {
-            transform: scale(0.95);
+        .scroll-to-top-centered:active {
+            transform: translateY(0);
         }
     </style>
-    <a href="#top" class="scroll-to-top" title="Scroll to top">
-        ↑
+    <a href="#top" class="scroll-to-top-centered">
+        ↑ Back to Top
     </a>
     """)
     
