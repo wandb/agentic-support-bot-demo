@@ -11,13 +11,8 @@ from tinydb import TinyDB, Query
 # Load environment variables
 load_dotenv()
 
-# Initialize Weave for observability if API key is present
-if os.getenv("WANDB_API_KEY"):
-    try:
-        project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
-        weave.init(project)
-    except Exception as e:
-        print(f"Warning: Failed to initialize Weave: {e}")
+# Note: Weave initialization is handled by server.py
+# Tools are automatically traced when used by a Weave-initialized agent
 
 # Database configuration
 # When tools.py is in workspace/, database is in workspace/db/
