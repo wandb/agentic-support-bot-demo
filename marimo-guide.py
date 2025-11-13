@@ -383,11 +383,28 @@ def _(mo, copy_2a_btn, copy_2b_btn, modal_url_input, weave_entity, weave_project
 
         1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
         2. In model dropdown: **+ Add AI provider** → **Custom provider**
-        3. Fill in:
-           - **Provider name**: `agentic-support-bot-dev`
-           - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
-           - **Base URL**: {_url_instruction}
-           - **Models**: `buzz`
+        3. Fill in these values:
+        
+        **Provider name:**
+        ```
+        agentic-support-bot-dev
+        ```
+        
+        **API key:** (use the value you set in Modal secrets)
+        ```
+        AGENTIC_SUPPORT_BOT_API_KEY
+        ```
+        
+        **Base URL:**
+        ```
+        {_api_url if modal_url_input.value else '<your-modal-dev-url>/v1'}
+        ```
+        
+        **Models:**
+        ```
+        buzz
+        ```
+        
         4. Click **Add provider**
 
         **Test your agent:**
@@ -1229,11 +1246,28 @@ def _(mo, prod_url_input, weave_entity, weave_project):
 
     1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
     2. In model dropdown: **+ Add AI provider** → **Custom provider**
-    3. Fill in:
-       - **Provider name**: `agentic-support-bot-main`
-       - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
-       - **Base URL**: {_url_instruction}
-       - **Models**: `buzz`
+    3. Fill in these values:
+    
+    **Provider name:**
+    ```
+    agentic-support-bot-main
+    ```
+    
+    **API key:** (use the value you set in Modal secrets)
+    ```
+    AGENTIC_SUPPORT_BOT_API_KEY
+    ```
+    
+    **Base URL:**
+    ```
+    {_api_url if prod_url_input.value else '<your-production-modal-url>/v1'}
+    ```
+    
+    **Models:**
+    ```
+    buzz
+    ```
+    
     4. Click **Add provider**
 
     Now you have two providers:
