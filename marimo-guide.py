@@ -84,39 +84,10 @@ def _(mo, os):
 @app.cell
 def _(mo):
     # ============================================================================
-    # TAB STRUCTURE DEFINITION
-    # ============================================================================
-    # Define tab names and order (used for navigation)
-    tab_names = [
-        f"{mo.icon('lucide:home')} Introduction",
-        f"{mo.icon('lucide:settings')} Project Setup",
-        f"{mo.icon('lucide:bot')} Basic Agent",
-        f"{mo.icon('lucide:refresh-cw')} Vibe",
-        f"{mo.icon('lucide:database')} Evaluate",
-        f"{mo.icon('lucide:rocket')} Deploy",
-        f"{mo.icon('lucide:shield')} Monitor",
-    ]
-    
-    # Clean names for button labels (without icons)
-    tab_labels = [
-        "Introduction",
-        "Project Setup",
-        "Basic Agent",
-        "Vibe",
-        "Evaluate",
-        "Deploy",
-        "Monitor",
-    ]
-    
-    return tab_names, tab_labels
-
-
-@app.cell
-def _(mo):
-    # ============================================================================
     # INTRODUCTION PAGE CONTENT
     # ============================================================================
-    intro_content = mo.md("""
+    intro_content = mo.vstack([
+    mo.md("""
     # Building an Agentic Chatbot with Weave
 
     ## Goal
@@ -143,6 +114,7 @@ def _(mo):
         
         **👆 Use the tabs above to navigate through the steps!**
         """)
+    ])
     
     return (intro_content,)
 
@@ -231,6 +203,12 @@ def _(mo, os, Path, shutil):
 
 
 @app.cell
+def _(mo):
+    # Step 1 has no button logic - everything is auto-created or auto-saved
+    return
+
+
+@app.cell
 def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input):
     # ============================================================================
     # STEP 1: CONTENT (Pre-computed as value, not function)
@@ -267,6 +245,11 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
         mo.md("""    
         **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
         """),
+        mo.md("---"),
+        mo.callout(
+            mo.md("✅ **Ready for the next step!** Once you've configured your environment variables, continue to **Basic Agent** using the tabs above."),
+            kind="success"
+        )
     ])
     
     return (step1_content,)
@@ -623,6 +606,11 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
         """),
         modal_url_input,
         modal_instructions,
+        mo.md("---"),
+        mo.callout(
+            mo.md("✅ **Ready for the next step!** Once you've deployed your dev server and tested in Weave Playground, continue to **Vibe** (iteration) using the tabs above."),
+            kind="success"
+        )
     ])
     
     return (step2_content,)
@@ -889,6 +877,11 @@ def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, pur
 
         💡 **Reference:** Compare your work with `examples/step-3/` - but remember, there's no single "right" way!
         """),
+        mo.md("---"),
+        mo.callout(
+            mo.md("✅ **Ready for the next step!** Once your agent vibes as a support bot and uses tools correctly, continue to **Evaluate** using the tabs above."),
+            kind="success"
+        )
     ])
     
     return (step3_content,)
@@ -1126,6 +1119,11 @@ def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project):
         - Use environment tags to separate dev and prod traffic
         - Create saved views for production dashboards
         """),
+        mo.md("---"),
+        mo.callout(
+            mo.md("✅ **Ready for the next step!** Once you've run your evaluation and analyzed the results in Weave, continue to **Deploy** using the tabs above."),
+            kind="success"
+        )
     ])
     
     return (step4_content,)
@@ -1271,6 +1269,11 @@ def _(mo, prod_url_input, weave_entity, weave_project):
 
         This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
         """),
+        mo.md("---"),
+        mo.callout(
+            mo.md("✅ **Ready for the next step!** Once you've deployed to production and created your saved views, continue to **Monitor** to add guardrails and monitoring."),
+            kind="success"
+        )
     ])
     
     return (step5_content,)
@@ -1544,6 +1547,11 @@ def _(mo, copy_step6_btn, copy_step6_output):
         - Add more tools for your use case
         - Iterate based on monitor data
         """),
+        mo.md("---"),
+        mo.callout(
+            mo.md("🎉 **You've completed all steps!** Feel free to revisit any step using the tabs above."),
+            kind="success"
+        )
     ])
     
     return (step6_content,)
@@ -1602,66 +1610,21 @@ def _(
     step5_content,
     step6_content,
     scroll_button,
-    tab_names,
-    tab_labels,
 ):
     # ============================================================================
     # TABS NAVIGATION
     # ============================================================================
-    # Create tabs component
-    tabs = mo.ui.tabs({
-        tab_names[0]: intro_content,
-        tab_names[1]: step1_content,
-        tab_names[2]: step2_content,
-        tab_names[3]: step3_content,
-        tab_names[4]: step4_content,
-        tab_names[5]: step5_content,
-        tab_names[6]: step6_content,
-    })
-    
-    # Create navigation buttons based on current tab
-    _tab_keys = list(tab_names)
-    _current_tab = tabs.value if tabs.value else _tab_keys[0]
-    _current_index = _tab_keys.index(_current_tab) if _current_tab in _tab_keys else 0
-    
-    # Build navigation buttons
-    _nav_buttons = []
-    
-    # Previous button
-    if _current_index > 0:
-        _prev_label = tab_labels[_current_index - 1]
-        _prev_tab = _tab_keys[_current_index - 1]
-        
-        def _go_prev():
-            tabs.value = _prev_tab
-        
-        _prev_btn = mo.ui.button(
-            label=f"← Previous: {_prev_label}",
-            on_click=lambda v: setattr(tabs, 'value', _prev_tab)
-        )
-        _nav_buttons.append(_prev_btn)
-    else:
-        _nav_buttons.append(mo.md(""))
-    
-    # Next button
-    if _current_index < len(_tab_keys) - 1:
-        _next_label = tab_labels[_current_index + 1]
-        _next_tab = _tab_keys[_current_index + 1]
-        
-        _next_btn = mo.ui.button(
-            label=f"Next: {_next_label} →",
-            on_click=lambda v: setattr(tabs, 'value', _next_tab)
-        )
-        _nav_buttons.append(_next_btn)
-    else:
-        _nav_buttons.append(mo.md(""))
-    
-    navigation = mo.hstack(_nav_buttons, justify="space-between")
-    
+    # Use tabs for step navigation - content variables prevent re-rendering issues
     mo.vstack([
-        tabs,
-        mo.md("---"),
-        navigation,
+        mo.ui.tabs({
+            f"{mo.icon('lucide:home')} Introduction": intro_content,
+            f"{mo.icon('lucide:settings')} Project Setup": step1_content,
+            f"{mo.icon('lucide:bot')} Basic Agent": step2_content,
+            f"{mo.icon('lucide:refresh-cw')} Vibe": step3_content,
+            f"{mo.icon('lucide:database')} Evaluate": step4_content,
+            f"{mo.icon('lucide:rocket')} Deploy": step5_content,
+            f"{mo.icon('lucide:shield')} Monitor": step6_content,
+        }),
         scroll_button,
     ])
 
