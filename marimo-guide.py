@@ -1634,12 +1634,6 @@ def _(mo, os, Path, wandb_key_input, wandb_project_input, openai_key_input, bot_
     # Step 6: Complete if guardrails file exists
     step6_complete = Path("workspace/guardrails.py").exists()
     
-    # Helper function to add checkmark if complete
-    def _step_label(icon, title, is_complete):
-        checkmark = f"{mo.icon('lucide:check-circle', size=16)} " if is_complete else ""
-        color = "color: #22c55e;" if is_complete else ""
-        return f'<span style="{color}">{checkmark}{mo.icon(icon)} {title}</span>'
-    
     return (
         step1_complete,
         step2_complete,
@@ -1673,10 +1667,8 @@ def _(
     # ============================================================================
     # Helper function to create tab label with optional checkmark
     def _tab_label(icon, title, is_complete):
-        if is_complete:
-            return mo.Html(f'<span style="color: #22c55e;">{mo.icon("lucide:check-circle", size=16)} {mo.icon(icon)} {title}</span>')
-        else:
-            return f"{mo.icon(icon)} {title}"
+        checkmark = f"{mo.icon('lucide:check-circle', size=16)} " if is_complete else ""
+        return f"{checkmark}{mo.icon(icon)} {title}"
     
     # Use tabs for step navigation - content variables prevent re-rendering issues
     mo.vstack([
