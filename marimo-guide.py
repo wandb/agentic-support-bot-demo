@@ -44,7 +44,7 @@ def _():
         _sample_file = Path("db/tickets.sample.json")
         if _sample_file.exists():
             shutil.copy2(_sample_file, _tickets_file)
-
+    
     # Load environment variables (suppress output)
     _ = load_dotenv()
     return Path, glob, json, load_dotenv, mo, os, re, shutil, subprocess, sys, yaml
@@ -52,9 +52,10 @@ def _():
 
 @app.cell
 def _(mo):
-    # Header with title and resource links
+    # Header with title, anchor, and resource links
     mo.vstack([
-        mo.md("# Building an Agentic Chatbot with Weave"),
+        mo.Html('<a id="top"></a>'),
+        mo.md("# 🤖 Agentic Support Bot - Interactive Guide"),
         mo.md("""
         **Resources:** [GitHub](https://github.com/wandb/agentic-support-bot-demo) | 
         [Weave Docs](https://docs.wandb.ai/weave) | 
@@ -241,15 +242,14 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
         mo.md("*Used to authenticate requests to your Modal deployment and in W&B Team Secrets*"),
         bot_key_input,
         mo.md("--"),
-                    mo.md("""
+        mo.md("""    
         **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
-                    """),
+        """),
         mo.md("---"),
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've configured your environment variables, continue to **Basic Agent** using the tabs above."),
-                    kind="success"
-        ),
-        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
+            kind="success"
+        )
     ])
     
     return (step1_content,)
@@ -460,7 +460,7 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
     _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
     
     step2_content = mo.vstack([
-    mo.md("""
+        mo.md("""
         ## Get a Basic Agent Running
 
         Build your agent incrementally, starting simple and adding complexity. Use **Weave at each stage** to understand what's happening.
@@ -606,8 +606,7 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've deployed your dev server and tested in Weave Playground, continue to **Vibe** (iteration) using the tabs above."),
             kind="success"
-        ),
-        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
+        )
     ])
     
     return (step2_content,)
@@ -829,57 +828,56 @@ def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, pur
         """),
         copy_tools_btn,
         copy_tools_output,
-    mo.md("""
-    ---
+        mo.md("""
+        ---
 
-    ### Iteration 3: Verify Your Improvements
+        ### Iteration 3: Verify Your Improvements
 
-    **Test these prompts again** in Weave Playground:
+        **Test these prompts again** in Weave Playground:
 
-    ```
-    How do I initialize Weave in my Python code?
-    ```
+        ```
+        How do I initialize Weave in my Python code?
+        ```
 
-    ```
-    I'm getting API timeout errors when logging predictions. Can you help?
-    ```
+        ```
+        I'm getting API timeout errors when logging predictions. Can you help?
+        ```
 
-    ```
-    What's the status of ticket #10234?
-    ```
+        ```
+        What's the status of ticket #10234?
+        ```
 
-    ```
-    Can you explain how to track model performance in wandb?
-    ```
+        ```
+        Can you explain how to track model performance in wandb?
+        ```
 
-    ```
-    I need to create a support ticket for authentication issues
-    ```
+        ```
+        I need to create a support ticket for authentication issues
+        ```
 
-    **🔍 Use Weave to compare before and after:**
+        **🔍 Use Weave to compare before and after:**
 
-    Navigate to Traces → filter for `Agent.stream` → compare new traces side-by-side with old traces from Step 2.
+        Navigate to Traces → filter for `Agent.stream` → compare new traces side-by-side with old traces from Step 2.
 
-    **Ask yourself:**
-    - ✅ Does the agent search docs when appropriate?
-    - ✅ Create tickets when users report issues?
-    - ✅ Retrieve ticket status correctly?
-    - ✅ Feel like a support bot now?
-    - ✅ Fill tool parameters correctly?
+        **Ask yourself:**
+        - ✅ Does the agent search docs when appropriate?
+        - ✅ Create tickets when users report issues?
+        - ✅ Retrieve ticket status correctly?
+        - ✅ Feel like a support bot now?
+        - ✅ Fill tool parameters correctly?
 
-    **Keep iterating if needed:**
-    - Tools not called correctly? → Refine descriptions in the config editor above
-    - Tone off? → Adjust `purpose` in the config editor
-    - Wrong parameters? → Improve parameter descriptions in `tools.py`
+        **Keep iterating if needed:**
+        - Tools not called correctly? → Refine descriptions in the config editor above
+        - Tone off? → Adjust `purpose` in the config editor
+        - Wrong parameters? → Improve parameter descriptions in `tools.py`
 
-    💡 **Reference:** Compare your work with `examples/step-3/` - but remember, there's no single "right" way!
+        💡 **Reference:** Compare your work with `examples/step-3/` - but remember, there's no single "right" way!
         """),
         mo.md("---"),
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once your agent vibes as a support bot and uses tools correctly, continue to **Evaluate** using the tabs above."),
             kind="success"
-        ),
-        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
+        )
     ])
     
     return (step3_content,)
@@ -977,10 +975,10 @@ def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project):
         """),
         copy_step4_btn,
         copy_step4_output,
-    mo.md("""
-    ---
+        mo.md("""
+        ---
 
-    ### Part A: Create an Evaluation Dataset
+        ### Part A: Create an Evaluation Dataset
 
     **Dataset Coverage:**
     - **13 W&B/Weave questions**: Initialization, debugging, troubleshooting, features
@@ -1114,15 +1112,14 @@ def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project):
     Continue to **Step 5** to deploy your agent where it matters - in front of real users. You'll learn how to:
     - Deploy as a persistent production service
     - Monitor production performance in real-time
-    - Use environment tags to separate dev and prod traffic
-    - Create saved views for production dashboards
+        - Use environment tags to separate dev and prod traffic
+        - Create saved views for production dashboards
         """),
         mo.md("---"),
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've run your evaluation and analyzed the results in Weave, continue to **Deploy** using the tabs above."),
             kind="success"
-        ),
-        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
+        )
     ])
     
     return (step4_content,)
@@ -1191,7 +1188,7 @@ def _(mo, prod_url_input, weave_entity, weave_project):
         _url_instruction = f"`{_api_url}` (append `/v1` to the Modal URL)"
     else:
         _url_instruction = "`<your-production-modal-url>/v1` (append `/v1` to the Modal URL)"
-
+    
     step5_content = mo.vstack([
         mo.md("""
         ## Production Deployment 🚀
@@ -1226,7 +1223,7 @@ def _(mo, prod_url_input, weave_entity, weave_project):
         Copy the production URL (e.g., `https://yourname--agentic-support-bot.modal.run`) and paste it below:
         """),
         prod_url_input,
-    mo.md(f"""
+        mo.md(f"""
     ### Update Weave Playground for Production
 
     Now you can create a separate AI provider in Weave Playground for your production deployment:
@@ -1266,14 +1263,13 @@ def _(mo, prod_url_input, weave_entity, weave_project):
     2. Add filters for production: `attributes.env` = `main` and operation = `Agent.stream`
     3. Save the view as "Production Dashboard"
 
-    This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
+        This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
         """),
         mo.md("---"),
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've deployed to production and created your saved views, continue to **Monitor** to add guardrails and monitoring."),
             kind="success"
-        ),
-        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
+        )
     ])
     
     return (step5_content,)
@@ -1359,7 +1355,7 @@ def _(mo, copy_step6_btn, copy_step6_output):
         """),
         copy_step6_btn,
         copy_step6_output,
-    mo.md("""
+        mo.md("""
     ---
 
     ### Part A: Add Guardrails
@@ -1543,16 +1539,15 @@ def _(mo, copy_step6_btn, copy_step6_output):
     - Found a bug? [Open an Issue](https://github.com/wandb/agentic-support-bot-demo/issues/new)
 
     **What's Next?**
-    - Experiment with different models
-    - Add more tools for your use case
-    - Iterate based on monitor data
+        - Experiment with different models
+        - Add more tools for your use case
+        - Iterate based on monitor data
         """),
         mo.md("---"),
         mo.callout(
             mo.md("🎉 **You've completed all steps!** Feel free to revisit any step using the tabs above."),
             kind="success"
-        ),
-        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
+        )
     ])
     
     return (step6_content,)
@@ -1561,12 +1556,43 @@ def _(mo, copy_step6_btn, copy_step6_output):
 @app.cell
 def _(mo):
     # ============================================================================
-    # SCROLL TO TOP ANCHOR
+    # SCROLL TO TOP BUTTON
     # ============================================================================
-    # Add an invisible anchor at the top that we can link to
-    top_anchor = mo.Html('<div id="top"></div>')
+    # Create a floating scroll to top button using HTML
+    scroll_button = mo.Html("""
+    <style>
+        .scroll-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: background-color 0.3s, transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .scroll-to-top:hover {
+            background-color: #1d4ed8;
+            transform: scale(1.1);
+        }
+        .scroll-to-top:active {
+            transform: scale(0.95);
+        }
+    </style>
+    <a href="#top" class="scroll-to-top" title="Scroll to top">
+        ↑
+    </a>
+    """)
     
-    return (top_anchor,)
+    return (scroll_button,)
 
 
 @app.cell
@@ -1579,14 +1605,13 @@ def _(
     step4_content,
     step5_content,
     step6_content,
-    top_anchor,
+    scroll_button,
 ):
     # ============================================================================
     # TABS NAVIGATION
     # ============================================================================
     # Use tabs for step navigation - content variables prevent re-rendering issues
     mo.vstack([
-        top_anchor,  # Invisible anchor at the top
         mo.ui.tabs({
             f"{mo.icon('lucide:home')} Introduction": intro_content,
             f"{mo.icon('lucide:settings')} Project Setup": step1_content,
@@ -1596,6 +1621,7 @@ def _(
             f"{mo.icon('lucide:rocket')} Deploy": step5_content,
             f"{mo.icon('lucide:shield')} Monitor": step6_content,
         }),
+        scroll_button,
     ])
 
 
