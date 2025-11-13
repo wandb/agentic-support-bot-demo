@@ -1212,29 +1212,25 @@ def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
         except:
             pass
     
-    # Get playground URL and traces URL
-    _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
-    _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
-    
-    # Generate API URL if production URL provided
-    if prod_url_input.value:
-        _base_url = prod_url_input.value.rstrip('/').replace('/v1', '')
-        _api_url = f"{_base_url}/v1"
-        _url_instruction = f"`{_api_url}` (append `/v1` to the Modal URL)"
-    else:
-        _api_url = "`<your-production-modal-url>/v1`"
-        _url_instruction = "`<your-production-modal-url>/v1` (append `/v1` to the Modal URL)"
-    
-    return _url_instruction
+    # Step 5 doesn't have button logic, just URL persistence
+    return
 
 
 @app.cell
-def _(mo, prod_url_input, _url_instruction, weave_entity, weave_project):
+def _(mo, prod_url_input, weave_entity, weave_project):
     # ============================================================================
     # STEP 5: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
     _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+    
+    # Generate API URL instruction based on whether production URL is provided
+    if prod_url_input.value:
+        _base_url = prod_url_input.value.rstrip('/').replace('/v1', '')
+        _api_url = f"{_base_url}/v1"
+        _url_instruction = f"`{_api_url}` (append `/v1` to the Modal URL)"
+    else:
+        _url_instruction = "`<your-production-modal-url>/v1` (append `/v1` to the Modal URL)"
     
     step5_content = mo.vstack([
         mo.md("""
