@@ -576,12 +576,12 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
 
             Create a secret in the `main` environment that will be shared by both dev and prod:
 
-            ```bash
-            source .env && uv run modal secret create agentic-support-bot-secrets --env main \
-              WANDB_API_KEY=$WANDB_API_KEY \
-              AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
-              OPENAI_API_KEY=$OPENAI_API_KEY
-            ```
+```bash
+source .env && uv run modal secret create agentic-support-bot-secrets --env main \
+  WANDB_API_KEY=$WANDB_API_KEY \
+  AGENTIC_SUPPORT_BOT_API_KEY=$AGENTIC_SUPPORT_BOT_API_KEY \
+  OPENAI_API_KEY=$OPENAI_API_KEY
+```
             """),
             team_secrets_output,
     mo.md("""
