@@ -1357,8 +1357,8 @@ def _(mo, Path):
 
 @app.cell
 def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
+    # Save the production URL to state file for persistence if provided
     if prod_url_input.value:
-        # Save the production URL to state file for persistence
         _state_file = Path(".marimo-state.json")
         try:
             _state = {}
@@ -1368,66 +1368,68 @@ def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
             _state_file.write_text(json.dumps(_state, indent=2))
         except:
             pass
-        
+    
+    # Get playground URL and traces URL
+    _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
+    _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+    
+    # Generate API URL if production URL provided
+    if prod_url_input.value:
         _base_url = prod_url_input.value.rstrip('/').replace('/v1', '')
         _api_url = f"{_base_url}/v1"
-
-        # Get playground URL and traces URL
-        _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
-        _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
-
-        _output = mo.vstack([
-            mo.callout(
-                mo.md(f"""
-                ### Update Weave Playground for Production
-
-                Now you can create a separate AI provider in Weave Playground for your production deployment:
-
-                1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
-                2. In model dropdown: **+ Add AI provider** → **Custom provider**
-                3. Fill in:
-                   - **Provider name**: `agentic-support-bot-main`
-                   - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
-                   - **Base URL**: `{_api_url}` (append `/v1` to the Modal URL)
-                   - **Models**: `buzz`
-                4. Click **Add provider**
-
-                Now you have two providers:
-                - `agentic-support-bot-dev/buzz` → Development (modal serve)
-                - `agentic-support-bot-main/buzz` → Production (modal deploy)
-                """),
-                kind="success"
-            ),
-            mo.md(f"""
-            ### Test Your Production Deployment
-
-            Select `agentic-support-bot-main/buzz` in the Playground and try the same test prompts from Step 2.
-
-            **🔍 Check traces in Weave:**
-
-            Navigate to [Traces]({_traces_url}) → filter for `Agent.stream` operations.
-
-            **What to notice:**
-            - Traces from production (main environment) are tagged with `env=main`
-            - Traces from development (dev environment) are tagged with `env=dev`
-            - You can filter by environment in Weave UI: `env=dev` vs `env=main`
-            - Same observability in both environments!
-
-            ### Create a Saved View for Production Traces
-
-            Now that you have both dev and prod traces, create a [Saved View](https://docs.wandb.ai/weave/guides/tools/saved-views) in Weave to quickly access your production traffic:
-
-            1. Go to your W&B project → **Traces** tab
-            2. Add filters for production: `attributes.env` = `main` and operation = `Agent.stream`
-            3. Save the view as "Production Dashboard"
-
-            This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
-            """)
-        ])
+        _url_instruction = f"`{_api_url}` (append `/v1` to the Modal URL)"
     else:
-        _output = mo.md("👆 Paste your production Modal URL above to see setup instructions")
-    
-    _output
+        _api_url = "`<your-production-modal-url>/v1`"
+        _url_instruction = "`<your-production-modal-url>/v1` (append `/v1` to the Modal URL)"
+
+    mo.vstack([
+        mo.callout(
+            mo.md(f"""
+            ### Update Weave Playground for Production
+
+            Now you can create a separate AI provider in Weave Playground for your production deployment:
+
+            1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
+            2. In model dropdown: **+ Add AI provider** → **Custom provider**
+            3. Fill in:
+               - **Provider name**: `agentic-support-bot-main`
+               - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
+               - **Base URL**: {_url_instruction}
+               - **Models**: `buzz`
+            4. Click **Add provider**
+
+            Now you have two providers:
+            - `agentic-support-bot-dev/buzz` → Development (modal serve)
+            - `agentic-support-bot-main/buzz` → Production (modal deploy)
+            """),
+            kind="success"
+        ),
+        mo.md(f"""
+        ### Test Your Production Deployment
+
+        Select `agentic-support-bot-main/buzz` in the Playground and try the same test prompts from Step 2.
+
+        **🔍 Check traces in Weave:**
+
+        Navigate to [Traces]({_traces_url}) → filter for `Agent.stream` operations.
+
+        **What to notice:**
+        - Traces from production (main environment) are tagged with `env=main`
+        - Traces from development (dev environment) are tagged with `env=dev`
+        - You can filter by environment in Weave UI: `env=dev` vs `env=main`
+        - Same observability in both environments!
+
+        ### Create a Saved View for Production Traces
+
+        Now that you have both dev and prod traces, create a [Saved View](https://docs.wandb.ai/weave/guides/tools/saved-views) in Weave to quickly access your production traffic:
+
+        1. Go to your W&B project → **Traces** tab
+        2. Add filters for production: `attributes.env` = `main` and operation = `Agent.stream`
+        3. Save the view as "Production Dashboard"
+
+        This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
+        """)
+    ])
     return
 
 
