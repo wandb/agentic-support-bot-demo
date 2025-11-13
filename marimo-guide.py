@@ -1631,8 +1631,10 @@ def _(
         mo.Html('''
             <div style="margin: 40px auto 20px;"></div>
             <script>
-                // Scroll to top whenever tab changes
-                window.scrollTo({top: 0, behavior: 'smooth'});
+                // Scroll to top whenever tab changes - delay to ensure DOM is ready
+                setTimeout(() => {
+                    window.scrollTo({top: 0, behavior: 'smooth'});
+                }, 50);
             </script>
         '''),
         nav_button.center(),
