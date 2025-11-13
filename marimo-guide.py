@@ -231,12 +231,6 @@ def _(mo, os, Path, shutil):
 
 
 @app.cell
-def _(mo):
-    # Step 1 has no button logic - everything is auto-created or auto-saved
-    return
-
-
-@app.cell
 def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input):
     # ============================================================================
     # STEP 1: CONTENT (Pre-computed as value, not function)
