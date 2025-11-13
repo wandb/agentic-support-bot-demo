@@ -1232,17 +1232,6 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
-    sample_slider = mo.ui.slider(
-        start=1, stop=31, value=5,
-        label="Evaluation sample size",
-        show_value=True
-    )
-    mo.md(f"**Recommended sample size for quick testing:** {sample_slider}")
-    return
-
-
-@app.cell
 def _(mo, weave_entity, weave_project):
     # Get evaluations URL
     if weave_entity:
