@@ -35,20 +35,15 @@ def _():
 
 @app.cell
 def _(mo):
-    # Create sidebar with navigation menu
-    mo.sidebar([
-        mo.nav_menu(
-            {
-                "#/": f"{mo.icon('lucide:home')} Introduction",
-                "#/step1": f"{mo.icon('lucide:settings')} Step 1: Setup",
-                "#/step2": f"{mo.icon('lucide:bot')} Step 2: Basic Agent",
-                "#/step3": f"{mo.icon('lucide:refresh-cw')} Step 3: Iteration",
-                "#/step4": f"{mo.icon('lucide:database')} Step 4: Evaluation",
-                "#/step5": f"{mo.icon('lucide:rocket')} Step 5: Deployment",
-                "#/step6": f"{mo.icon('lucide:shield')} Step 6: Monitoring",
-            },
-            orientation="vertical",
-        ),
+    # Header with title and resource links
+    mo.vstack([
+        mo.md("# 🤖 Agentic Support Bot - Interactive Guide"),
+        mo.md("""
+        **Resources:** [GitHub](https://github.com/wandb/agentic-support-bot-demo) | 
+        [Weave Docs](https://docs.wandb.ai/weave) | 
+        [Slide Framework](https://slide.mintlify.app)
+        """),
+        mo.md("---"),
     ])
     return
 
@@ -99,13 +94,8 @@ def _(mo):
         
         ---
         
-        **👈 Use the sidebar to navigate to Step 1 and get started!**
-        """),
-        mo.md("---"),
-        mo.nav_menu(
-            {"#/step1": "→ Start with Step 1: Project Setup"},
-            orientation="horizontal"
-        )
+        **👆 Use the tabs above to navigate through the steps!**
+        """)
     ])
     
     return (intro_content,)
@@ -286,13 +276,8 @@ def _(mo, workspace_output, workspace_btn, wandb_key_input, wandb_project_input,
             
             **Set up workspace and sample data:**
             """),
-            workspace_btn,
-            workspace_output,
-            mo.md("---"),
-        mo.nav_menu(
-            {"#/step2": "→ Continue to Step 2: Get a Basic Agent Running"},
-            orientation="horizontal"
-        )
+        workspace_btn,
+        workspace_output,
     ])
     
     return (step1_content,)
@@ -645,11 +630,6 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
         """),
         modal_url_input,
         modal_instructions,
-        mo.md("---"),
-        mo.nav_menu(
-            {"#/step3": "→ Continue to Step 3: Iterate to Make it Vibe"},
-            orientation="horizontal"
-        )
     ])
     
     return (step2_content,)
@@ -915,12 +895,7 @@ def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, pur
         - Wrong parameters? → Improve parameter descriptions in `tools.py`
 
         💡 **Reference:** Compare your work with `examples/step-3/` - but remember, there's no single "right" way!
-        """),
-        mo.md("---"),
-        mo.nav_menu(
-            {"#/step4": "→ Continue to Step 4: Dataset & Evaluation"},
-            orientation="horizontal"
-        )
+        """)
     ])
     
     return (step3_content,)
@@ -1157,12 +1132,7 @@ def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project):
     - Monitor production performance in real-time
         - Use environment tags to separate dev and prod traffic
         - Create saved views for production dashboards
-        """),
-        mo.md("---"),
-        mo.nav_menu(
-            {"#/step5": "→ Continue to Step 5: Production Deployment"},
-            orientation="horizontal"
-        )
+        """)
     ])
     
     return (step4_content,)
@@ -1306,13 +1276,8 @@ def _(mo, prod_url_input, weave_entity, weave_project):
     2. Add filters for production: `attributes.env` = `main` and operation = `Agent.stream`
     3. Save the view as "Production Dashboard"
 
-    This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
-            """),
-            mo.md("---"),
-            mo.nav_menu(
-            {"#/step6": "→ Continue to Step 6: Monitoring & Guardrails"},
-            orientation="horizontal"
-        )
+        This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
+        """)
     ])
     
     return (step5_content,)
@@ -1582,19 +1547,13 @@ def _(mo, copy_step6_btn, copy_step6_output):
     - Found a bug? [Open an Issue](https://github.com/wandb/agentic-support-bot-demo/issues/new)
 
     **What's Next?**
-    - Experiment with different models
-    - Add more tools for your use case
-    - Iterate based on monitor data
-            """),
-            mo.md("---"),
-            mo.callout(
-                mo.vstack([
-                mo.md("🎉 **You've completed all steps!**"),
-                mo.nav_menu(
-                    {"#/": "← Back to Introduction"},
-                    orientation="horizontal"
-                )
-            ]),
+        - Experiment with different models
+        - Add more tools for your use case
+        - Iterate based on monitor data
+        """),
+        mo.md("---"),
+        mo.callout(
+            mo.md("🎉 **You've completed all steps!** Feel free to revisit any step using the tabs above."),
             kind="success"
         )
     ])
@@ -1614,19 +1573,17 @@ def _(
     step6_content,
 ):
     # ============================================================================
-    # ROUTES CONFIGURATION
+    # TABS NAVIGATION
     # ============================================================================
-    # Reference content variables directly (not functions) to prevent re-render cascades
-    # Content cells update reactively without triggering route re-renders
-    mo.routes({
-        "#/": intro_content,
-        "#/step1": step1_content,
-        "#/step2": step2_content,
-        "#/step3": step3_content,
-        "#/step4": step4_content,
-        "#/step5": step5_content,
-        "#/step6": step6_content,
-        mo.routes.CATCH_ALL: intro_content,  # Fallback to intro
+    # Use tabs for step navigation - content variables prevent re-rendering issues
+    mo.ui.tabs({
+        f"{mo.icon('lucide:home')} Introduction": intro_content,
+        f"{mo.icon('lucide:settings')} Step 1: Setup": step1_content,
+        f"{mo.icon('lucide:bot')} Step 2: Basic Agent": step2_content,
+        f"{mo.icon('lucide:refresh-cw')} Step 3: Iteration": step3_content,
+        f"{mo.icon('lucide:database')} Step 4: Evaluation": step4_content,
+        f"{mo.icon('lucide:rocket')} Step 5: Deployment": step5_content,
+        f"{mo.icon('lucide:shield')} Step 6: Monitoring": step6_content,
     })
 
 
