@@ -243,7 +243,12 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
         mo.md("--"),
         mo.md("""    
         **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
-        """)
+        """),
+        mo.md("---"),
+        mo.callout(
+            mo.md("✅ **Ready for the next step!** Once you've configured your environment variables, continue to **Basic Agent** using the tabs above."),
+            kind="success"
+        )
     ])
     
     return (step1_content,)
@@ -596,6 +601,11 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
         """),
         modal_url_input,
         modal_instructions,
+        mo.md("---"),
+        mo.callout(
+            mo.md("✅ **Ready for the next step!** Once you've deployed your dev server and tested in Weave Playground, continue to **Vibe** (iteration) using the tabs above."),
+            kind="success"
+        )
     ])
     
     return (step2_content,)
@@ -861,7 +871,12 @@ def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, pur
         - Wrong parameters? → Improve parameter descriptions in `tools.py`
 
         💡 **Reference:** Compare your work with `examples/step-3/` - but remember, there's no single "right" way!
-        """)
+        """),
+        mo.md("---"),
+        mo.callout(
+            mo.md("✅ **Ready for the next step!** Once your agent vibes as a support bot and uses tools correctly, continue to **Evaluate** using the tabs above."),
+            kind="success"
+        )
     ])
     
     return (step3_content,)
@@ -1098,7 +1113,12 @@ def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project):
     - Monitor production performance in real-time
         - Use environment tags to separate dev and prod traffic
         - Create saved views for production dashboards
-        """)
+        """),
+        mo.md("---"),
+        mo.callout(
+            mo.md("✅ **Ready for the next step!** Once you've run your evaluation and analyzed the results in Weave, continue to **Deploy** using the tabs above."),
+            kind="success"
+        )
     ])
     
     return (step4_content,)
@@ -1243,7 +1263,12 @@ def _(mo, prod_url_input, weave_entity, weave_project):
     3. Save the view as "Production Dashboard"
 
         This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
-        """)
+        """),
+        mo.md("---"),
+        mo.callout(
+            mo.md("✅ **Ready for the next step!** Once you've deployed to production and created your saved views, continue to **Monitor** to add guardrails and monitoring."),
+            kind="success"
+        )
     ])
     
     return (step5_content,)
@@ -1528,6 +1553,49 @@ def _(mo, copy_step6_btn, copy_step6_output):
 
 
 @app.cell
+def _(mo):
+    # ============================================================================
+    # SCROLL TO TOP BUTTON
+    # ============================================================================
+    # Create a floating scroll to top button using HTML
+    scroll_button = mo.Html("""
+    <style>
+        .scroll-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: background-color 0.3s, transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .scroll-to-top:hover {
+            background-color: #1d4ed8;
+            transform: scale(1.1);
+        }
+        .scroll-to-top:active {
+            transform: scale(0.95);
+        }
+    </style>
+    <button class="scroll-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Scroll to top">
+        ↑
+    </button>
+    """)
+    
+    return (scroll_button,)
+
+
+@app.cell
 def _(
     mo,
     intro_content,
@@ -1537,20 +1605,24 @@ def _(
     step4_content,
     step5_content,
     step6_content,
+    scroll_button,
 ):
     # ============================================================================
     # TABS NAVIGATION
     # ============================================================================
     # Use tabs for step navigation - content variables prevent re-rendering issues
-    mo.ui.tabs({
-        f"{mo.icon('lucide:home')} Introduction": intro_content,
-        f"{mo.icon('lucide:settings')} Project Setup": step1_content,
-        f"{mo.icon('lucide:bot')} Basic Agent": step2_content,
-        f"{mo.icon('lucide:refresh-cw')} Vibe": step3_content,
-        f"{mo.icon('lucide:database')} Evaluate": step4_content,
-        f"{mo.icon('lucide:rocket')} Deploy": step5_content,
-        f"{mo.icon('lucide:shield')} Monitor": step6_content,
-    })
+    mo.vstack([
+        mo.ui.tabs({
+            f"{mo.icon('lucide:home')} Introduction": intro_content,
+            f"{mo.icon('lucide:settings')} Project Setup": step1_content,
+            f"{mo.icon('lucide:bot')} Basic Agent": step2_content,
+            f"{mo.icon('lucide:refresh-cw')} Vibe": step3_content,
+            f"{mo.icon('lucide:database')} Evaluate": step4_content,
+            f"{mo.icon('lucide:rocket')} Deploy": step5_content,
+            f"{mo.icon('lucide:shield')} Monitor": step6_content,
+        }),
+        scroll_button,
+    ])
 
 
 if __name__ == "__main__":
