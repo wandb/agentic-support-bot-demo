@@ -1624,18 +1624,30 @@ def _(
     # Render tabs with controlled value
     _tabs_ui = mo.ui.tabs(_tabs_dict, value=_tab_keys_list[_tab_idx])
     
-    # Render everything - when this cell re-renders (due to nav_button click), scroll to top
+    # Render everything with scroll-to-top link
     mo.vstack([
-        mo.Html('''
-            <a id="top"></a>
-            <script>
-                // This script runs every time the cell re-renders (when tab changes)
-                // Scroll to top immediately
-                window.scrollTo(0, 0);
-            </script>
-        '''),
+        mo.Html('<a id="top"></a>'),  # Anchor for scrolling
         _tabs_ui,
-        mo.Html('<div style="margin: 40px auto 20px; text-align: center;"></div>'),
+        mo.Html('''
+            <div style="margin: 40px auto 10px; text-align: center;">
+                <a href="#top" style="
+                    display: inline-block;
+                    background-color: #f3f4f6;
+                    color: #6b7280;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    padding: 8px 16px;
+                    font-size: 13px;
+                    font-weight: 500;
+                    margin-bottom: 10px;
+                    transition: all 0.2s;
+                " 
+                onmouseover="this.style.backgroundColor='#e5e7eb'; this.style.color='#374151'"
+                onmouseout="this.style.backgroundColor='#f3f4f6'; this.style.color='#6b7280'">
+                    ↑ Back to Top
+                </a>
+            </div>
+        '''),
         nav_button.center(),
     ])
 
