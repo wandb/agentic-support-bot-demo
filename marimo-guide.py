@@ -1626,7 +1626,7 @@ def _(
     # Create navigation button
     _nav_btn = mo.ui.button(
         label=_button_label,
-        on_click=lambda: set_tab_idx(_next_idx),
+        on_click=lambda v: set_tab_idx(_next_idx),
         kind="success" if _is_last else "info"
     )
     
