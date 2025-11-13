@@ -386,6 +386,7 @@ def _(mo, copy_2a_btn, copy_2b_btn, modal_url_input, weave_entity, weave_project
         _url_instruction = "`<your-modal-dev-url>/v1` (append `/v1` to the Modal URL)"
     
     _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
+    _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
 
     modal_instructions = mo.vstack([
         mo.md(f"""
