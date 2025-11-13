@@ -71,46 +71,44 @@ def _(mo, os):
 @app.cell
 def _(mo):
     # ============================================================================
-    # INTRODUCTION PAGE
+    # INTRODUCTION PAGE CONTENT
     # ============================================================================
-    def render_intro():
-        """Introduction page"""
-        return mo.vstack([
-            mo.md("""
-            # Building an Agentic Chatbot with Weave
+    intro_content = mo.vstack([
+        mo.md("""
+        # Building an Agentic Chatbot with Weave
 
-            ## Goal
+        ## Goal
 
-            Using our own products regularly helps us better empathize with and understand our users' needs. This repo provides a streamlined guide to experience how Weave works in a typical AI development workflow.
+        Using our own products regularly helps us better empathize with and understand our users' needs. This repo provides a streamlined guide to experience how Weave works in a typical AI development workflow.
 
-            **Go from zero to a production-deployed support bot with systematic evaluation, real-time monitoring, and continuous improvement.**
+        **Go from zero to a production-deployed support bot with systematic evaluation, real-time monitoring, and continuous improvement.**
 
-            ## Project
+        ## Project
 
-            Build a support bot for Weights & Biases that can:
-            - Answer questions about our product (from our docs)
-            - Create and give updates on support tickets
+        Build a support bot for Weights & Biases that can:
+        - Answer questions about our product (from our docs)
+        - Create and give updates on support tickets
 
-            ### Your Task
+        ### Your Task
 
-            **Get this bot ready for production.** Going from 0 to demo is easy, but can you build an agent ready to face real customer questions? Discover:
+        **Get this bot ready for production.** Going from 0 to demo is easy, but can you build an agent ready to face real customer questions? Discover:
 
-            - Where Weave shines in the development process
-            - What features are intuitive vs. confusing
-            - What's missing or could be improved
-            
-            ---
-            
-            **👈 Use the sidebar to navigate to Step 1 and get started!**
-            """),
-            mo.md("---"),
-            mo.nav_menu(
-                {"#/step1": "→ Start with Step 1: Project Setup"},
-                orientation="horizontal"
-            )
-        ])
+        - Where Weave shines in the development process
+        - What features are intuitive vs. confusing
+        - What's missing or could be improved
+        
+        ---
+        
+        **👈 Use the sidebar to navigate to Step 1 and get started!**
+        """),
+        mo.md("---"),
+        mo.nav_menu(
+            {"#/step1": "→ Start with Step 1: Project Setup"},
+            orientation="horizontal"
+        )
+    ])
     
-    return (render_intro,)
+    return (intro_content,)
 
 
 @app.cell
@@ -246,13 +244,9 @@ def _(mo, workspace_btn, Path, shutil):
 @app.cell
 def _(mo, workspace_output, workspace_btn, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input):
     # ============================================================================
-    # STEP 1: RENDER FUNCTION (Just displays pre-computed outputs)
+    # STEP 1: CONTENT (Pre-computed as value, not function)
     # ============================================================================
-    
-    def render_step1():
-        """Step 1: Project Setup"""
-        
-        return mo.vstack([
+    step1_content = mo.vstack([
             mo.md("""
             ## Step 1: Project Setup
 
@@ -295,13 +289,13 @@ def _(mo, workspace_output, workspace_btn, wandb_key_input, wandb_project_input,
             workspace_btn,
             workspace_output,
             mo.md("---"),
-            mo.nav_menu(
-                {"#/step2": "→ Continue to Step 2: Get a Basic Agent Running"},
-                orientation="horizontal"
-            )
-        ])
+        mo.nav_menu(
+            {"#/step2": "→ Continue to Step 2: Get a Basic Agent Running"},
+            orientation="horizontal"
+        )
+    ])
     
-    return (render_step1,)
+    return (step1_content,)
 
 
 @app.cell
@@ -335,192 +329,198 @@ def _(mo, glob, Path, shutil):
 @app.cell
 def _(mo, copy_2a_btn, copy_2b_btn, modal_url_input, weave_entity, weave_project, Path, glob, shutil, json, bot_key_input):
     # ============================================================================
-    # STEP 2: RENDER FUNCTION
+    # STEP 2: BUTTON LOGIC
     # ============================================================================
-    def render_step2():
-        """Step 2: Get a Basic Agent Running"""
-        
-        # Handle Step 2A file copying
-        if copy_2a_btn.value:
-            try:
-                _source_files = glob("examples/step-2/part-a/*.py") + glob("examples/step-2/part-a/*.yaml")
-                _dest = Path("workspace")
-                _dest.mkdir(parents=True, exist_ok=True)
+    
+    # Handle Step 2A file copying
+    if copy_2a_btn.value:
+        try:
+            _source_files = glob("examples/step-2/part-a/*.py") + glob("examples/step-2/part-a/*.yaml")
+            _dest = Path("workspace")
+            _dest.mkdir(parents=True, exist_ok=True)
 
-                _copied = []
-                for _src in _source_files:
-                    _filename = Path(_src).name
-                    shutil.copy2(_src, _dest / _filename)
-                    _copied.append(_filename)
+            _copied = []
+            for _src in _source_files:
+                _filename = Path(_src).name
+                shutil.copy2(_src, _dest / _filename)
+                _copied.append(_filename)
 
-                copy_2a_output = mo.callout(
-                    mo.md(f"""
-                    ✅ **Files copied:** {", ".join(f"`{f}`" for f in _copied)}
-
-                    These include:
-                    - `main.py` - Basic agent execution script
-                    - `tyler-chat-config.yaml` - Minimal agent configuration
-                    """),
-                    kind="success"
-                )
-            except Exception as e:
-                copy_2a_output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
-        else:
-            _main_exists = Path("workspace/main.py").exists()
-            _config_exists = Path("workspace/tyler-chat-config.yaml").exists()
-            if _main_exists and _config_exists:
-                copy_2a_output = mo.callout(
-                    mo.md("✅ **Step 2A files already exist** - you can skip this or re-copy to reset"),
-                    kind="success"
-                )
-            else:
-                copy_2a_output = mo.md("")
-        
-        # Handle Step 2B file copying
-        if copy_2b_btn.value:
-            try:
-                _source_files = glob("examples/step-2/part-b/*.py") + glob("examples/step-2/part-b/*.yaml")
-                _dest = Path("workspace")
-
-                _copied = []
-                for _src in _source_files:
-                    _filename = Path(_src).name
-                    shutil.copy2(_src, _dest / _filename)
-                    _copied.append(_filename)
-
-                copy_2b_output = mo.callout(
-                    mo.md(f"""
-                    ✅ **Files copied:** {", ".join(f"`{f}`" for f in _copied)}
-
-                    Includes:
-                    - `tools.py` - Support ticket tools
-                    - `tyler-chat-config.yaml` - Updated config
-                    - `server.py` - API server for Weave Playground
-                    """),
-                    kind="success"
-                )
-            except Exception as e:
-                copy_2b_output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
-        else:
-            _tools_exists = Path("workspace/tools.py").exists()
-            _server_exists = Path("workspace/server.py").exists()
-            if _tools_exists and _server_exists:
-                copy_2b_output = mo.callout(
-                    mo.md("✅ **Step 2B files already exist** - you can skip this or re-copy to update"),
-                    kind="success"
-                )
-            else:
-                copy_2b_output = mo.md("")
-        
-        # Handle Modal URL input and display playground instructions
-        if modal_url_input.value:
-            # Save the Modal URL to state file for persistence
-            _state_file = Path(".marimo-state.json")
-            try:
-                _state = {}
-                if _state_file.exists():
-                    _state = json.loads(_state_file.read_text())
-                _state["modal_dev_url"] = modal_url_input.value
-                _state_file.write_text(json.dumps(_state, indent=2))
-            except:
-                pass
-            
-            _base_url = modal_url_input.value.rstrip('/').replace('/v1', '')
-            _api_url = f"{_base_url}/v1"
-            _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
-
-            modal_instructions = mo.vstack([
+            copy_2a_output = mo.callout(
                 mo.md(f"""
-                **6. Connect Weave Playground:**
+                ✅ **Files copied:** {", ".join(f"`{f}`" for f in _copied)}
 
-                1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
-                2. In model dropdown: **+ Add AI provider** → **Custom provider**
-                3. Fill in:
-                   - **Provider name**: `agentic-support-bot-dev`
-                   - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
-                   - **Base URL**: `{_api_url}` (append `/v1` to the Modal URL)
-                   - **Models**: `buzz`
-                4. Click **Add provider**
-
-                **Test your agent:**
-
-                You should now be able to select `agentic-support-bot-dev/buzz` in the model dropdown, delete the default system message, and try these prompts:
-                ```
-                How do I initialize Weave in my Python code?
-                ```
-                ```
-                I'm getting API timeout errors when logging predictions. Can you help?
-                ```
-                ```
-                What's the status of ticket #10234?
-                ```
-                ```
-                Can you explain how to track model performance in wandb?
-                ```
-                ```
-                I need to create a support ticket for authentication issues
-                ```
+                These include:
+                - `main.py` - Basic agent execution script
+                - `tyler-chat-config.yaml` - Minimal agent configuration
                 """),
-                mo.md("""
-                **🔍 Check traces in Weave:**
-
-                Navigate to Traces → filter for `Agent.stream` operations.
-
-                **What to notice:**
-                - Some traces show tool calls, others don't
-                - Agent doesn't consistently use tools when it should
-                - Doesn't "vibe" as a support bot
-                - **Why?** The agent doesn't know its purpose or when to use tools!
-                - **New:** All traces are tagged with `env=dev` (from Modal's dev environment)
-
-                This is what we'll fix in Step 3.
-
-                **📌 Tip:** Keep `uv run modal serve --env dev` running in a terminal. It will auto-reload when you make changes to your code in Step 3!
-                """)
-            ])
+                kind="success"
+            )
+        except Exception as e:
+            copy_2a_output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
+    else:
+        _main_exists = Path("workspace/main.py").exists()
+        _config_exists = Path("workspace/tyler-chat-config.yaml").exists()
+        if _main_exists and _config_exists:
+            copy_2a_output = mo.callout(
+                mo.md("✅ **Step 2A files already exist** - you can skip this or re-copy to reset"),
+                kind="success"
+            )
         else:
-            modal_instructions = mo.md("👆 Paste your Modal dev server URL above to see Playground connection instructions")
-        
-        # W&B Team Secrets instructions
-        if bot_key_input.value:
-            _team_settings_url = f"https://wandb.ai/{weave_entity}/settings"
-            team_secrets_output = mo.md(f"""
-            **4. Add to W&B Team Secrets:**
-            
-            - Navigate to [your team Settings → Team Secrets]({_team_settings_url})
-            - Click **New secret**
-            - Name: `AGENTIC_SUPPORT_BOT_API_KEY`
-            - Value: `{bot_key_input.value}`
-            - Click **Add secret**
-            
-            **Note:** If your team already has `AGENTIC_SUPPORT_BOT_API_KEY` set, you can use that value when creating the Modal secret.
-            
-            See [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets) for details.
-            """)
+            copy_2a_output = mo.md("")
+    
+    # Handle Step 2B file copying
+    if copy_2b_btn.value:
+        try:
+            _source_files = glob("examples/step-2/part-b/*.py") + glob("examples/step-2/part-b/*.yaml")
+            _dest = Path("workspace")
+
+            _copied = []
+            for _src in _source_files:
+                _filename = Path(_src).name
+                shutil.copy2(_src, _dest / _filename)
+                _copied.append(_filename)
+
+            copy_2b_output = mo.callout(
+                mo.md(f"""
+                ✅ **Files copied:** {", ".join(f"`{f}`" for f in _copied)}
+
+                Includes:
+                - `tools.py` - Support ticket tools
+                - `tyler-chat-config.yaml` - Updated config
+                - `server.py` - API server for Weave Playground
+                """),
+                kind="success"
+            )
+        except Exception as e:
+            copy_2b_output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
+    else:
+        _tools_exists = Path("workspace/tools.py").exists()
+        _server_exists = Path("workspace/server.py").exists()
+        if _tools_exists and _server_exists:
+            copy_2b_output = mo.callout(
+                mo.md("✅ **Step 2B files already exist** - you can skip this or re-copy to update"),
+                kind="success"
+            )
         else:
-            team_secrets_output = mo.md("")
+            copy_2b_output = mo.md("")
+    
+    # Handle Modal URL input and display playground instructions
+    if modal_url_input.value:
+        # Save the Modal URL to state file for persistence
+        _state_file = Path(".marimo-state.json")
+        try:
+            _state = {}
+            if _state_file.exists():
+                _state = json.loads(_state_file.read_text())
+            _state["modal_dev_url"] = modal_url_input.value
+            _state_file.write_text(json.dumps(_state, indent=2))
+        except:
+            pass
         
-        _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
-        
-        return mo.vstack([
-            mo.md("""
-            ## Step 2: Get a Basic Agent Running
+        _base_url = modal_url_input.value.rstrip('/').replace('/v1', '')
+        _api_url = f"{_base_url}/v1"
+        _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
 
-            Build your agent incrementally, starting simple and adding complexity. Use **Weave at each stage** to understand what's happening.
+        modal_instructions = mo.vstack([
+            mo.md(f"""
+            **6. Connect Weave Playground:**
 
-            **Note:** This demo uses the [Slide framework](https://slide.mintlify.app) to get an agent running quickly so you can focus on Weave's observability and evaluation workflow.
+            1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
+            2. In model dropdown: **+ Add AI provider** → **Custom provider**
+            3. Fill in:
+               - **Provider name**: `agentic-support-bot-dev`
+               - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
+               - **Base URL**: `{_api_url}` (append `/v1` to the Modal URL)
+               - **Models**: `buzz`
+            4. Click **Add provider**
 
-            ---
+            **Test your agent:**
 
-            ### Part A: Create Your First Agent
-
-            **Goal:** Get a minimal agent running and see your first Weave trace.
-
-            Copy the basic agent files to your workspace:
+            You should now be able to select `agentic-support-bot-dev/buzz` in the model dropdown, delete the default system message, and try these prompts:
+            ```
+            How do I initialize Weave in my Python code?
+            ```
+            ```
+            I'm getting API timeout errors when logging predictions. Can you help?
+            ```
+            ```
+            What's the status of ticket #10234?
+            ```
+            ```
+            Can you explain how to track model performance in wandb?
+            ```
+            ```
+            I need to create a support ticket for authentication issues
+            ```
             """),
-            copy_2a_btn,
-            copy_2a_output,
             mo.md("""
+            **🔍 Check traces in Weave:**
+
+            Navigate to Traces → filter for `Agent.stream` operations.
+
+            **What to notice:**
+            - Some traces show tool calls, others don't
+            - Agent doesn't consistently use tools when it should
+            - Doesn't "vibe" as a support bot
+            - **Why?** The agent doesn't know its purpose or when to use tools!
+            - **New:** All traces are tagged with `env=dev` (from Modal's dev environment)
+
+            This is what we'll fix in Step 3.
+
+            **📌 Tip:** Keep `uv run modal serve --env dev` running in a terminal. It will auto-reload when you make changes to your code in Step 3!
+            """)
+        ])
+    else:
+        modal_instructions = mo.md("👆 Paste your Modal dev server URL above to see Playground connection instructions")
+    
+    # W&B Team Secrets instructions
+    if bot_key_input.value:
+        _team_settings_url = f"https://wandb.ai/{weave_entity}/settings"
+        team_secrets_output = mo.md(f"""
+        **4. Add to W&B Team Secrets:**
+        
+        - Navigate to [your team Settings → Team Secrets]({_team_settings_url})
+        - Click **New secret**
+        - Name: `AGENTIC_SUPPORT_BOT_API_KEY`
+        - Value: `{bot_key_input.value}`
+        - Click **Add secret**
+        
+        **Note:** If your team already has `AGENTIC_SUPPORT_BOT_API_KEY` set, you can use that value when creating the Modal secret.
+        
+        See [Secrets documentation](https://docs.wandb.ai/platform/secrets#secrets) for details.
+        """)
+    else:
+        team_secrets_output = mo.md("")
+    
+    return copy_2a_output, copy_2b_output, modal_instructions, team_secrets_output
+
+
+@app.cell
+def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_input, modal_instructions, team_secrets_output, weave_entity, weave_project):
+    # ============================================================================
+    # STEP 2: CONTENT (Pre-computed as value, not function)
+    # ============================================================================
+    _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+    
+    step2_content = mo.vstack([
+        mo.md("""
+        ## Step 2: Get a Basic Agent Running
+
+        Build your agent incrementally, starting simple and adding complexity. Use **Weave at each stage** to understand what's happening.
+
+        **Note:** This demo uses the [Slide framework](https://slide.mintlify.app) to get an agent running quickly so you can focus on Weave's observability and evaluation workflow.
+
+        ---
+
+        ### Part A: Create Your First Agent
+
+        **Goal:** Get a minimal agent running and see your first Weave trace.
+
+        Copy the basic agent files to your workspace:
+        """),
+        copy_2a_btn,
+        copy_2a_output,
+        mo.md("""
             This gives you:
             - `main.py` - Basic agent execution script
             - `tyler-chat-config.yaml` - Minimal agent configuration (generic purpose, no tools yet)
@@ -642,17 +642,17 @@ def _(mo, copy_2a_btn, copy_2b_btn, modal_url_input, weave_entity, weave_project
             ```
 
             Copy the URL (e.g., `https://yourname--agentic-support-bot-dev.modal.run`) and paste it below:
-            """),
-            modal_url_input,
-            modal_instructions,
-            mo.md("---"),
-            mo.nav_menu(
-                {"#/step3": "→ Continue to Step 3: Iterate to Make it Vibe"},
-                orientation="horizontal"
-            )
-        ])
+        """),
+        modal_url_input,
+        modal_instructions,
+        mo.md("---"),
+        mo.nav_menu(
+            {"#/step3": "→ Continue to Step 3: Iterate to Make it Vibe"},
+            orientation="horizontal"
+        )
+    ])
     
-    return (render_step2,)
+    return (step2_content,)
 
 
 @app.cell
@@ -1582,9 +1582,9 @@ def _(mo, copy_step6_btn, Path, glob, shutil):
 @app.cell
 def _(
     mo,
-    render_intro,
-    render_step1,
-    render_step2,
+    intro_content,
+    step1_content,
+    step2_content,
     render_step3,
     render_step4,
     render_step5,
@@ -1593,16 +1593,17 @@ def _(
     # ============================================================================
     # ROUTES CONFIGURATION
     # ============================================================================
-    # Display the routes as the cell output (required for marimo to render)
+    # Reference content variables directly (not functions) to prevent re-render cascades
+    # Content cells update reactively without triggering route re-renders
     mo.routes({
-        "#/": render_intro,
-        "#/step1": render_step1,
-        "#/step2": render_step2,
+        "#/": intro_content,
+        "#/step1": step1_content,
+        "#/step2": step2_content,
         "#/step3": render_step3,
         "#/step4": render_step4,
         "#/step5": render_step5,
         "#/step6": render_step6,
-        mo.routes.CATCH_ALL: render_intro,  # Fallback to intro
+        mo.routes.CATCH_ALL: intro_content,  # Fallback to intro
     })
 
 
