@@ -1558,35 +1558,96 @@ def _(mo, copy_step6_btn, copy_step6_output):
 @app.cell
 def _(mo):
     # ============================================================================
-    # TAB NAVIGATION
+    # SCROLL TO TOP BUTTON
     # ============================================================================
-    # Define tab keys in order (without icons, just the text)
-    TAB_KEYS = [
-        "Introduction",
-        "Project Setup", 
-        "Basic Agent",
-        "Vibe",
-        "Evaluate",
-        "Deploy",
-        "Monitor"
-    ]
+    # Create a centered scroll to top button using HTML
+    scroll_button = mo.Html("""
+    <style>
+        .scroll-to-top-centered {
+            display: block;
+            margin: 40px auto 20px;
+            background-color: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s, transform 0.2s;
+            text-align: center;
+            width: fit-content;
+        }
+        .scroll-to-top-centered:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+        .scroll-to-top-centered:active {
+            transform: translateY(0);
+        }
+    </style>
+    <a href="#top" class="scroll-to-top-centered">
+        ↑ Back to Top
+    </a>
+    """)
     
-    return (TAB_KEYS,)
+    return (scroll_button,)
 
 
 @app.cell
-def _(mo):
+def _(mo, os, Path, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input, modal_url_input, prod_url_input, purpose_input):
     # ============================================================================
-    # NAVIGATION BUTTON
+    # STEP COMPLETION CHECKS
     # ============================================================================
-    # Create navigation button - its value tracks number of clicks
-    nav_button = mo.ui.button(
-        label="Next Step →",
-        value=0,
-        on_click=lambda v: v + 1
-    )
+    # Check if each step is complete
     
-    return (nav_button,)
+    # Step 1: Complete if all env vars are set
+    step1_complete = all([
+        wandb_key_input.value,
+        wandb_project_input.value,
+        openai_key_input.value,
+        bot_key_input.value,
+    ])
+    
+    # Step 2: Complete if files exist and Modal dev URL is provided
+    step2_complete = all([
+        Path("workspace/tools.py").exists(),
+        Path("workspace/server.py").exists(),
+        modal_url_input.value,
+    ])
+    
+    # Step 3: Complete if purpose has been customized (not empty or default)
+    step3_complete = bool(purpose_input.value and purpose_input.value.strip() and 
+                         "helpful AI assistant" not in purpose_input.value.lower())
+    
+    # Step 4: Complete if dataset and scorer files exist
+    step4_complete = all([
+        Path("workspace/dataset.py").exists(),
+        Path("workspace/scorers.py").exists(),
+        Path("workspace/run_evaluation.py").exists(),
+    ])
+    
+    # Step 5: Complete if production URL is provided
+    step5_complete = bool(prod_url_input.value)
+    
+    # Step 6: Complete if guardrails file exists
+    step6_complete = Path("workspace/guardrails.py").exists()
+    
+    # Helper function to add checkmark if complete
+    def _step_label(icon, title, is_complete):
+        checkmark = f"{mo.icon('lucide:check-circle', size=16)} " if is_complete else ""
+        color = "color: #22c55e;" if is_complete else ""
+        return f'<span style="{color}">{checkmark}{mo.icon(icon)} {title}</span>'
+    
+    return (
+        step1_complete,
+        step2_complete,
+        step3_complete,
+        step4_complete,
+        step5_complete,
+        step6_complete,
+    )
 
 
 @app.cell
@@ -1599,56 +1660,36 @@ def _(
     step4_content,
     step5_content,
     step6_content,
-    TAB_KEYS,
-    nav_button,
+    scroll_button,
+    step1_complete,
+    step2_complete,
+    step3_complete,
+    step4_complete,
+    step5_complete,
+    step6_complete,
 ):
     # ============================================================================
-    # TABS NAVIGATION WITH NEXT BUTTON
+    # TABS NAVIGATION
     # ============================================================================
+    # Helper function to create tab label with optional checkmark
+    def _tab_label(icon, title, is_complete):
+        if is_complete:
+            return mo.Html(f'<span style="color: #22c55e;">{mo.icon("lucide:check-circle", size=16)} {mo.icon(icon)} {title}</span>')
+        else:
+            return f"{mo.icon(icon)} {title}"
     
-    # Calculate current tab index from button clicks
-    _tab_idx = nav_button.value % len(TAB_KEYS)
-    
-    # Create tabs dict with icons
-    _tabs_dict = {
-        f"{mo.icon('lucide:home')} Introduction": intro_content,
-        f"{mo.icon('lucide:settings')} Project Setup": step1_content,
-        f"{mo.icon('lucide:bot')} Basic Agent": step2_content,
-        f"{mo.icon('lucide:refresh-cw')} Vibe": step3_content,
-        f"{mo.icon('lucide:database')} Evaluate": step4_content,
-        f"{mo.icon('lucide:rocket')} Deploy": step5_content,
-        f"{mo.icon('lucide:shield')} Monitor": step6_content,
-    }
-    _tab_keys_list = list(_tabs_dict.keys())
-    
-    # Render tabs with controlled value
-    _tabs_ui = mo.ui.tabs(_tabs_dict, value=_tab_keys_list[_tab_idx])
-    
-    # Render everything with scroll-to-top link
+    # Use tabs for step navigation - content variables prevent re-rendering issues
     mo.vstack([
-        mo.Html('<a id="top"></a>'),  # Anchor for scrolling
-        _tabs_ui,
-        mo.Html('''
-            <div style="margin: 40px auto 10px; text-align: center;">
-                <a href="#top" style="
-                    display: inline-block;
-                    background-color: #f3f4f6;
-                    color: #6b7280;
-                    text-decoration: none;
-                    border-radius: 6px;
-                    padding: 8px 16px;
-                    font-size: 13px;
-                    font-weight: 500;
-                    margin-bottom: 10px;
-                    transition: all 0.2s;
-                " 
-                onmouseover="this.style.backgroundColor='#e5e7eb'; this.style.color='#374151'"
-                onmouseout="this.style.backgroundColor='#f3f4f6'; this.style.color='#6b7280'">
-                    ↑ Back to Top
-                </a>
-            </div>
-        '''),
-        nav_button.center(),
+        mo.ui.tabs({
+            f"{mo.icon('lucide:home')} Introduction": intro_content,
+            _tab_label('lucide:settings', 'Project Setup', step1_complete): step1_content,
+            _tab_label('lucide:bot', 'Basic Agent', step2_complete): step2_content,
+            _tab_label('lucide:refresh-cw', 'Vibe', step3_complete): step3_content,
+            _tab_label('lucide:database', 'Evaluate', step4_complete): step4_content,
+            _tab_label('lucide:rocket', 'Deploy', step5_complete): step5_content,
+            _tab_label('lucide:shield', 'Monitor', step6_complete): step6_content,
+        }),
+        scroll_button,
     ])
 
 
