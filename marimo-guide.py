@@ -1575,14 +1575,18 @@ def _(mo):
 
 
 @app.cell
-def _(mo, TAB_KEYS):
+def _(mo):
     # ============================================================================
-    # TAB STATE
+    # NAVIGATION BUTTON
     # ============================================================================
-    # Create state to track current tab index
-    get_tab_idx, set_tab_idx = mo.state(0)
+    # Create navigation button - its value tracks number of clicks
+    nav_button = mo.ui.button(
+        label="Next Step →",
+        value=0,
+        on_click=lambda v: v + 1
+    )
     
-    return get_tab_idx, set_tab_idx
+    return (nav_button,)
 
 
 @app.cell
@@ -1596,15 +1600,14 @@ def _(
     step5_content,
     step6_content,
     TAB_KEYS,
-    get_tab_idx,
-    set_tab_idx,
+    nav_button,
 ):
     # ============================================================================
     # TABS NAVIGATION WITH NEXT BUTTON
     # ============================================================================
     
-    # Get current tab index
-    _tab_idx = get_tab_idx()
+    # Calculate current tab index from button clicks
+    _tab_idx = nav_button.value % len(TAB_KEYS)
     
     # Create tabs dict with icons
     _tabs_dict = {
@@ -1618,34 +1621,33 @@ def _(
     }
     _tab_keys_list = list(_tabs_dict.keys())
     
-    # Calculate next index and button label
-    _next_idx = (_tab_idx + 1) % len(TAB_KEYS)
+    # Determine if we're on the last tab
     _is_last = _tab_idx == len(TAB_KEYS) - 1
-    _button_label = "↺ Back to Introduction" if _is_last else f"Next: {TAB_KEYS[_next_idx]} →"
-    
-    # Create navigation button
-    _nav_btn = mo.ui.button(
-        label=_button_label,
-        on_click=lambda v: set_tab_idx(_next_idx),
-        kind="success" if _is_last else "info"
-    )
     
     # Render tabs with controlled value
     _tabs_ui = mo.ui.tabs(_tabs_dict, value=_tab_keys_list[_tab_idx])
+    
+    # Create styled button display with dynamic label
+    _button_display = mo.Html(f'''
+        <div style="margin: 40px auto 20px; text-align: center;">
+            <div style="display: inline-block;">
+                {'<span style="color: #10b981; font-weight: 600;">↺ Back to Introduction</span>' if _is_last else f'<span style="color: #3b82f6; font-weight: 600;">Next: {TAB_KEYS[(_tab_idx + 1) % len(TAB_KEYS)]} →</span>'}
+            </div>
+        </div>
+    ''')
     
     # Render everything
     mo.vstack([
         mo.Html('<a id="top"></a>'),  # Anchor for scrolling
         _tabs_ui,
         mo.Html('''
-            <div style="margin: 40px auto 20px; text-align: center;">
-            </div>
             <script>
                 // Scroll to top whenever tab changes
                 window.scrollTo({top: 0, behavior: 'smooth'});
             </script>
         '''),
-        _nav_btn.center(),
+        _button_display,
+        nav_button.center(),
     ])
 
 
