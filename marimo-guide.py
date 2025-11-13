@@ -55,7 +55,7 @@ def _(mo):
     # Header with title, anchor, and resource links
     mo.vstack([
         mo.Html('<a id="top"></a>'),
-        mo.md("# Building an Agentic Chatbot with Weave"),
+        mo.md("# Agentic Chatbot with Weave"),
     ])
     return
 
@@ -208,13 +208,12 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
     # ============================================================================
     step1_content = mo.vstack([
         mo.md("""
+        ## 
         ## Project Setup
 
         This repo includes dependencies, configuration files, and example code so you can focus on agent-specific decisions rather than boilerplate setup.
 
-        ✅ **Auto-setup complete:** The `.env` file and `workspace/db/` directory have been created automatically.
-
-        ### Configure environment variables
+        **Configure environment variables**
         """),
         mo.md("### W&B API key"),
         mo.md("Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
@@ -769,6 +768,7 @@ def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, pur
     # ============================================================================
     step3_content = mo.vstack([
         mo.md("""
+        ##  
         ## Iterate to Make it Vibe as a Support Agent
 
         **What You're Learning:** The core Weave workflow - **observe → diagnose → fix → verify**.
@@ -958,6 +958,7 @@ def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project):
     
     step4_content = mo.vstack([
         mo.md("""
+        ##  
         ## Dataset & Evaluation - From Vibes to Production-Ready
 
         After iterating on your agent, it works well in demos, but can you confidently deploy it to real users?
@@ -1187,6 +1188,7 @@ def _(mo, prod_url_input, weave_entity, weave_project):
     
     step5_content = mo.vstack([
         mo.md("""
+        ##  
         ## Production Deployment 🚀
 
         **Goal:** Deploy your agent as a persistent production service.
@@ -1334,6 +1336,7 @@ def _(mo, copy_step6_btn, copy_step6_output):
     # ============================================================================
     step6_content = mo.vstack([
         mo.md("""
+        ##  
         ## Online Monitoring & Guardrails 🛡️
 
         **Goal:** Add production safety controls and quality monitoring to your deployed agent.
