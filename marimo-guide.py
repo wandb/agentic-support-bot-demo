@@ -485,7 +485,7 @@ def _(mo, os):
         weave_project = _project
     
     # Build traces URL
-        _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+    _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
 
     mo.md(f"""
     **🔍 Explore Weave:**
