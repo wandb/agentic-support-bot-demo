@@ -117,7 +117,7 @@ def _(mo, tab_names, tab_labels):
     # NAVIGATION BUTTON BUILDER
     # ============================================================================
     # We'll store a reference to the tabs object here
-    _tabs_ref = {"tabs": None}
+    tabs_ref = {"tabs": None}
     
     def create_nav_buttons(current_index):
         """Create prev/next navigation buttons for a tab"""
@@ -130,8 +130,8 @@ def _(mo, tab_names, tab_labels):
             
             # Use default argument to capture prev_tab value at function definition time
             def _go_prev(value, target=prev_tab):
-                if _tabs_ref["tabs"] is not None:
-                    _tabs_ref["tabs"].value = target
+                if tabs_ref["tabs"] is not None:
+                    tabs_ref["tabs"].value = target
             
             prev_btn = mo.ui.button(
                 label=f"← Previous: {prev_label}",
@@ -148,8 +148,8 @@ def _(mo, tab_names, tab_labels):
             
             # Use default argument to capture next_tab value at function definition time
             def _go_next(value, target=next_tab):
-                if _tabs_ref["tabs"] is not None:
-                    _tabs_ref["tabs"].value = target
+                if tabs_ref["tabs"] is not None:
+                    tabs_ref["tabs"].value = target
             
             next_btn = mo.ui.button(
                 label=f"Next: {next_label} →",
@@ -161,7 +161,7 @@ def _(mo, tab_names, tab_labels):
         
         return mo.hstack(buttons, justify="space-between")
     
-    return create_nav_buttons, _tabs_ref
+    return create_nav_buttons, tabs_ref
 
 
 @app.cell
@@ -1678,7 +1678,7 @@ def _(
     step6_content,
     scroll_button,
     tab_names,
-    _tabs_ref,
+    tabs_ref,
 ):
     # ============================================================================
     # TABS NAVIGATION
@@ -1695,7 +1695,7 @@ def _(
     })
     
     # Store reference so buttons can access it
-    _tabs_ref["tabs"] = tabs
+    tabs_ref["tabs"] = tabs
     
     mo.vstack([
         tabs,
