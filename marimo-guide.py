@@ -112,55 +112,11 @@ def _(mo):
 
 
 @app.cell
-def _(mo, tab_names, tab_labels):
-    # ============================================================================
-    # NAVIGATION BUTTONS WITH STATE
-    # ============================================================================
-    # Use state to manage which tab should be active
-    get_target_tab, set_target_tab = mo.state("")
-    
-    def create_nav_buttons(current_index):
-        """Create prev/next navigation buttons for a tab"""
-        buttons = []
-        
-        # Previous button
-        if current_index > 0:
-            prev_label = tab_labels[current_index - 1]
-            prev_tab = tab_names[current_index - 1]
-            
-            prev_btn = mo.ui.button(
-                label=f"← Previous: {prev_label}",
-                on_click=lambda v, t=prev_tab: set_target_tab(t)
-            )
-            buttons.append(prev_btn)
-        else:
-            buttons.append(mo.md(""))  # Spacer
-        
-        # Next button
-        if current_index < len(tab_names) - 1:
-            next_label = tab_labels[current_index + 1]
-            next_tab = tab_names[current_index + 1]
-            
-            next_btn = mo.ui.button(
-                label=f"Next: {next_label} →",
-                on_click=lambda v, t=next_tab: set_target_tab(t)
-            )
-            buttons.append(next_btn)
-        else:
-            buttons.append(mo.md(""))  # Spacer
-        
-        return mo.hstack(buttons, justify="space-between")
-    
-    return create_nav_buttons, get_target_tab, set_target_tab
-
-
-@app.cell
-def _(mo, create_nav_buttons):
+def _(mo):
     # ============================================================================
     # INTRODUCTION PAGE CONTENT
     # ============================================================================
-    intro_content = mo.vstack([
-    mo.md("""
+    intro_content = mo.md("""
     # Building an Agentic Chatbot with Weave
 
     ## Goal
@@ -186,10 +142,7 @@ def _(mo, create_nav_buttons):
         ---
         
         **👆 Use the tabs above to navigate through the steps!**
-        """),
-        mo.md("---"),
-        create_nav_buttons(0),
-    ])
+        """)
     
     return (intro_content,)
 
@@ -284,7 +237,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input, create_nav_buttons):
+def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input):
     # ============================================================================
     # STEP 1: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -320,8 +273,6 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
         mo.md("""    
         **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
         """),
-        mo.md("---"),
-        create_nav_buttons(1),
     ])
     
     return (step1_content,)
@@ -529,7 +480,7 @@ def _(mo, copy_2a_btn, copy_2b_btn, modal_url_input, weave_entity, weave_project
 
 
 @app.cell
-def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_input, modal_instructions, team_secrets_output, weave_entity, weave_project, create_nav_buttons):
+def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_input, modal_instructions, team_secrets_output, weave_entity, weave_project):
     # ============================================================================
     # STEP 2: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -678,8 +629,6 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
         """),
         modal_url_input,
         modal_instructions,
-        mo.md("---"),
-        create_nav_buttons(2),
     ])
     
     return (step2_content,)
@@ -840,7 +789,7 @@ def _(mo, purpose_input, notes_input, save_purpose_btn, copy_tools_btn, config_p
 
 
 @app.cell
-def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, purpose_input, notes_input, save_purpose_btn, copy_tools_btn, create_nav_buttons):
+def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, purpose_input, notes_input, save_purpose_btn, copy_tools_btn):
     # ============================================================================
     # STEP 3: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -946,8 +895,6 @@ def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, pur
 
         💡 **Reference:** Compare your work with `examples/step-3/` - but remember, there's no single "right" way!
         """),
-        mo.md("---"),
-        create_nav_buttons(3),
     ])
     
     return (step3_content,)
@@ -1024,7 +971,7 @@ def _(mo, copy_step4_btn, weave_entity, weave_project, Path, glob, shutil):
 
 
 @app.cell
-def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project, create_nav_buttons):
+def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project):
     # ============================================================================
     # STEP 4: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1185,8 +1132,6 @@ def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project, create
         - Use environment tags to separate dev and prod traffic
         - Create saved views for production dashboards
         """),
-        mo.md("---"),
-        create_nav_buttons(4),
     ])
     
     return (step4_content,)
@@ -1241,7 +1186,7 @@ def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
 
 
 @app.cell
-def _(mo, prod_url_input, weave_entity, weave_project, create_nav_buttons):
+def _(mo, prod_url_input, weave_entity, weave_project):
     # ============================================================================
     # STEP 5: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1332,8 +1277,6 @@ def _(mo, prod_url_input, weave_entity, weave_project, create_nav_buttons):
 
         This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
         """),
-        mo.md("---"),
-        create_nav_buttons(5),
     ])
     
     return (step5_content,)
@@ -1396,7 +1339,7 @@ def _(mo, copy_step6_btn, Path, glob, shutil):
 
 
 @app.cell
-def _(mo, copy_step6_btn, copy_step6_output, create_nav_buttons):
+def _(mo, copy_step6_btn, copy_step6_output):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1607,8 +1550,6 @@ def _(mo, copy_step6_btn, copy_step6_output, create_nav_buttons):
         - Add more tools for your use case
         - Iterate based on monitor data
         """),
-        mo.md("---"),
-        create_nav_buttons(6),
     ])
     
     return (step6_content,)
@@ -1668,27 +1609,65 @@ def _(
     step6_content,
     scroll_button,
     tab_names,
-    get_target_tab,
+    tab_labels,
 ):
     # ============================================================================
     # TABS NAVIGATION
     # ============================================================================
-    # Create tabs component with value controlled by state
-    tabs = mo.ui.tabs(
-        {
-            tab_names[0]: intro_content,
-            tab_names[1]: step1_content,
-            tab_names[2]: step2_content,
-            tab_names[3]: step3_content,
-            tab_names[4]: step4_content,
-            tab_names[5]: step5_content,
-            tab_names[6]: step6_content,
-        },
-        value=get_target_tab() if get_target_tab() else None
-    )
+    # Create tabs component
+    tabs = mo.ui.tabs({
+        tab_names[0]: intro_content,
+        tab_names[1]: step1_content,
+        tab_names[2]: step2_content,
+        tab_names[3]: step3_content,
+        tab_names[4]: step4_content,
+        tab_names[5]: step5_content,
+        tab_names[6]: step6_content,
+    })
+    
+    # Create navigation buttons based on current tab
+    _tab_keys = list(tab_names)
+    _current_tab = tabs.value if tabs.value else _tab_keys[0]
+    _current_index = _tab_keys.index(_current_tab) if _current_tab in _tab_keys else 0
+    
+    # Build navigation buttons
+    _nav_buttons = []
+    
+    # Previous button
+    if _current_index > 0:
+        _prev_label = tab_labels[_current_index - 1]
+        _prev_tab = _tab_keys[_current_index - 1]
+        
+        def _go_prev():
+            tabs.value = _prev_tab
+        
+        _prev_btn = mo.ui.button(
+            label=f"← Previous: {_prev_label}",
+            on_click=lambda v: setattr(tabs, 'value', _prev_tab)
+        )
+        _nav_buttons.append(_prev_btn)
+    else:
+        _nav_buttons.append(mo.md(""))
+    
+    # Next button
+    if _current_index < len(_tab_keys) - 1:
+        _next_label = tab_labels[_current_index + 1]
+        _next_tab = _tab_keys[_current_index + 1]
+        
+        _next_btn = mo.ui.button(
+            label=f"Next: {_next_label} →",
+            on_click=lambda v: setattr(tabs, 'value', _next_tab)
+        )
+        _nav_buttons.append(_next_btn)
+    else:
+        _nav_buttons.append(mo.md(""))
+    
+    navigation = mo.hstack(_nav_buttons, justify="space-between")
     
     mo.vstack([
         tabs,
+        mo.md("---"),
+        navigation,
         scroll_button,
     ])
 
