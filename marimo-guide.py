@@ -10,7 +10,7 @@ Launch with: marimo edit marimo-guide.py
 import marimo
 
 __generated_with = "0.17.7"
-app = marimo.App(width="medium")
+app = marimo.App(width="medium", app_title="Agentic Chatbot with Weave")
 
 
 @app.cell
@@ -55,7 +55,7 @@ def _(mo):
     # Header with title, anchor, and resource links
     mo.vstack([
         mo.Html('<a id="top"></a>'),
-        mo.md("# Agentic Chatbot with Weave"),
+        mo.md("# Building an Agentic Chatbot with Weave"),
     ])
     return
 
