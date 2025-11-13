@@ -625,6 +625,26 @@ def _(mo, Path, yaml):
     # STEP 3: UI ELEMENTS
     # ============================================================================
     
+    # Helper function to save config field (auto-save)
+    def _save_config_field(field_name, value):
+        """Save a single field to the Tyler config YAML file"""
+        _config_path = Path("workspace/tyler-chat-config.yaml")
+        
+        if not _config_path.exists():
+            return  # Don't create config if it doesn't exist yet
+        
+        try:
+            # Read current config
+            _config_data = yaml.safe_load(_config_path.read_text())
+            
+            # Update field
+            _config_data[field_name] = value
+            
+            # Write back
+            _config_path.write_text(yaml.dump(_config_data, default_flow_style=False, sort_keys=False))
+        except Exception as e:
+            pass  # Silently fail to avoid interrupting user experience
+    
     # Load current config and extract purpose/notes
     config_path = Path("workspace/tyler-chat-config.yaml")
     _current_purpose = ""
@@ -644,7 +664,8 @@ def _(mo, Path, yaml):
         placeholder="You are a support bot for Weights & Biases...",
         label="Purpose (What is the bot's role?)",
         rows=8,
-        full_width=True
+        full_width=True,
+        on_change=lambda value: _save_config_field("purpose", value) if value else None
     )
     
     notes_input = mo.ui.text_area(
@@ -652,13 +673,8 @@ def _(mo, Path, yaml):
         placeholder="- Use search_docs for questions about W&B features\n- Use create_issue when users report problems\n...",
         label="Notes (Operational guidelines for the bot)",
         rows=6,
-        full_width=True
-    )
-    
-    save_purpose_btn = mo.ui.button(
-        label="💾 Save Purpose & Notes to Config",
-        value=0,
-        on_click=lambda v: v + 1
+        full_width=True,
+        on_change=lambda value: _save_config_field("notes", value) if value else None
     )
     
     copy_tools_btn = mo.ui.button(
@@ -667,53 +683,17 @@ def _(mo, Path, yaml):
         on_click=lambda v: v + 1
     )
     
-    return config_path, purpose_input, notes_input, save_purpose_btn, copy_tools_btn
+    return config_path, purpose_input, notes_input, copy_tools_btn
 
 
 @app.cell
-def _(mo, purpose_input, notes_input, save_purpose_btn, copy_tools_btn, config_path, Path, yaml, shutil):
+def _(mo, purpose_input, notes_input, copy_tools_btn, config_path, Path, yaml, shutil):
     # ============================================================================
     # STEP 3: BUTTON LOGIC
     # ============================================================================
     
-    # Handle saving purpose and notes
-    if save_purpose_btn.value:
-        if not purpose_input.value.strip():
-            save_purpose_output = mo.callout(
-                mo.md("⚠️ **Please fill in the Purpose field before saving**"),
-                kind="warn"
-            )
-        else:
-            try:
-                if config_path.exists():
-                    _config_data = yaml.safe_load(config_path.read_text())
-                else:
-                    save_purpose_output = mo.callout(
-                        mo.md("❌ **Config file not found.** Copy Step 2B files first!"),
-                        kind="danger"
-                    )
-                    _config_data = None
-                
-                if _config_data:
-                    _config_data["purpose"] = purpose_input.value
-                    _config_data["notes"] = notes_input.value
-                    
-                    config_path.parent.mkdir(parents=True, exist_ok=True)
-                    config_path.write_text(yaml.dump(_config_data, default_flow_style=False, sort_keys=False))
-
-                    save_purpose_output = mo.callout(
-                mo.md("""
-                        ✅ **Purpose and Notes saved successfully!**
-
-                Your `modal serve` should auto-reload with the new config.
-                Test in Weave Playground to see the improvements!
-                """),
-                kind="success"
-            )
-            except Exception as e:
-                save_purpose_output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
-    else:
-        save_purpose_output = mo.md("")
+    # Purpose and notes now auto-save on change (see UI ELEMENTS cell)
+    # No explicit save button needed anymore
     
     # Handle copying improved tools
     if copy_tools_btn.value:
@@ -770,11 +750,11 @@ def _(mo, purpose_input, notes_input, save_purpose_btn, copy_tools_btn, config_p
         }
     )
     
-    return save_purpose_output, copy_tools_output, example_purpose_accordion
+    return copy_tools_output, example_purpose_accordion
 
 
 @app.cell
-def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, purpose_input, notes_input, save_purpose_btn, copy_tools_btn):
+def _(mo, copy_tools_output, example_purpose_accordion, purpose_input, notes_input, copy_tools_btn):
     # ============================================================================
     # STEP 3: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -813,11 +793,13 @@ def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, pur
         """),
         example_purpose_accordion,
         mo.md("**Edit your agent's purpose and notes below:**"),
+        mo.callout(
+            mo.md("💾 **Auto-save enabled** - Your changes are saved automatically as you type!"),
+            kind="info"
+        ),
         mo.vstack([purpose_input, notes_input]),
-        save_purpose_btn,
-        save_purpose_output,
         mo.md("""
-        **🔍 Test your changes:** After saving, test in Weave Playground with the same prompts from Step 2.
+        **🔍 Test your changes:** Your changes auto-save and `modal serve` should auto-reload. Test in Weave Playground with the same prompts from Step 2.
 
         **Observe in Weave:** Does it feel more like a support bot? Check traces to see how `purpose` influences behavior.
 
