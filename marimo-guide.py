@@ -1621,38 +1621,20 @@ def _(
     }
     _tab_keys_list = list(_tabs_dict.keys())
     
-    # Determine next step for display
-    _is_last = _tab_idx == len(TAB_KEYS) - 1
-    _next_tab_name = TAB_KEYS[(_tab_idx + 1) % len(TAB_KEYS)]
-    
     # Render tabs with controlled value
     _tabs_ui = mo.ui.tabs(_tabs_dict, value=_tab_keys_list[_tab_idx])
-    
-    # Create descriptive text and button
-    if _is_last:
-        _button_text = mo.Html('''
-            <div style="margin: 30px auto 10px; text-align: center; color: #10b981; font-weight: 600; font-size: 14px;">
-                ↺ Back to Introduction
-            </div>
-        ''')
-    else:
-        _button_text = mo.Html(f'''
-            <div style="margin: 30px auto 10px; text-align: center; color: #3b82f6; font-weight: 600; font-size: 14px;">
-                Next: {_next_tab_name} →
-            </div>
-        ''')
     
     # Render everything
     mo.vstack([
         mo.Html('<a id="top"></a>'),  # Anchor for scrolling
         _tabs_ui,
         mo.Html('''
+            <div style="margin: 40px auto 20px;"></div>
             <script>
                 // Scroll to top whenever tab changes
                 window.scrollTo({top: 0, behavior: 'smooth'});
             </script>
         '''),
-        _button_text,
         nav_button.center(),
     ])
 
