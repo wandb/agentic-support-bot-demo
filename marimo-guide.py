@@ -114,10 +114,10 @@ def _(mo):
 @app.cell
 def _(mo, tab_names, tab_labels):
     # ============================================================================
-    # NAVIGATION BUTTON BUILDER
+    # NAVIGATION BUTTONS WITH STATE
     # ============================================================================
-    # We'll store a reference to the tabs object here
-    tabs_ref = {"tabs": None}
+    # Use state to manage which tab should be active
+    get_target_tab, set_target_tab = mo.state("")
     
     def create_nav_buttons(current_index):
         """Create prev/next navigation buttons for a tab"""
@@ -128,14 +128,9 @@ def _(mo, tab_names, tab_labels):
             prev_label = tab_labels[current_index - 1]
             prev_tab = tab_names[current_index - 1]
             
-            # Use default argument to capture prev_tab value at function definition time
-            def _go_prev(value, target=prev_tab):
-                if tabs_ref["tabs"] is not None:
-                    tabs_ref["tabs"].value = target
-            
             prev_btn = mo.ui.button(
                 label=f"← Previous: {prev_label}",
-                on_click=_go_prev
+                on_click=lambda v, t=prev_tab: set_target_tab(t)
             )
             buttons.append(prev_btn)
         else:
@@ -146,14 +141,9 @@ def _(mo, tab_names, tab_labels):
             next_label = tab_labels[current_index + 1]
             next_tab = tab_names[current_index + 1]
             
-            # Use default argument to capture next_tab value at function definition time
-            def _go_next(value, target=next_tab):
-                if tabs_ref["tabs"] is not None:
-                    tabs_ref["tabs"].value = target
-            
             next_btn = mo.ui.button(
                 label=f"Next: {next_label} →",
-                on_click=_go_next
+                on_click=lambda v, t=next_tab: set_target_tab(t)
             )
             buttons.append(next_btn)
         else:
@@ -161,7 +151,7 @@ def _(mo, tab_names, tab_labels):
         
         return mo.hstack(buttons, justify="space-between")
     
-    return create_nav_buttons, tabs_ref
+    return create_nav_buttons, get_target_tab, set_target_tab
 
 
 @app.cell
@@ -1678,24 +1668,24 @@ def _(
     step6_content,
     scroll_button,
     tab_names,
-    tabs_ref,
+    get_target_tab,
 ):
     # ============================================================================
     # TABS NAVIGATION
     # ============================================================================
-    # Create tabs component
-    tabs = mo.ui.tabs({
-        tab_names[0]: intro_content,
-        tab_names[1]: step1_content,
-        tab_names[2]: step2_content,
-        tab_names[3]: step3_content,
-        tab_names[4]: step4_content,
-        tab_names[5]: step5_content,
-        tab_names[6]: step6_content,
-    })
-    
-    # Store reference so buttons can access it
-    tabs_ref["tabs"] = tabs
+    # Create tabs component with value controlled by state
+    tabs = mo.ui.tabs(
+        {
+            tab_names[0]: intro_content,
+            tab_names[1]: step1_content,
+            tab_names[2]: step2_content,
+            tab_names[3]: step3_content,
+            tab_names[4]: step4_content,
+            tab_names[5]: step5_content,
+            tab_names[6]: step6_content,
+        },
+        value=get_target_tab() if get_target_tab() else None
+    )
     
     mo.vstack([
         tabs,
