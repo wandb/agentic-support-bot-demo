@@ -1376,28 +1376,28 @@ def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
         _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
         _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
 
-        mo.vstack([
-        mo.callout(
-            mo.md(f"""
-            ### Update Weave Playground for Production
+        _output = mo.vstack([
+            mo.callout(
+                mo.md(f"""
+                ### Update Weave Playground for Production
 
-            Now you can create a separate AI provider in Weave Playground for your production deployment:
+                Now you can create a separate AI provider in Weave Playground for your production deployment:
 
-            1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
-            2. In model dropdown: **+ Add AI provider** → **Custom provider**
-            3. Fill in:
-               - **Provider name**: `agentic-support-bot-main`
-               - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
-               - **Base URL**: `{_api_url}` (append `/v1` to the Modal URL)
-               - **Models**: `buzz`
-            4. Click **Add provider**
+                1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
+                2. In model dropdown: **+ Add AI provider** → **Custom provider**
+                3. Fill in:
+                   - **Provider name**: `agentic-support-bot-main`
+                   - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
+                   - **Base URL**: `{_api_url}` (append `/v1` to the Modal URL)
+                   - **Models**: `buzz`
+                4. Click **Add provider**
 
-            Now you have two providers:
-            - `agentic-support-bot-dev/buzz` → Development (modal serve)
-            - `agentic-support-bot-main/buzz` → Production (modal deploy)
-            """),
-            kind="success"
-        ),
+                Now you have two providers:
+                - `agentic-support-bot-dev/buzz` → Development (modal serve)
+                - `agentic-support-bot-main/buzz` → Production (modal deploy)
+                """),
+                kind="success"
+            ),
             mo.md(f"""
             ### Test Your Production Deployment
 
@@ -1425,7 +1425,9 @@ def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
             """)
         ])
     else:
-        mo.md("👆 Paste your production Modal URL above to see setup instructions")
+        _output = mo.md("👆 Paste your production Modal URL above to see setup instructions")
+    
+    _output
     return
 
 
