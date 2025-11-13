@@ -56,12 +56,6 @@ def _(mo):
     mo.vstack([
         mo.Html('<a id="top"></a>'),
         mo.md("# Building an Agentic Chatbot with Weave"),
-        mo.md("""
-        **Resources:** [GitHub](https://github.com/wandb/agentic-support-bot-demo) | 
-        [Weave Docs](https://docs.wandb.ai/weave) | 
-        [Slide Framework](https://slide.mintlify.app)
-        """),
-        mo.md("---"),
     ])
     return
 
@@ -69,7 +63,7 @@ def _(mo):
 @app.cell
 def _(mo, os):
     # Parse entity/project from WANDB_PROJECT env var (used across all pages)
-    _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+    _project = os.getenv("WANDB_PROJECT", "wandb/agentic-support-bot-demo")
     
     if "/" in _project:
         weave_entity, weave_project = _project.split("/", 1)
@@ -88,6 +82,7 @@ def _(mo):
     # ============================================================================
     intro_content = mo.vstack([
     mo.md("""
+    ## 
     ## Goal
 
     Using our own products regularly helps us better empathize with and understand our users' needs. This repo provides a streamlined guide to experience how Weave works in a typical AI development workflow.
@@ -107,11 +102,11 @@ def _(mo):
     - Where Weave shines in the development process
     - What features are intuitive vs. confusing
     - What's missing or could be improved
-        
-        ---
-        
-        **👆 Use the tabs above to navigate through the steps!**
-        """)
+
+    ---
+    
+    **👆 Use the tabs above to navigate through the steps!**
+    """)
     ])
     
     return (intro_content,)
@@ -463,13 +458,12 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
     
     step2_content = mo.vstack([
         mo.md("""
+        ##  
         ## Get a Basic Agent Running
 
         Build your agent incrementally, starting simple and adding complexity. Use **Weave at each stage** to understand what's happening.
 
         **Note:** This demo uses the [Slide framework](https://slide.mintlify.app) to get an agent running quickly so you can focus on Weave's observability and evaluation workflow.
-
-        ---
 
         ### Part A: Create Your First Agent
 
@@ -1596,55 +1590,6 @@ def _(mo):
 
 
 @app.cell
-def _(mo, os, Path, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input, modal_url_input, prod_url_input, purpose_input):
-    # ============================================================================
-    # STEP COMPLETION CHECKS
-    # ============================================================================
-    # Check if each step is complete
-    
-    # Step 1: Complete if all env vars are set
-    step1_complete = all([
-        wandb_key_input.value,
-        wandb_project_input.value,
-        openai_key_input.value,
-        bot_key_input.value,
-    ])
-    
-    # Step 2: Complete if files exist and Modal dev URL is provided
-    step2_complete = all([
-        Path("workspace/tools.py").exists(),
-        Path("workspace/server.py").exists(),
-        modal_url_input.value,
-    ])
-    
-    # Step 3: Complete if purpose has been customized (not empty or default)
-    step3_complete = bool(purpose_input.value and purpose_input.value.strip() and 
-                         "helpful AI assistant" not in purpose_input.value.lower())
-    
-    # Step 4: Complete if dataset and scorer files exist
-    step4_complete = all([
-        Path("workspace/dataset.py").exists(),
-        Path("workspace/scorers.py").exists(),
-        Path("workspace/run_evaluation.py").exists(),
-    ])
-    
-    # Step 5: Complete if production URL is provided
-    step5_complete = bool(prod_url_input.value)
-    
-    # Step 6: Complete if guardrails file exists
-    step6_complete = Path("workspace/guardrails.py").exists()
-    
-    return (
-        step1_complete,
-        step2_complete,
-        step3_complete,
-        step4_complete,
-        step5_complete,
-        step6_complete,
-    )
-
-
-@app.cell
 def _(
     mo,
     intro_content,
@@ -1655,31 +1600,20 @@ def _(
     step5_content,
     step6_content,
     scroll_button,
-    step1_complete,
-    step2_complete,
-    step3_complete,
-    step4_complete,
-    step5_complete,
-    step6_complete,
 ):
     # ============================================================================
     # TABS NAVIGATION
     # ============================================================================
-    # Helper function to create tab label with optional checkmark
-    def _tab_label(icon, title, is_complete):
-        checkmark = f"{mo.icon('lucide:check-circle', size=16)} " if is_complete else ""
-        return f"{checkmark}{mo.icon(icon)} {title}"
-    
     # Use tabs for step navigation - content variables prevent re-rendering issues
     mo.vstack([
         mo.ui.tabs({
             f"{mo.icon('lucide:home')} Introduction": intro_content,
-            _tab_label('lucide:settings', 'Project Setup', step1_complete): step1_content,
-            _tab_label('lucide:bot', 'Basic Agent', step2_complete): step2_content,
-            _tab_label('lucide:refresh-cw', 'Vibe', step3_complete): step3_content,
-            _tab_label('lucide:database', 'Evaluate', step4_complete): step4_content,
-            _tab_label('lucide:rocket', 'Deploy', step5_complete): step5_content,
-            _tab_label('lucide:shield', 'Monitor', step6_complete): step6_content,
+            f"{mo.icon('lucide:settings')} Project Setup": step1_content,
+            f"{mo.icon('lucide:bot')} Basic Agent": step2_content,
+            f"{mo.icon('lucide:refresh-cw')} Vibe": step3_content,
+            f"{mo.icon('lucide:database')} Evaluate": step4_content,
+            f"{mo.icon('lucide:rocket')} Deploy": step5_content,
+            f"{mo.icon('lucide:shield')} Monitor": step6_content,
         }),
         scroll_button,
     ])
