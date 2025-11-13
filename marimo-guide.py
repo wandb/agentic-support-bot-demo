@@ -1624,30 +1624,18 @@ def _(
     # Render tabs with controlled value
     _tabs_ui = mo.ui.tabs(_tabs_dict, value=_tab_keys_list[_tab_idx])
     
-    # Render everything
+    # Render everything - when this cell re-renders (due to nav_button click), scroll to top
     mo.vstack([
-        mo.Html('<a id="top"></a>'),  # Anchor for scrolling
-        _tabs_ui,
         mo.Html('''
-            <div style="margin: 40px auto 20px; text-align: center;"></div>
+            <a id="top"></a>
             <script>
-                // Add event listener to button for scrolling
-                setTimeout(() => {
-                    const buttons = document.querySelectorAll('button');
-                    buttons.forEach(button => {
-                        // Remove any previous listener
-                        button.removeEventListener('click', window._scrollToTop);
-                        // Add new listener
-                        window._scrollToTop = function() {
-                            setTimeout(() => {
-                                document.getElementById('top')?.scrollIntoView({behavior: 'smooth', block: 'start'});
-                            }, 200);
-                        };
-                        button.addEventListener('click', window._scrollToTop);
-                    });
-                }, 50);
+                // This script runs every time the cell re-renders (when tab changes)
+                // Scroll to top immediately
+                window.scrollTo(0, 0);
             </script>
         '''),
+        _tabs_ui,
+        mo.Html('<div style="margin: 40px auto 20px; text-align: center;"></div>'),
         nav_button.center(),
     ])
 
