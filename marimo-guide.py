@@ -1630,21 +1630,27 @@ def _(
         _tabs_ui,
         mo.Html('''
             <div style="margin: 40px auto 20px; text-align: center;"></div>
-        '''),
-        nav_button.center(),
-        # Scroll to top after button is rendered
-        mo.Html('''
             <script>
-                // Use requestAnimationFrame to ensure DOM is ready, then scroll
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        window.location.hash = '#top';
-                        // Clear hash from URL bar
-                        history.replaceState(null, null, ' ');
+                // Add click listener to any button in the page
+                setTimeout(() => {
+                    const buttons = document.querySelectorAll('button');
+                    buttons.forEach(button => {
+                        const originalOnClick = button.onclick;
+                        button.onclick = function(e) {
+                            // Scroll to top
+                            setTimeout(() => {
+                                document.getElementById('top').scrollIntoView({behavior: 'smooth'});
+                            }, 150);
+                            // Call original handler if exists
+                            if (originalOnClick) {
+                                originalOnClick.call(this, e);
+                            }
+                        };
                     });
-                });
+                }, 100);
             </script>
         '''),
+        nav_button.center(),
     ])
 
 
