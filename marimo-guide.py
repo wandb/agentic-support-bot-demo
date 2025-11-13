@@ -1558,41 +1558,31 @@ def _(mo, copy_step6_btn, copy_step6_output):
 @app.cell
 def _(mo):
     # ============================================================================
-    # SCROLL TO TOP BUTTON
+    # TAB NAVIGATION
     # ============================================================================
-    # Create a centered scroll to top button using HTML
-    scroll_button = mo.Html("""
-    <style>
-        .scroll-to-top-centered {
-            display: block;
-            margin: 40px auto 20px;
-            background-color: #2563eb;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: 500;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transition: background-color 0.3s, transform 0.2s;
-            text-align: center;
-            width: fit-content;
-        }
-        .scroll-to-top-centered:hover {
-            background-color: #1d4ed8;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
-        }
-        .scroll-to-top-centered:active {
-            transform: translateY(0);
-        }
-    </style>
-    <a href="#top" class="scroll-to-top-centered">
-        ↑ Back to Top
-    </a>
-    """)
+    # Define tab keys in order (without icons, just the text)
+    TAB_KEYS = [
+        "Introduction",
+        "Project Setup", 
+        "Basic Agent",
+        "Vibe",
+        "Evaluate",
+        "Deploy",
+        "Monitor"
+    ]
     
-    return (scroll_button,)
+    return (TAB_KEYS,)
+
+
+@app.cell
+def _(mo, TAB_KEYS):
+    # ============================================================================
+    # TAB STATE
+    # ============================================================================
+    # Create state to track current tab index
+    get_tab_idx, set_tab_idx = mo.state(0)
+    
+    return get_tab_idx, set_tab_idx
 
 
 @app.cell
@@ -1605,23 +1595,57 @@ def _(
     step4_content,
     step5_content,
     step6_content,
-    scroll_button,
+    TAB_KEYS,
+    get_tab_idx,
+    set_tab_idx,
 ):
     # ============================================================================
-    # TABS NAVIGATION
+    # TABS NAVIGATION WITH NEXT BUTTON
     # ============================================================================
-    # Use tabs for step navigation - content variables prevent re-rendering issues
+    
+    # Get current tab index
+    _tab_idx = get_tab_idx()
+    
+    # Create tabs dict with icons
+    _tabs_dict = {
+        f"{mo.icon('lucide:home')} Introduction": intro_content,
+        f"{mo.icon('lucide:settings')} Project Setup": step1_content,
+        f"{mo.icon('lucide:bot')} Basic Agent": step2_content,
+        f"{mo.icon('lucide:refresh-cw')} Vibe": step3_content,
+        f"{mo.icon('lucide:database')} Evaluate": step4_content,
+        f"{mo.icon('lucide:rocket')} Deploy": step5_content,
+        f"{mo.icon('lucide:shield')} Monitor": step6_content,
+    }
+    _tab_keys_list = list(_tabs_dict.keys())
+    
+    # Calculate next index and button label
+    _next_idx = (_tab_idx + 1) % len(TAB_KEYS)
+    _is_last = _tab_idx == len(TAB_KEYS) - 1
+    _button_label = "↺ Back to Introduction" if _is_last else f"Next: {TAB_KEYS[_next_idx]} →"
+    
+    # Create navigation button
+    _nav_btn = mo.ui.button(
+        label=_button_label,
+        on_click=lambda: set_tab_idx(_next_idx),
+        kind="success" if _is_last else "primary"
+    )
+    
+    # Render tabs with controlled value
+    _tabs_ui = mo.ui.tabs(_tabs_dict, value=_tab_keys_list[_tab_idx])
+    
+    # Render everything
     mo.vstack([
-        mo.ui.tabs({
-            f"{mo.icon('lucide:home')} Introduction": intro_content,
-            f"{mo.icon('lucide:settings')} Project Setup": step1_content,
-            f"{mo.icon('lucide:bot')} Basic Agent": step2_content,
-            f"{mo.icon('lucide:refresh-cw')} Vibe": step3_content,
-            f"{mo.icon('lucide:database')} Evaluate": step4_content,
-            f"{mo.icon('lucide:rocket')} Deploy": step5_content,
-            f"{mo.icon('lucide:shield')} Monitor": step6_content,
-        }),
-        scroll_button,
+        mo.Html('<a id="top"></a>'),  # Anchor for scrolling
+        _tabs_ui,
+        mo.Html('''
+            <div style="margin: 40px auto 20px; text-align: center;">
+            </div>
+            <script>
+                // Scroll to top whenever tab changes
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            </script>
+        '''),
+        _nav_btn.center(),
     ])
 
 
