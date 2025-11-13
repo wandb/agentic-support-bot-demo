@@ -1621,33 +1621,34 @@ def _(
     }
     _tab_keys_list = list(_tabs_dict.keys())
     
-    # Determine if we're on the last tab
+    # Determine if we're on the last tab and create dynamic button label
     _is_last = _tab_idx == len(TAB_KEYS) - 1
+    _next_tab_name = TAB_KEYS[(_tab_idx + 1) % len(TAB_KEYS)]
+    _button_label = "↺ Back to Introduction" if _is_last else f"Next: {_next_tab_name} →"
     
     # Render tabs with controlled value
     _tabs_ui = mo.ui.tabs(_tabs_dict, value=_tab_keys_list[_tab_idx])
     
-    # Create styled button display with dynamic label
-    _button_display = mo.Html(f'''
-        <div style="margin: 40px auto 20px; text-align: center;">
-            <div style="display: inline-block;">
-                {'<span style="color: #10b981; font-weight: 600;">↺ Back to Introduction</span>' if _is_last else f'<span style="color: #3b82f6; font-weight: 600;">Next: {TAB_KEYS[(_tab_idx + 1) % len(TAB_KEYS)]} →</span>'}
-            </div>
-        </div>
-    ''')
+    # Create button with dynamic label (marimo tracks value across recreations)
+    _next_button = mo.ui.button(
+        label=_button_label,
+        value=nav_button.value,
+        on_click=lambda v: v + 1,
+        kind="success" if _is_last else "info"
+    )
     
     # Render everything
     mo.vstack([
         mo.Html('<a id="top"></a>'),  # Anchor for scrolling
         _tabs_ui,
         mo.Html('''
+            <div style="margin: 40px auto 20px; text-align: center;"></div>
             <script>
                 // Scroll to top whenever tab changes
                 window.scrollTo({top: 0, behavior: 'smooth'});
             </script>
         '''),
-        _button_display,
-        nav_button.center(),
+        _next_button.center(),
     ])
 
 
