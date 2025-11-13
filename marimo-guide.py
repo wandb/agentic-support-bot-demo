@@ -419,10 +419,10 @@ def _(mo, copy_2a_btn, copy_2b_btn, modal_url_input, weave_entity, weave_project
         I need to create a support ticket for authentication issues
         ```
         """),
-        mo.md("""
+        mo.md(f"""
         **🔍 Check traces in Weave:**
 
-        Navigate to Traces → filter for `Agent.stream` operations.
+        Navigate to [Traces]({_traces_url}) → filter for `Agent.stream` operations.
 
         **What to notice:**
         - Some traces show tool calls, others don't
