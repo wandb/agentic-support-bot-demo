@@ -54,7 +54,7 @@ def _():
 def _(mo):
     # Header with title and resource links
     mo.vstack([
-        mo.md("# 🤖 Agentic Support Bot - Interactive Guide"),
+        mo.md("# Building an Agentic Chatbot with Weave"),
         mo.md("""
         **Resources:** [GitHub](https://github.com/wandb/agentic-support-bot-demo) | 
         [Weave Docs](https://docs.wandb.ai/weave) | 
@@ -248,7 +248,8 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've configured your environment variables, continue to **Basic Agent** using the tabs above."),
                     kind="success"
-                )
+        ),
+        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
     ])
     
     return (step1_content,)
@@ -605,7 +606,8 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've deployed your dev server and tested in Weave Playground, continue to **Vibe** (iteration) using the tabs above."),
             kind="success"
-        )
+        ),
+        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
     ])
     
     return (step2_content,)
@@ -876,7 +878,8 @@ def _(mo, save_purpose_output, copy_tools_output, example_purpose_accordion, pur
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once your agent vibes as a support bot and uses tools correctly, continue to **Evaluate** using the tabs above."),
             kind="success"
-        )
+        ),
+        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
     ])
     
     return (step3_content,)
@@ -1118,7 +1121,8 @@ def _(mo, copy_step4_btn, copy_step4_output, weave_entity, weave_project):
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've run your evaluation and analyzed the results in Weave, continue to **Deploy** using the tabs above."),
             kind="success"
-        )
+        ),
+        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
     ])
     
     return (step4_content,)
@@ -1268,7 +1272,8 @@ def _(mo, prod_url_input, weave_entity, weave_project):
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've deployed to production and created your saved views, continue to **Monitor** to add guardrails and monitoring."),
             kind="success"
-        )
+        ),
+        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
     ])
     
     return (step5_content,)
@@ -1546,7 +1551,8 @@ def _(mo, copy_step6_btn, copy_step6_output):
         mo.callout(
             mo.md("🎉 **You've completed all steps!** Feel free to revisit any step using the tabs above."),
             kind="success"
-        )
+        ),
+        mo.Html('<div style="text-align: right; margin-top: 1rem;"><a href="#top" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">↑ Back to top</a></div>')
     ])
     
     return (step6_content,)
@@ -1555,56 +1561,12 @@ def _(mo, copy_step6_btn, copy_step6_output):
 @app.cell
 def _(mo):
     # ============================================================================
-    # SCROLL TO TOP BUTTON
+    # SCROLL TO TOP ANCHOR
     # ============================================================================
-    # Create a floating scroll to top button using HTML with embedded script
-    scroll_button = mo.Html("""
-    <div id="scroll-to-top-container">
-        <style>
-            .scroll-to-top {
-                position: fixed;
-                bottom: 30px;
-                right: 30px;
-                background-color: #2563eb;
-                color: white;
-                border: none;
-                border-radius: 50%;
-                width: 50px;
-                height: 50px;
-                font-size: 24px;
-                cursor: pointer;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                z-index: 1000;
-                transition: background-color 0.3s, transform 0.2s;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .scroll-to-top:hover {
-                background-color: #1d4ed8;
-                transform: scale(1.1);
-            }
-            .scroll-to-top:active {
-                transform: scale(0.95);
-            }
-        </style>
-        <button class="scroll-to-top" id="scrollTopBtn" title="Scroll to top">
-            ↑
-        </button>
-        <script>
-            (function() {
-                const btn = document.getElementById('scrollTopBtn');
-                if (btn) {
-                    btn.addEventListener('click', function() {
-                        window.scrollTo({top: 0, behavior: 'smooth'});
-                    });
-                }
-            })();
-        </script>
-    </div>
-    """)
+    # Add an invisible anchor at the top that we can link to
+    top_anchor = mo.Html('<div id="top"></div>')
     
-    return (scroll_button,)
+    return (top_anchor,)
 
 
 @app.cell
@@ -1617,13 +1579,14 @@ def _(
     step4_content,
     step5_content,
     step6_content,
-    scroll_button,
+    top_anchor,
 ):
     # ============================================================================
     # TABS NAVIGATION
     # ============================================================================
     # Use tabs for step navigation - content variables prevent re-rendering issues
     mo.vstack([
+        top_anchor,  # Invisible anchor at the top
         mo.ui.tabs({
             f"{mo.icon('lucide:home')} Introduction": intro_content,
             f"{mo.icon('lucide:settings')} Project Setup": step1_content,
@@ -1633,7 +1596,6 @@ def _(
             f"{mo.icon('lucide:rocket')} Deploy": step5_content,
             f"{mo.icon('lucide:shield')} Monitor": step6_content,
         }),
-        scroll_button,
     ])
 
 
