@@ -653,10 +653,11 @@ def _(mo, Path, yaml):
     if config_path.exists():
         try:
             _config_data = yaml.safe_load(config_path.read_text())
-            _current_purpose = _config_data.get("purpose", "")
-            _current_notes = _config_data.get("notes", "")
-        except:
-            _current_purpose = "# Config file not found or invalid. Copy Step 2B files first."
+            # Get purpose and notes, handling both string and multiline formats
+            _current_purpose = _config_data.get("purpose", "") or ""
+            _current_notes = _config_data.get("notes", "") or ""
+        except Exception as e:
+            _current_purpose = ""
             _current_notes = ""
     
     purpose_input = mo.ui.text_area(
@@ -665,7 +666,7 @@ def _(mo, Path, yaml):
         label="Purpose (What is the bot's role?)",
         rows=8,
         full_width=True,
-        on_change=lambda value: _save_config_field("purpose", value) if value else None
+        on_change=lambda value: _save_config_field("purpose", value) if value is not None else None
     )
     
     notes_input = mo.ui.text_area(
@@ -674,7 +675,7 @@ def _(mo, Path, yaml):
         label="Notes (Operational guidelines for the bot)",
         rows=6,
         full_width=True,
-        on_change=lambda value: _save_config_field("notes", value) if value else None
+        on_change=lambda value: _save_config_field("notes", value) if value is not None else None
     )
     
     copy_tools_btn = mo.ui.button(
@@ -791,14 +792,11 @@ def _(mo, copy_tools_output, example_purpose_accordion, purpose_input, notes_inp
         - List key capabilities
         - Add a `notes` section for operational guidelines
         """),
-        example_purpose_accordion,
         mo.md("**Edit your agent's purpose and notes below:**"),
-        mo.callout(
-            mo.md("💾 **Auto-save enabled** - Your changes are saved automatically as you type!"),
-            kind="info"
-        ),
         mo.vstack([purpose_input, notes_input]),
+        example_purpose_accordion,
         mo.md("""
+        
         **🔍 Test your changes:** Your changes auto-save and `modal serve` should auto-reload. Test in Weave Playground with the same prompts from Step 2.
 
         **Observe in Weave:** Does it feel more like a support bot? Check traces to see how `purpose` influences behavior.
