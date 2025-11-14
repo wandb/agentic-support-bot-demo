@@ -66,7 +66,7 @@ You can complete this tutorial using either:
 
 ### Option A: Interactive Guide (Marimo) 🎮 
 
-**Guided experience with one-click actions enbabling iteration without an editor.**
+**Guided experience with one-click actions enabling iteration without an editor.**
 
 Launch the interactive guide:
 
@@ -76,16 +76,8 @@ uv run marimo run marimo-guide.py
 
 The guide will open in your browser and walk you through:
 - ✅ Environment validation and setup
-- ✅ One-click file copying and deployments
-- ✅ Inline config editing
+- ✅ One-click file copying
 - ✅ Contextual links to Weave UI
-- ✅ Progress indicators for each step
-
-**Benefits:**
-- Faster completion (less time debugging commands)
-- Visual feedback and error prevention
-- Structured navigation (tabs instead of scrolling)
-- Still uses Weave UI for all analysis and testing
 
 **Note:** You'll still need a terminal open for some commands (like `tyler chat` and `modal serve`), but the guide provides copy buttons and clear instructions.
 
