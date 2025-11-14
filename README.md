@@ -64,9 +64,9 @@ uv sync
 
 You can complete this tutorial using either:
 
-### Option A: Interactive Guide (Marimo) 🎮 ← **Recommended**
+### Option A: Interactive Guide (Marimo) 🎮 
 
-**Guided experience with one-click actions, progress tracking, and less context switching.**
+**Guided experience with one-click actions enbabling iteration without an editor.**
 
 Launch the interactive guide:
 
@@ -95,7 +95,7 @@ The guide will open in your browser and walk you through:
 
 **Classic markdown tutorial - continue reading below for the full step-by-step guide.**
 
-If you prefer working directly in the terminal or can't use the Marimo interface, follow the steps below starting with [Step 1: Project Setup](#step-1-project-setup).
+If you prefer working directly in the terminal and with your editor, follow the steps below starting with [Step 1: Project Setup](#step-1-project-setup).
 
 Both paths cover the same content and learning objectives. Choose whichever you're more comfortable with!
 
