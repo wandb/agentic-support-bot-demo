@@ -111,9 +111,10 @@ so that I can get immediate feedback and confidence before tackling Modal deploy
 
 - **Same agent code path as server**:
   - Use `Agent.from_config("workspace/tyler-chat-config.yaml")` to load agent
-  - Use `agent.stream(thread)` to generate responses (same as server)
+  - Use `agent.run(thread)` to generate responses (simpler non-streaming approach)
   - Connect MCP servers if configured with `await agent.connect_mcp()` (same as server)
   - If agent works in Step 2A, it MUST work in Step 2B deployment
+  - Note: Server uses `agent.stream()` but behavior should be identical
 
 - **Browser-only experience**:
   - No terminal commands required in Step 2A
@@ -123,8 +124,9 @@ so that I can get immediate feedback and confidence before tackling Modal deploy
 - **Chat widget implementation**:
   - Use `mo.ui.chat()` with custom function adapter
   - Adapter converts marimo messages to Tyler `Thread`/`Message` format
-  - Stream responses token-by-token for good UX
+  - Use `agent.run()` to get complete responses (streaming not supported in marimo custom functions)
   - Handle async agent calls properly in marimo context
+  - Note: Streaming can be added in future enhancement
 
 - **Error handling**:
   - Graceful degradation if agent fails to load
@@ -156,7 +158,7 @@ so that I can get immediate feedback and confidence before tackling Modal deploy
 
 ### Nice to Have (Optional)
 
-- Show typing indicator while agent is processing
+- Show loading indicator while agent is processing
 - Display token count or latency for educational purposes
 - Side-by-side view: chat + live trace viewer
 - Export conversation history
@@ -164,6 +166,7 @@ so that I can get immediate feedback and confidence before tackling Modal deploy
 - Configurable model parameters (temperature, max_tokens) in UI
 - Conversation reset button
 - Markdown rendering in agent responses
+- **Future enhancement: Streaming responses** (requires custom marimo integration or alternative approach)
 
 ## Acceptance Criteria
 
@@ -176,8 +179,8 @@ so that I can get immediate feedback and confidence before tackling Modal deploy
 
 ### Chat Interaction
 
-- **Given** agent is loaded, **when** user types message and hits send, **then** agent responds using `agent.stream(thread)`
-- **Given** agent is generating response, **when** streaming, **then** user sees tokens appear in real-time
+- **Given** agent is loaded, **when** user types message and hits send, **then** agent responds using `agent.run(thread)`
+- **Given** agent is generating response, **when** processing, **then** user sees loading indicator (response appears when complete)
 - **Given** user sends multiple messages, **when** building conversation, **then** full thread context is maintained
 - **Given** agent calls a tool, **when** processing, **then** tool call is visible in trace (not necessarily in chat UI)
 
@@ -248,13 +251,14 @@ This enhancement fits into the existing structure (from `marimo-guide.py`):
 
 **Enhanced Step 2A** (this spec):
 - Copy files button (unchanged)
-- Chat widget with Tyler Agent (NEW)
+- Chat widget with Tyler Agent using `agent.run()` (NEW)
 - Suggested prompts as clickable buttons (enhanced)
 - Inline trace link (enhanced)
 - Optional: Terminal instructions in accordion (for advanced users)
+- Note: Non-streaming for simplicity, can add streaming later
 
 **Step 2B** (lines ~540-620) - Unchanged:
-- Modal deployment
+- Modal deployment with streaming support
 - Weave Playground testing
 - Production-like environment
 
