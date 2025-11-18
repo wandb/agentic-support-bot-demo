@@ -461,7 +461,230 @@ def _(mo, copy_2a_btn, copy_2b_btn, modal_url_input, weave_entity, weave_project
 
 
 @app.cell
-def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_input, modal_instructions, team_secrets_output, weave_entity, weave_project):
+def _(yaml, os, Path):
+    # ============================================================================
+    # STEP 2A: AGENT LOADING (for in-browser chat)
+    # ============================================================================
+    import weave
+    
+    def load_agent_from_config(_config_path):
+        """
+        Load Tyler Agent using same approach as server.
+        
+        Returns:
+            (agent, config_dict, status_message)
+        """
+        try:
+            # Check if config exists
+            if not _config_path.exists():
+                return None, None, f"⚠️ Config file not found: {_config_path}. Click 'Copy Step 2A Files' button above."
+            
+            # Load config YAML
+            with open(_config_path) as f:
+                config = yaml.safe_load(f)
+            
+            # Initialize Weave if not already done
+            try:
+                project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+                weave.init(project)
+            except Exception:
+                # If Weave init fails, continue anyway (agent can still work)
+                pass
+            
+            # Import Tyler Agent
+            from tyler import Agent
+            
+            # Load agent using same method as server
+            agent = Agent.from_config(str(_config_path))
+            
+            # Build status message
+            model_name = config.get("model_name", "unknown")
+            agent_name = config.get("name", "agent")
+            status = f"✅ Agent loaded: {agent_name} (model: {model_name})"
+            
+            # Note: MCP connection happens in chat function if needed
+            if config.get("mcp"):
+                status += " | MCP configured"
+            
+            return agent, config, status
+            
+        except yaml.YAMLError as e:
+            return None, None, f"❌ Invalid YAML syntax: {str(e)}"
+        except KeyError as e:
+            return None, None, f"❌ Missing required field in config: {e}"
+        except Exception as e:
+            return None, None, f"❌ Failed to load agent: {str(e)}"
+    
+    # Load agent if config file exists in workspace
+    _config_path_2a = Path("workspace/tyler-chat-config.yaml")
+    if _config_path_2a.exists():
+        try:
+            agent_2a, config_2a, agent_status_2a = load_agent_from_config(_config_path_2a)
+        except Exception as e:
+            # If agent loading fails, show error but don't crash
+            agent_2a, config_2a, agent_status_2a = None, None, f"❌ Failed to load agent: {str(e)}"
+    else:
+        agent_2a, config_2a, agent_status_2a = None, None, ""
+    
+    return agent_2a, config_2a, agent_status_2a, load_agent_from_config
+
+
+@app.cell
+def _(agent_2a, agent_status_2a):
+    # ============================================================================
+    # STEP 2A: CHAT ADAPTER (convert marimo messages to Tyler format)
+    # ============================================================================
+    import asyncio
+    
+    def create_chat_adapter(agent):
+        """
+        Create chat function for mo.ui.chat() that uses Tyler Agent.
+        
+        Args:
+            agent: Loaded Tyler Agent instance
+            
+        Returns:
+            Callable compatible with mo.ui.chat() signature
+        """
+        def sync_chat(messages, config):
+            """
+            Sync chat function using Tyler Agent.
+            
+            Args:
+                messages: List of {"role": str, "content": str}
+                config: Model config from marimo (unused, for compatibility)
+                
+            Returns:
+                Complete response string from agent
+            """
+            try:
+                from tyler import Thread, Message
+                
+                # Convert marimo messages to Tyler Thread
+                thread = Thread()
+                for msg in messages:
+                    thread.add_message(Message(
+                        role=msg["role"],
+                        content=msg["content"]
+                    ))
+                
+                # Run agent - handle async in marimo's event loop
+                # Use ThreadPoolExecutor to run async code from sync context
+                import concurrent.futures
+                
+                def run_async_in_thread():
+                    # Create new event loop in thread
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        # Use agent.run() non-streaming mode (preferred method)
+                        return new_loop.run_until_complete(agent.run(thread))
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_async_in_thread)
+                    result = future.result()
+                
+                # Extract final assistant message from AgentResult
+                # result.content contains the final assistant response
+                if result.content:
+                    return result.content
+                elif result.new_messages:
+                    # Fallback: get last assistant message
+                    for msg in reversed(result.new_messages):
+                        if msg.role == "assistant":
+                            return msg.content
+                    return "No response generated."
+                else:
+                    return "No response generated."
+                
+            except Exception as e:
+                return f"❌ Error: {str(e)}\n\nPlease check your configuration and try again."
+        
+        return sync_chat
+    
+    # Create chat function if agent is loaded
+    if agent_2a is not None:
+        chat_function_2a = create_chat_adapter(agent_2a)
+    else:
+        chat_function_2a = None
+    
+    return chat_function_2a, create_chat_adapter
+
+
+@app.cell
+def _(mo, agent_2a, chat_function_2a, agent_status_2a):
+    # ============================================================================
+    # STEP 2A: CHAT WIDGET
+    # ============================================================================
+    
+    if agent_2a is not None and chat_function_2a is not None:
+        # Show agent status (success)
+        agent_status_display = mo.callout(
+            mo.md(agent_status_2a),
+            kind="success"
+        )
+        
+        # Create chat widget with suggested prompts
+        chat_widget_2a = mo.ui.chat(
+            chat_function_2a,
+            prompts=[
+                "How do I initialize Weave in Python?",
+                "I'm getting API timeout errors. Can you help?",
+                "What's the status of ticket #10234?",
+                "Can you explain how to track model performance in wandb?",
+                "I need to create a support ticket for authentication issues"
+            ],
+            show_configuration_controls=False
+        )
+    elif agent_status_2a and agent_status_2a.startswith("❌"):
+        # Show error status if agent failed to load
+        agent_status_display = mo.callout(
+            mo.md(agent_status_2a),
+            kind="danger"
+        )
+        chat_widget_2a = None
+    else:
+        # No agent, no error (files don't exist yet)
+        agent_status_display = mo.md("")
+        chat_widget_2a = None
+    
+    return agent_status_display, chat_widget_2a
+
+
+@app.cell
+def _(mo, weave_entity, weave_project, chat_widget_2a):
+    # ============================================================================
+    # STEP 2A: WEAVE TRACE LINKS
+    # ============================================================================
+    from urllib.parse import quote
+    
+    if chat_widget_2a is not None and len(chat_widget_2a.value) > 0:
+        # Generate filtered Weave URL for Agent.run operations
+        base_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+        filter_param = quote("op_name=Agent.run")
+        traces_url = f"{base_url}?filter={filter_param}"
+        
+        weave_link_2a = mo.md(f"""
+        **🔍 View your traces:**
+        
+        [Open Weave Traces]({traces_url}) - filtered to show `Agent.run` operations
+        
+        Click into a trace to see:
+        - Full conversation context
+        - Agent reasoning steps
+        - Tool calls (if any)
+        - Timing and token usage
+        """)
+    else:
+        weave_link_2a = mo.md("")
+    
+    return weave_link_2a,
+
+
+@app.cell
+def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_input, modal_instructions, team_secrets_output, weave_entity, weave_project, agent_status_display, chat_widget_2a, weave_link_2a):
     # ============================================================================
     # STEP 2: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -488,8 +711,16 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
             This gives you:
             - `main.py` - Basic agent execution script
             - `tyler-chat-config.yaml` - Minimal agent configuration (generic purpose, no tools yet)
-
-            **Test it using Slide's chat CLI:**
+            """),
+        
+        # Show chat widget if agent is loaded
+        agent_status_display,
+        mo.md("**💬 Test your agent in the browser:**") if chat_widget_2a is not None else mo.md(""),
+        chat_widget_2a if chat_widget_2a is not None else mo.md(""),
+        weave_link_2a,
+        
+        mo.md("""
+            **Or test using Slide's chat CLI:**
 
             Run this in your **terminal**:
 
@@ -523,7 +754,7 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
             mo.md(f"""
             **🔍 Explore Weave:**
 
-            1. [View your Weave Traces]({_traces_url}) and look for Agent.stream operations
+            1. [View your Weave Traces]({_traces_url}) and look for Agent.run or Agent.stream operations
             2. Click into a trace to see the full interaction
 
             **Questions to explore:**
