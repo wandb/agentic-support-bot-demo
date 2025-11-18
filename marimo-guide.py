@@ -551,7 +551,7 @@ def _(agent_2a, agent_status_2a):
             Sync chat function using Tyler Agent.
             
             Args:
-                messages: List of {"role": str, "content": str}
+                messages: List of ChatMessage objects (or dicts with role/content)
                 config: Model config from marimo (unused, for compatibility)
                 
             Returns:
@@ -563,9 +563,18 @@ def _(agent_2a, agent_status_2a):
                 # Convert marimo messages to Tyler Thread
                 thread = Thread()
                 for msg in messages:
+                    # Handle both ChatMessage objects (with .role and .content attributes)
+                    # and dict-like messages (with ["role"] and ["content"] keys)
+                    if hasattr(msg, "role") and hasattr(msg, "content"):
+                        role = msg.role
+                        content = msg.content
+                    else:
+                        role = msg["role"]
+                        content = msg["content"]
+                    
                     thread.add_message(Message(
-                        role=msg["role"],
-                        content=msg["content"]
+                        role=role,
+                        content=content
                     ))
                 
                 # Run agent - handle async in marimo's event loop
