@@ -518,11 +518,7 @@ def _(yaml, os, Path):
     # Load agent if config file exists in workspace
     _config_path_2a = Path("workspace/tyler-chat-config.yaml")
     if _config_path_2a.exists():
-        try:
-            agent_2a, config_2a, agent_status_2a = load_agent_from_config(_config_path_2a)
-        except Exception as e:
-            # If agent loading fails, show error but don't crash
-            agent_2a, config_2a, agent_status_2a = None, None, f"❌ Failed to load agent: {str(e)}"
+        agent_2a, config_2a, agent_status_2a = load_agent_from_config(_config_path_2a)
     else:
         agent_2a, config_2a, agent_status_2a = None, None, ""
     
@@ -530,7 +526,7 @@ def _(yaml, os, Path):
 
 
 @app.cell
-def _(agent_2a, agent_status_2a):
+def _(agent_2a):
     # ============================================================================
     # STEP 2A: CHAT ADAPTER (convert marimo messages to Tyler format)
     # ============================================================================
