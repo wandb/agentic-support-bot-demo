@@ -84,25 +84,16 @@ def _(mo):
     intro_content = mo.vstack([
     mo.md("""
     ## 
-    ## Goal
 
-    Using our own products regularly helps us better empathize with and understand our users' needs. This repo provides a streamlined guide to experience how Weave works in a typical AI development workflow.
+    This guide shows you how Weave works in a real AI development workflow by building and deploying a production-ready support bot.
 
-    **Go from zero to a production-deployed support bot with systematic evaluation, real-time monitoring, and continuous improvement.**
-
-    ## Project
+    ## Your Task
 
     Build a support bot for Weights & Biases that can:
     - Answer questions about our product (from our docs)
-    - Create and give updates on support tickets
+    - Create and manage support tickets
 
-    ### Your Task
-
-    **Get this bot ready for production.** Going from 0 to demo is easy, but can you build an agent ready to face real customer questions? Discover:
-
-    - Where Weave shines in the development process
-    - What features are intuitive vs. confusing
-    - What's missing or could be improved
+    Get it production-ready and discover where Weave shines, what's intuitive, and what could be improved.
 
     ---
     
@@ -210,35 +201,27 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
     step1_content = mo.vstack([
         mo.md("""
         ## 
-        ## Project Setup
+        
+        Configure API keys to connect your agent to Weave, LLMs, and other services.
 
-        This repo includes dependencies, configuration files, and example code so you can focus on agent-specific decisions rather than boilerplate setup.
-
-        **Configure environment variables**
         """),
         mo.md("### W&B API key"),
         mo.md("Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
         wandb_key_input,
-        mo.md("--"),
+        mo.md("---"),
         mo.md("### W&B Project Name"),
         mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb-designers/agentic-support-bot-yourname`)"),
-        mo.md("⚠️ **Important:** Include your entity name (check [W&B Settings](https://wandb.ai/settings)) and add unique suffix to project"),
         wandb_project_input,
-        mo.md("--"),
+        mo.md("---"),
         mo.md("### OpenAI API key"),
         mo.md("Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)"),
         openai_key_input,
         mo.md("*Required for guardrails (uses OpenAI's Moderation API)*"),
-        mo.md("--"),
+        mo.md("---"),
         mo.md("### Support bot API key"),
         mo.md("Choose any random string (e.g., `my-secret-key-123`)"),
         mo.md("*Used to authenticate requests to your Modal deployment and in W&B Team Secrets*"),
         bot_key_input,
-        mo.md("--"),
-        mo.md("""    
-        **Note**: This demo uses W&B Inference with the DeepSeek model by default. You can use other LLM providers supported by [LiteLLM](https://docs.litellm.ai/docs/providers).
-        """),
-        mo.md("---"),
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've configured your environment variables, continue to **Basic Agent** using the tabs above."),
             kind="success"
@@ -698,9 +681,8 @@ def _(mo, copy_2a_btn, copy_2a_output, copy_2b_btn, copy_2b_output, modal_url_in
     step2_content = mo.vstack([
         mo.md("""
         ##  
-        ## Get a Basic Agent Running
 
-        Build your agent incrementally, starting simple and adding complexity. Use **Weave at each stage** to understand what's happening.
+        We will build your agent incrementally, starting simple and adding complexity, using **Weave at each stage** to understand what's happening.
 
         **Note:** This demo uses the [Slide framework](https://slide.mintlify.app) to get an agent running quickly so you can focus on Weave's observability and evaluation workflow.
 
@@ -1785,35 +1767,39 @@ def _(mo):
     # ============================================================================
     # SCROLL TO TOP BUTTON
     # ============================================================================
-    # Create a centered scroll to top button using HTML
+    # Create a floating circular scroll to top button on the right side
     scroll_button = mo.Html("""
     <style>
-        .scroll-to-top-centered {
-            display: block;
-            margin: 40px auto 20px;
+        .scroll-to-top-float {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            width: 48px;
+            height: 48px;
             background-color: #2563eb;
             color: white;
             text-decoration: none;
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: 500;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transition: background-color 0.3s, transform 0.2s;
-            text-align: center;
-            width: fit-content;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+            z-index: 1000;
         }
-        .scroll-to-top-centered:hover {
+        .scroll-to-top-float:hover {
             background-color: #1d4ed8;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+            transform: translateY(-4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
         }
-        .scroll-to-top-centered:active {
-            transform: translateY(0);
+        .scroll-to-top-float:active {
+            transform: translateY(-2px);
         }
     </style>
-    <a href="#top" class="scroll-to-top-centered">
-        ↑ Back to Top
+    <a href="#top" class="scroll-to-top-float">
+        ↑
     </a>
     """)
     
