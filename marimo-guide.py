@@ -256,6 +256,17 @@ def _(mo, glob, Path, shutil, json, os):
             _filename = Path(_src).name
             shutil.copy2(_src, _step3_dest / _filename)
     
+    # Auto-copy Step 4 files (independent from Step 3)
+    # Users start with baseline config and iterate to improve it
+    _step4_dest = Path("workspace/step-4")
+    _step4_config = _step4_dest / "tyler-chat-config.yaml"
+    if not _step4_config.exists():
+        _source_files = glob("examples/step-4/*.py") + glob("examples/step-4/*.yaml")
+        _step4_dest.mkdir(parents=True, exist_ok=True)
+        for _src in _source_files:
+            _filename = Path(_src).name
+            shutil.copy2(_src, _step4_dest / _filename)
+    
     # Set database path to shared location (not per-step)
     # This allows all steps to share the same ticket database
     _shared_db_path = Path("db/tickets.json").absolute()
@@ -337,6 +348,46 @@ def _(config_editor_3, Path):
         _config_path_3_save = Path("workspace/step-3/tyler-chat-config.yaml")
         _config_path_3_save.parent.mkdir(parents=True, exist_ok=True)
         _config_path_3_save.write_text(config_editor_3.value)
+    
+    return
+
+
+@app.cell
+def _(mo, Path, step4_inputs_tuple):
+    # ============================================================================
+    # STEP 4: CONFIG EDITOR (refreshes when inputs change)
+    # ============================================================================
+    
+    # Depends on step4_inputs_tuple to ensure save happens first
+    # Then reload config from file (will reflect any input changes)
+    _config_path_4 = Path("workspace/step-4/tyler-chat-config.yaml")
+    
+    # Trigger reload by depending on the inputs tuple (after save completes)
+    _ = step4_inputs_tuple
+    
+    _current_config_4 = _config_path_4.read_text() if _config_path_4.exists() else "# Config loading..."
+    
+    # Create read-only config editor (shows current state)
+    config_editor_4 = mo.ui.code_editor(
+        value=_current_config_4,
+        language="yaml",
+        min_height=400,
+        disabled=True  # Read-only since users edit via inputs
+    )
+    
+    return config_editor_4,
+
+
+@app.cell
+def _(config_editor_4, Path):
+    # ============================================================================
+    # STEP 4: SAVE CONFIG ON CHANGE
+    # ============================================================================
+    # Save config when edited
+    if config_editor_4.value:
+        _config_path_4_save = Path("workspace/step-4/tyler-chat-config.yaml")
+        _config_path_4_save.parent.mkdir(parents=True, exist_ok=True)
+        _config_path_4_save.write_text(config_editor_4.value)
     
     return
 
@@ -446,6 +497,27 @@ def _(yaml, os, Path, load_agent_from_config, config_editor_3):
         agent_3, config_3, agent_status_3 = None, None, ""
     
     return agent_3, config_3, agent_status_3
+
+
+@app.cell
+def _(yaml, os, Path, load_agent_from_config, config_editor_4, step4_inputs_tuple):
+    # ============================================================================
+    # STEP 4: AGENT LOADING (iterate) - RELOADS ON CONFIG CHANGE
+    # ============================================================================
+    
+    # Depends on step4_inputs_tuple to ensure save happens first
+    # Trigger reload by depending on the inputs tuple (after save completes)
+    _ = step4_inputs_tuple
+    
+    # Load agent if Step 4 config exists in workspace/step-4/
+    # Depends on config_editor_4 AND the input tuple so it reloads when they change
+    _config_path_4 = Path("workspace/step-4/tyler-chat-config.yaml")
+    if _config_path_4.exists():
+        agent_4, config_4, agent_status_4 = load_agent_from_config(_config_path_4)
+    else:
+        agent_4, config_4, agent_status_4 = None, None, ""
+    
+    return agent_4, config_4, agent_status_4
 
 
 @app.cell
@@ -624,6 +696,38 @@ def _(mo, agent_3, chat_function_2a, agent_status_3, create_chat_adapter):
 
 
 @app.cell
+def _(mo, agent_4, agent_status_4, create_chat_adapter):
+    # ============================================================================
+    # STEP 4: CHAT WIDGET (iterate)
+    # ============================================================================
+    
+    if agent_4 is not None:
+        # Create chat function for Step 4 agent
+        chat_function_4 = create_chat_adapter(agent_4)
+        
+        # Create chat widget with prompts
+        chat_widget_4 = mo.ui.chat(
+            chat_function_4,
+            prompts=[
+                "How do I initialize Weave in Python?",
+                "I'm getting API timeout errors. Can you help?",
+                "What's the status of ticket #10234?",
+                "Can you explain how to track model performance in wandb?",
+                "I need to create a support ticket for authentication issues"
+            ],
+            show_configuration_controls=False
+        )
+    elif agent_status_4 and agent_status_4.startswith("❌"):
+        # Show error status if agent failed to load
+        chat_widget_4 = None
+    else:
+        # No agent, no error (files don't exist yet)
+        chat_widget_4 = None
+    
+    return chat_widget_4, chat_function_4
+
+
+@app.cell
 def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2):
     # ============================================================================
     # STEP 2: CONTENT (Pre-computed as value, not function)
@@ -781,251 +885,240 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
 @app.cell
 def _(mo, Path, yaml):
     # ============================================================================
-    # STEP 4: UI ELEMENTS
+    # STEP 4: UI ELEMENTS (Name/Purpose/Notes Inputs)
     # ============================================================================
     
-    # Helper function to save config field (auto-save)
-    def _save_config_field(field_name, value):
-        """Save a single field to the Tyler config YAML file"""
-        _config_path = Path("workspace/tyler-chat-config.yaml")
-        
-        if not _config_path.exists():
-            return  # Don't create config if it doesn't exist yet
-        
-        try:
-            # Read current config
-            _config_data = yaml.safe_load(_config_path.read_text())
-            
-            # Update field
-            _config_data[field_name] = value
-            
-            # Write back
-            _config_path.write_text(yaml.dump(_config_data, default_flow_style=False, sort_keys=False))
-        except Exception as e:
-            pass  # Silently fail to avoid interrupting user experience
-    
-    # Load current config and extract purpose/notes
-    config_path = Path("workspace/tyler-chat-config.yaml")
+    # Load current config and extract name/purpose/notes from Step 4
+    _config_path_step4 = Path("workspace/step-4/tyler-chat-config.yaml")
+    _current_name = ""
     _current_purpose = ""
     _current_notes = ""
     
-    if config_path.exists():
+    if _config_path_step4.exists():
         try:
-            _config_data = yaml.safe_load(config_path.read_text())
-            # Get purpose and notes, handling both string and multiline formats
+            _config_data = yaml.safe_load(_config_path_step4.read_text())
+            # Get name, purpose and notes
+            _current_name = _config_data.get("name", "") or ""
             _current_purpose = _config_data.get("purpose", "") or ""
             _current_notes = _config_data.get("notes", "") or ""
         except Exception as e:
+            _current_name = ""
             _current_purpose = ""
             _current_notes = ""
+    
+    # Create inputs WITHOUT on_change callbacks
+    # We'll handle saving in a separate reactive cell
+    name_input = mo.ui.text(
+        value=_current_name,
+        placeholder="Buzz",
+        full_width=True,
+    )
     
     purpose_input = mo.ui.text_area(
         value=_current_purpose,
         placeholder="You are a support bot for Weights & Biases...",
-        label="Purpose (What is the bot's role?)",
         rows=8,
         full_width=True,
-        on_change=lambda value: _save_config_field("purpose", value) if value is not None else None
     )
     
     notes_input = mo.ui.text_area(
         value=_current_notes,
         placeholder="- Use search_docs for questions about W&B features\n- Use create_issue when users report problems\n...",
-        label="Notes (Operational guidelines for the bot)",
         rows=6,
         full_width=True,
-        on_change=lambda value: _save_config_field("notes", value) if value is not None else None
     )
     
-    copy_tools_btn = mo.ui.button(
-        label="📁 Copy Improved Tools from Step 3",
-        value=0,
-        on_click=lambda v: v + 1
-    )
-    
-    return config_path, purpose_input, notes_input, copy_tools_btn
+    return name_input, purpose_input, notes_input
 
 
 @app.cell
-def _(mo, purpose_input, notes_input, copy_tools_btn, config_path, Path, yaml, shutil):
+def _(Path, name_input, purpose_input, notes_input):
     # ============================================================================
-    # STEP 3: BUTTON LOGIC
+    # STEP 4: SAVE INPUTS TO CONFIG (reactive - runs when inputs change)
     # ============================================================================
+    # This cell runs whenever the input VALUES change, and writes to the file
+    # BEFORE any dependent cells (config_editor_4, agent_4) read the file.
+    # This ensures no race conditions.
     
-    # Purpose and notes now auto-save on change (see UI ELEMENTS cell)
-    # No explicit save button needed anymore
+    _config_path_save = Path("workspace/step-4/tyler-chat-config.yaml")
     
-    # Handle copying improved tools (from Step 4)
-    if copy_tools_btn.value:
+    # Use a tuple of input values as the marker - this will change when inputs change
+    # Dependent cells will see this tuple change and re-execute
+    step4_inputs_tuple = (name_input.value, purpose_input.value, notes_input.value)
+    
+    if _config_path_save.exists():
         try:
-            _src = "examples/step-4/tools.py"
-            _dest = Path("workspace/tools.py")
-            shutil.copy2(_src, _dest)
-
-            copy_tools_output = mo.callout(
-                mo.md("""
-                ✅ **Improved tools copied!**
-
-                The new `tools.py` has detailed descriptions and examples.
-                Your `modal serve` should auto-reload.
-                """),
-                kind="success"
-            )
+            from ruamel.yaml import YAML
+            
+            # Initialize YAML handler with comment preservation
+            _yaml = YAML()
+            _yaml.preserve_quotes = True
+            _yaml.default_flow_style = False
+            _yaml.width = 4096  # Prevent line wrapping
+            
+            # Load config with comments
+            with open(_config_path_save) as f:
+                _config = _yaml.load(f)
+            
+            # Update fields from inputs
+            _config["name"] = name_input.value if name_input.value else ""
+            _config["purpose"] = purpose_input.value if purpose_input.value else ""
+            _config["notes"] = notes_input.value if notes_input.value else ""
+            
+            # Write back with comments preserved
+            with open(_config_path_save, 'w') as f:
+                _yaml.dump(_config, f)
+                
+        except ImportError:
+            # Fallback to basic yaml if ruamel.yaml not available
+            import yaml as _pyyaml
+            _config_data = _pyyaml.safe_load(_config_path_save.read_text())
+            _config_data["name"] = name_input.value if name_input.value else ""
+            _config_data["purpose"] = purpose_input.value if purpose_input.value else ""
+            _config_data["notes"] = notes_input.value if notes_input.value else ""
+            _config_path_save.write_text(_pyyaml.dump(_config_data, default_flow_style=False, sort_keys=False))
         except Exception as e:
-            copy_tools_output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
-    else:
-        _tools_exists = Path("workspace/tools.py").exists()
-        if _tools_exists:
-            copy_tools_output = mo.md("ℹ️ `tools.py` exists - click to overwrite with improved version")
-        else:
-            copy_tools_output = mo.md("")
+            pass  # Silently fail to avoid interrupting user experience
+    
+    # Return the tuple - when this changes, dependent cells know to re-execute
+    return (step4_inputs_tuple,)
+
+
+@app.cell
+def _(mo):
+    # ============================================================================
+    # STEP 4: EXAMPLE PURPOSE/NOTES ACCORDIONS (separate)
+    # ============================================================================
     
     # Example purpose accordion
     example_purpose_accordion = mo.accordion(
         {
-            "💡 Stuck? Click to see an example purpose (but try your own first!)": mo.md("""
-            Here's the `purpose` and `notes` from `examples/step-4/tyler-chat-config.yaml`:
+            "💡 Need inspiration? See an example purpose": mo.md("""
+```
+You are a support bot for Weights & Biases (W&B), helping users with their ML tooling needs.
 
-            ```yaml
-            purpose: |
-              You are a support bot for Weights & Biases (W&B), helping users with their ML tooling needs.
-              
-              Your role is to:
-              1. Help users with questions about W&B features and functionality (Models, Weave, Training, Evaluation etc.)
-              2. Search the W&B documentation when users ask how-to questions
-              3. Create and manage support tickets for issues users report
-              
-              Always be friendly, clear, and helpful in your responses.
+Your role is to:
+1. Help users with questions about W&B features and functionality (Models, Weave, Training, Evaluation etc.)
+2. Search the W&B documentation when users ask how-to questions
+3. Create and manage support tickets for issues users report
 
-            notes: |
-              - Use the search_docs tool for questions about W&B features and usage
-              - Use create_issue for when users report problems or need help with W&B
-              - Use get_issue to check on existing support tickets
-              - Ask clarifying questions if the user's request is unclear
-              - Be proactive in suggesting next steps
-            ```
-
-            **Remember:** This is just one approach. Feel free to adapt it to your own style!
+Always be friendly, clear, and helpful in your responses.
+```
             """)
         }
     )
     
-    return copy_tools_output, example_purpose_accordion
+    # Example notes accordion
+    example_notes_accordion = mo.accordion(
+        {
+            "💡 Need inspiration? See example notes": mo.md("""
+```
+- Use the search_docs tool for questions about W&B features and usage
+- Use create_issue for when users report problems or need help with W&B
+- Use get_issue to check on existing support tickets
+- Ask clarifying questions if the user's request is unclear
+- Be proactive in suggesting next steps
+```
+            """)
+        }
+    )
+    
+    return example_purpose_accordion, example_notes_accordion
 
 
 @app.cell
-def _(mo, copy_tools_output, example_purpose_accordion, purpose_input, notes_input, copy_tools_btn):
+def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_purpose_accordion, example_notes_accordion, name_input, purpose_input, notes_input):
     # ============================================================================
     # STEP 4: CONTENT (Pre-computed as value, not function)
     # ============================================================================
-    step4_content = mo.vstack([
-        mo.md("""
-        ##  
-        ## Iterate to Make it Vibe as a Support Agent
-
-        **What You're Learning:** The core Weave workflow - **observe → diagnose → fix → verify**.
-
-        **The Problem:**
-
-        Looking at your Weave traces from Step 3:
-        - Agent responds but doesn't consistently use tools when it should
-        - Feels like a generic assistant, not a support bot
-        - ❌ Generic purpose ("helpful AI assistant")
-        - ❌ Tool definitions missing descriptions and parameters
-
-        **🎯 Your Goal:** Make the agent understand its role as a W&B support bot and know when/how to use its tools.
-
-        ---
-
-        ### Iteration 1: Give Your Agent a Clear Purpose
-
-        The `purpose` field in `workspace/tyler-chat-config.yaml` is currently `"You are a helpful AI assistant."` (too generic!)
-
-        **Your task:** Rewrite `purpose` to be specific to a W&B support bot. Consider:
-        - What's the bot's role? (support for Weights & Biases products)
-        - What should it do? (answer questions, create tickets, search docs)
-        - What tone? (professional, helpful, concise)
-
-        **Hints:**
-        - Be specific about the product/company
-        - List key capabilities
-        - Add a `notes` section for operational guidelines
-        """),
-        mo.md("**Edit your agent's purpose and notes below:**"),
-        mo.vstack([purpose_input, notes_input]),
-        example_purpose_accordion,
-        mo.md("""
+    try:
+        # Build Weave traces URL
+        _traces_url_4 = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
         
-        **🔍 Test your changes:** Your changes auto-save and `modal serve` should auto-reload. Test in Weave Playground with the same prompts from Step 3.
+        # Single column layout matching Steps 2-3
+        step4_content = mo.vstack([
+            mo.md("""
+            ## 
 
-        **Observe in Weave:** Does it feel more like a support bot? Check traces to see how `purpose` influences behavior.
+            **Goal:** Improve the agent's behavior by giving it a clear purpose and operational guidelines.
 
-        ---
+            The agent from Step 3 has tools but the agent is still stuck in the "generic assistant" mode. Let's fix that by:
+            - **Naming your agent**: Give it personality!
+            - **Defining a clear purpose**: What is this agent's role?  How should it behave?  How should it respond?
+            - **Adding operational notes**: When should it use each tool?
+            """),
+            
+            mo.md("""
+            ### Name
+            """),
 
-        ### Iteration 2: Copy Pre-Configured Tools
+            name_input,
 
-        Now that you've given your agent a clear purpose, let's add properly configured tools so it can actually help users.
+            mo.md("""
+            ### Purpose
+            """),
 
-        **What will change?** The fully configured tools include:
-        - Detailed tool descriptions (when to use each tool)
-        - Complete parameter definitions (what arguments to pass)
-        - Examples and guidance for the agent
+            example_purpose_accordion,
 
-        💡 **Optional:** You can iterate on these tool descriptions to improve agent behavior. Good tool descriptions help the agent know WHEN and HOW to use each tool.
-        """),
-        copy_tools_btn,
-        copy_tools_output,
-        mo.md("""
-        ---
+            purpose_input,
 
-        ### Iteration 3: Verify Your Improvements
+            mo.md("""
+            ### Notes
+            """),
+            
+            example_notes_accordion,
 
-        **Test these prompts again** in Weave Playground:
+            notes_input,
 
-        ```
-        How do I initialize Weave in my Python code?
-        ```
-
-        ```
-        I'm getting API timeout errors when logging predictions. Can you help?
-        ```
-
-        ```
-        What's the status of ticket #10234?
-        ```
-
-        ```
-        Can you explain how to track model performance in wandb?
-        ```
-
-        ```
-        I need to create a support ticket for authentication issues
-        ```
-
-        **🔍 Use Weave to compare before and after:**
-
-        Navigate to Traces → filter for `Agent.stream` → compare new traces side-by-side with old traces from Step 3.
-
-        **Ask yourself:**
-        - ✅ Does the agent search docs when appropriate?
-        - ✅ Create tickets when users report issues?
-        - ✅ Retrieve ticket status correctly?
-        - ✅ Feel like a support bot now?
-        - ✅ Fill tool parameters correctly?
-
-        **Keep iterating if needed:**
-        - Tools not called correctly? → Refine descriptions in the config editor above
-        - Tone off? → Adjust `purpose` in the config editor
-        - Wrong parameters? → Improve parameter descriptions in `tools.py`
-
-        💡 **Reference:** Compare your work with `examples/step-4/` - but remember, there's no single "right" way!
-        """),
-        mo.md("---"),
-        mo.callout(
-            mo.md("✅ **Ready for the next step!** Once your agent vibes as a support bot and uses tools correctly, continue to **Evaluate** using the tabs above."),
-            kind="success"
-        )
-    ])
+            mo.md("""
+            Try the same prompts from Step 3 and see if the agent behaves more like a support bot:
+            
+            ```
+            How do I initialize Weave in Python?
+            ```
+            ```
+            I'm getting API timeout errors. Can you help?
+            ```
+            ```
+            What's the status of ticket #10234?
+            ```
+            """),
+            
+            chat_widget_4 if chat_widget_4 is not None else mo.callout(mo.md("⚠️ Agent not loaded. Check your API keys in Step 1."), kind="warn"),
+            
+            mo.accordion({
+                "💡 (Optional) View Full Configuration": mo.vstack([
+                    mo.md("""
+                    See the complete YAML config. The `purpose` and `notes` you edit above are part of this file.
+                    """),
+                    config_editor_4,
+                ])
+            }),
+                        
+            mo.md(f"""
+            ##  
+            🤔 **What Did You Notice?** After editing purpose/notes and testing, reflect:
+            
+            1. **Does the agent feel more focused?**  
+               With a clear purpose, it should understand its role as a W&B support bot.
+            
+            2. **Are tools used more appropriately?**  
+               The `notes` field guides WHEN to use each tool.
+            
+            3. **How can you iterate further?**  
+               Try refining the purpose or adding more specific guidance in notes.
+            
+            **💡 Iteration tip:** Check [Weave Traces]({_traces_url_4}) to see how your changes affect tool usage and responses.
+            """),
+            
+            mo.callout(
+                mo.md("✅ **Ready for the next step!** Your agent now has purpose and knows when to use tools. Continue to **Evaluate** to measure its performance systematically."),
+                kind="success"
+            )
+        ])
+    except Exception as e:
+        # Fallback if something goes wrong
+        step4_content = mo.callout(mo.md(f"⚠️ Error loading Step 4: {str(e)}"), kind="warn")
     
     return (step4_content,)
 

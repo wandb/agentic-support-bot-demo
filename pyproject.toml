@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "directive>=0.0.9",
     "slide-lye>=5.2.1",
-    "weave>=0.52.16,<0.53.0",  # Pin to current minor version for stability
+    "weave>=0.52.16,<0.53.0", # Pin to current minor version for stability
     "python-dotenv>=1.0.0",
     "slide-tyler>=5.2.1",
     "fastapi>=0.119.0",
@@ -15,12 +15,13 @@ dependencies = [
     "tinydb>=4.8.0",
     "modal>=0.64.0",
     # Step 6: Guardrails using Weave's built-in scorers
-    "torch>=2.0.0",  # Required for WeaveToxicityScorerV1
-    "transformers>=4.30.0",  # Required for local ML models
-    "sentencepiece>=0.1.99",  # Required for tokenization
-    "protobuf>=3.20.0",  # Required for model loading
+    "torch>=2.0.0", # Required for WeaveToxicityScorerV1
+    "transformers>=4.30.0", # Required for local ML models
+    "sentencepiece>=0.1.99", # Required for tokenization
+    "protobuf>=3.20.0", # Required for model loading
     # Marimo: Interactive tutorial guide
-    "marimo>=0.17.0,<0.18.0",  # Interactive notebook for guided tutorial
+    "marimo>=0.17.0,<0.18.0", # Interactive notebook for guided tutorial
+    "ruamel-yaml>=0.18.16",
 ]
 
 [dependency-groups]
