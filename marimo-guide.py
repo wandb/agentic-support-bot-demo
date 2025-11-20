@@ -631,21 +631,6 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2):
     try:
         _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
         
-        # Create weave link inline if chat has messages
-        if chat_widget_2a is not None and len(chat_widget_2a.value) > 0:
-            from urllib.parse import quote as _quote
-            _base_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
-            _filter_param = _quote("op_name=Agent.run")
-            _traces_url_filtered = f"{_base_url}?filter={_filter_param}"
-            
-            _weave_link_2 = mo.md(f"""
-            **🔍 View your traces:**
-            
-            [Open Weave Traces]({_traces_url_filtered}) - filtered to show `Agent.run` operations
-            """)
-        else:
-            _weave_link_2 = mo.md("")
-        
         # Single column layout
         step2_content = mo.vstack([
             mo.md("""
@@ -691,8 +676,6 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2):
             
             """),
             
-            _weave_link_2,
-            
             mo.callout(
                 mo.md("✅ **Ready for the next step!** The agent can chat, but it can't take actions yet. Continue to **Add Tools** to give your agent real capabilities."),
                 kind="success"
@@ -711,31 +694,27 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
     # STEP 3: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     try:
-        _traces_url_step3 = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
-        
-        # Create weave link inline if chat has messages
+        # Build filtered traces URL if user has chat messages
         if chat_widget_3 is not None and len(chat_widget_3.value) > 0:
             from urllib.parse import quote as _quote3
             _base_url_3 = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
             _filter_param_3 = _quote3("op_name=Agent.run")
             _traces_url_3 = f"{_base_url_3}?filter={_filter_param_3}"
-            
-            _weave_link_3 = mo.md(f"""
-            **🔍 View your traces:**
-            
-            [Open Weave Traces]({_traces_url_3}) - filtered to show `Agent.run` operations
-            """)
         else:
-            _weave_link_3 = mo.md("")
+            _traces_url_3 = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
         
         # Single column layout
         step3_content = mo.vstack([
             mo.md("""
             ## 
 
-            **Goal:** Give your agent capabilities by adding tools and knowledge sources.
+            **Goal:** Give the agent capabilities by adding tools and knowledge sources.
 
-            Your agent from Step 2 can chat but can't actually DO anything. Let's add:
+            The agent from Step 2 can chat but can't actually DO anything. Now it has:
+            - **Tools** for creating and retrieving support tickets (`create_issue`, `get_issue`)
+            - **MCP** for searching W&B documentation in real-time
+            
+            Let's test these new capabilities:
             
             ```
             How do I initialize Weave in Python?
@@ -759,7 +738,7 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
                 ])
             }),
                         
-            mo.md("""
+            mo.md(f"""
             ##  
             🤔 **What Did You Notice?** After chatting with the agent, reflect on these questions:
             
@@ -772,9 +751,20 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
             3. **Does it feel like a support bot yet?**  
                The agent has capabilities now, but does it know WHEN and HOW to use them effectively?
             
+            **🔍 But how did the agent arrive at its answer?**
+            
+            Now the agent is taking multiple steps - calling tools, querying MCP servers, reasoning about which actions to take. Weave traces allow you to **observe** and **debug** the agent's behavior:
+            
+            - Which tools were called and when
+            - What parameters were passed
+            - What results came back
+            - How the agent used those results to form its response
             """),
             
-            _weave_link_3,
+            mo.callout(
+                mo.md(f"🔍 **Explore your traces:** [Open Weave Traces]({_traces_url_3}) and look for `Agent.run` operations. Click on a trace to see the full execution flow."),
+                kind="neutral"
+            ),
             
             mo.callout(
                 mo.md("✅ **Ready for the next step!** The agent has tools but needs guidance on when to use them. Continue to **Iterate** to give your agent a clear purpose and improve its behavior."),
