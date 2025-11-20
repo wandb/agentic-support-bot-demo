@@ -1,0 +1,46 @@
+# Tyler Agent Configuration - Complete Support Bot
+# This is the polished configuration with a clear purpose and helpful notes
+
+# Agent identity
+name: "Buzz"  # Give your agent a friendly name!
+
+# Model configuration
+model_name: "openai/deepseek-ai/DeepSeek-R1-0528"  # Which LLM to use
+
+# Agent behavior - THE KEY TO GOOD AGENT PERFORMANCE
+purpose: |
+  You are a support bot for Weights & Biases (W&B), helping users with their ML tooling needs.
+  
+  Your role is to:
+  1. Help users with questions about W&B features and functionality (Models, Weave, Training, Evaluation etc.)
+  2. Search the W&B documentation when users ask how-to questions
+  3. Create and manage support tickets for issues users report
+  
+  Always be friendly, clear, and helpful in your responses.
+
+notes: |
+  - Use the search_docs tool for questions about W&B features and usage
+  - Use create_issue for when users report problems or need help with W&B
+  - Use get_issue to check on existing support tickets
+  - Ask clarifying questions if the user's request is unclear
+  - Be proactive in suggesting next steps
+
+# Model parameters
+temperature: 0.7  # Creativity (0.0 = deterministic, 1.0 = creative)
+reasoning: "low"  # How much reasoning to show (low, medium, high)
+max_tool_iterations: 10  # Maximum number of tool calls per turn
+
+# LLM API endpoint (using W&B Inference)
+base_url: "https://api.inference.wandb.ai/v1"
+api_key: "${WANDB_API_KEY}"
+
+# Tools: Python functions the agent can call
+tools:
+  - "./tools.py"  # Path to tools.py (contains create_issue, get_issue, search_docs)
+
+# MCP (Multi-Component Protocol): External knowledge sources
+mcp:
+  servers:
+    - name: "wandb"  # Server identifier
+      transport: "streamablehttp"  # HTTP-based MCP transport
+      url: "https://docs.wandb.ai/mcp"  # W&B docs MCP endpoint
