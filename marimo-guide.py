@@ -27,6 +27,7 @@ def _():
     from glob import glob
     import re
     import sys
+    import random
 
     # Auto-setup on notebook start
     # Create .env from example if it doesn't exist
@@ -47,7 +48,7 @@ def _():
     
     # Load environment variables (suppress output)
     _ = load_dotenv()
-    return Path, glob, json, load_dotenv, mo, os, re, shutil, subprocess, sys, yaml
+    return Path, glob, json, load_dotenv, mo, os, random, re, shutil, subprocess, sys, yaml
 
 
 @app.cell
@@ -1124,237 +1125,471 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
 
 
 @app.cell
-def _(mo, glob, Path, shutil):
+def _(Path, glob, shutil):
+    # ============================================================================
+    # STEP 5: AUTO-COPY FILES
+    # ============================================================================
+    
+    # Auto-copy all Step 5 files (no button needed, happens on load)
+    _step5_dest = Path("workspace/step-5")
+    _step5_dest.mkdir(parents=True, exist_ok=True)
+    _step5_copied = []
+    _step5_error = None
+    step5_files_ready = False
+    
+    try:
+        # Copy all Python files and YAML configs from step-5
+        for _src in glob("examples/step-5/*.py") + glob("examples/step-5/*.yaml"):
+            _filename = Path(_src).name
+            shutil.copy2(_src, _step5_dest / _filename)
+            _step5_copied.append(_filename)
+        
+        step5_files_ready = True
+    except Exception as e:
+        _step5_error = str(e)
+        step5_files_ready = False
+    
+    return (step5_files_ready,)
+
+
+@app.cell
+def _(step5_files_ready, Path, sys):
+    # ============================================================================
+    # STEP 5: LOAD DATASET
+    # ============================================================================
+    
+    # Import dataset from workspace (only if files are ready)
+    _dataset_module = None
+    _evaluation_dataset = None
+    
+    if step5_files_ready:
+        try:
+            # Add workspace/step-5 to path if needed
+            _workspace_path = str(Path("workspace/step-5").absolute())
+            if _workspace_path not in sys.path:
+                sys.path.insert(0, _workspace_path)
+            
+            # Import dataset module
+            import dataset as _dataset_module
+            _evaluation_dataset = _dataset_module.EVALUATION_DATASET
+        except Exception as e:
+            _evaluation_dataset = None
+    
+    return ()
+
+
+@app.cell
+def _(mo):
     # ============================================================================
     # STEP 5: UI ELEMENTS
     # ============================================================================
     
-    copy_step5_btn = mo.ui.button(
-        label="📁 Copy All Step 5 Files",
+    # Button to run sample evaluation
+    run_sample_eval_btn = mo.ui.button(
+        label="🧪 Run Sample Evaluation (5 cases)",
         value=0,
         on_click=lambda v: v + 1
     )
     
-    return (copy_step5_btn,)
+    # Button to run full evaluation
+    run_full_eval_btn = mo.ui.button(
+        label="🚀 Run Full Evaluation (all cases)",
+        value=0,
+        on_click=lambda v: v + 1
+    )
+    
+    return run_sample_eval_btn, run_full_eval_btn
 
 
-@app.cell
-def _(mo, copy_step5_btn, weave_entity, weave_project, Path, glob, shutil):
+@app.cell  
+async def _(mo, run_sample_eval_btn, Path, sys, random, os):
     # ============================================================================
-    # STEP 5: BUTTON LOGIC
+    # STEP 5: RUN SAMPLE EVALUATION LOGIC
     # ============================================================================
     
-    # Handle Step 5 file copying
-    if copy_step5_btn.value:
+    sample_eval_output = mo.md("")
+    
+    if run_sample_eval_btn.value:
         try:
-            _all_files = []
-            _dest = Path("workspace")
+            # Import weave locally to avoid namespace conflicts
+            import weave as _weave_sample
             
-            # Part A: *.py
-            for _src in glob("examples/step-5/part-a/*.py"):
-                _filename = Path(_src).name
-                shutil.copy2(_src, _dest / _filename)
-                _all_files.append(_filename)
+            # Initialize Weave if not already done
+            try:
+                _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+                _weave_sample.init(_project)
+            except Exception:
+                pass
             
-            # Part B: *.{py,yaml}
-            for _src in glob("examples/step-5/part-b/*.py") + glob("examples/step-5/part-b/*.yaml"):
-                _filename = Path(_src).name
-                shutil.copy2(_src, _dest / _filename)
-                _all_files.append(_filename)
+            # Import required modules (using import instead of from...import to avoid namespace conflicts)
+            _workspace_path = str(Path("workspace/step-5").absolute())
+            if _workspace_path not in sys.path:
+                sys.path.insert(0, _workspace_path)
             
-            # Part C: *.py
-            for _src in glob("examples/step-5/part-c/*.py"):
-                _filename = Path(_src).name
-                shutil.copy2(_src, _dest / _filename)
-                _all_files.append(_filename)
-
-                copy_step5_output = mo.callout(
+            import scorers as _scorers
+            import tyler as _tyler
+            
+            # Load dataset
+            _dataset_ref = _weave_sample.ref("support-bot-eval-dataset:latest")
+            _dataset = _dataset_ref.get()
+            _test_cases = [dict(row) for row in _dataset.rows]
+            
+            # Sample 5 random cases
+            _sample_cases = random.sample(_test_cases, min(5, len(_test_cases)))
+            
+            # Load agent - use step-4 config for evaluation
+            _agent_config = Path("workspace/step-4/tyler-chat-config.yaml")
+            _agent = _tyler.Agent.from_config(str(_agent_config))
+            
+            # Initialize evaluation logger
+            _eval_logger = _weave_sample.EvaluationLogger(
+                name="support-bot-eval-sample",
+                model=_agent.name,
+                dataset=_dataset
+            )
+            
+            # Run evaluation on sample
+            _results = []
+            for _i, _case in enumerate(_sample_cases, 1):
+                # Invoke agent
+                _thread = _tyler.Thread()
+                _thread.add_message(_tyler.Message(role="user", content=_case["input"]))
+                _result = await _agent.run(_thread)
+                
+                _output = {
+                    "response": _result.content if _result.content else "",
+                    "tools_used": list(_result.thread.get_tool_usage().get('tools', {}).keys()) if _result.thread.get_tool_usage() else []
+                }
+                
+                # Log prediction
+                _pred_logger = _eval_logger.log_prediction(
+                    inputs={"query": _case["input"]},
+                    output=_output
+                )
+                
+                # Apply scorers
+                _tool_score = _scorers.tool_usage_scorer(_case, _output)
+                _pred_logger.log_score(scorer="tool_usage", score=_tool_score)
+                
+                _accuracy_score = await _scorers.accuracy_scorer(_case, _output)
+                _pred_logger.log_score(scorer="accuracy", score=_accuracy_score)
+                
+                _safety_score = await _scorers.safety_scorer(_case, _output)
+                _pred_logger.log_score(scorer="safety", score=_safety_score)
+                
+                _pred_logger.finish()
+                
+                _results.append({
+                    "input": _case["input"][:60] + "...",
+                    "tool_score": _tool_score.get("score", 0),
+                    "accuracy": _accuracy_score.get("accuracy", 0),
+                    "safety": _safety_score.get("overall_safety", 0)
+                })
+            
+            _eval_logger.log_summary({"total_cases": len(_sample_cases), "sample": True})
+            
+            sample_eval_output = mo.callout(
                 mo.md(f"""
-                ✅ **Files copied:** {", ".join(f"`{f}`" for f in _all_files)}
-
-                Includes dataset, scorers, and evaluation runner.
+                ✅ **Sample evaluation complete!**
+                
+                Evaluated {len(_sample_cases)} test cases.
+                
+                View detailed results in the Weave UI under the Evaluations tab.
                 """),
                 kind="success"
             )
         except Exception as e:
-            copy_step5_output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
-    else:
-        _dataset_exists = Path("workspace/dataset.py").exists()
-        _scorers_exists = Path("workspace/scorers.py").exists()
-        _eval_exists = Path("workspace/run_evaluation.py").exists()
-        if _dataset_exists and _scorers_exists and _eval_exists:
-            copy_step5_output = mo.callout(
-                mo.md("✅ **Step 5 files already exist** - you can skip this or re-copy to update"),
-                kind="success"
+            sample_eval_output = mo.callout(
+                mo.md(f"❌ **Error running evaluation:** {str(e)}"),
+                kind="danger"
             )
-        else:
-            copy_step5_output = mo.md("")
     
-    return (copy_step5_output,)
+    return (sample_eval_output,)
 
 
 @app.cell
-def _(mo, copy_step5_btn, copy_step5_output, weave_entity, weave_project):
+async def _(mo, run_full_eval_btn, Path, sys, os):
+    # ============================================================================
+    # STEP 5: RUN FULL EVALUATION LOGIC
+    # ============================================================================
+    
+    full_eval_output = mo.md("")
+    
+    if run_full_eval_btn.value:
+        try:
+            # Import weave locally to avoid namespace conflicts
+            import weave as _weave_full
+            
+            # Initialize Weave if not already done
+            try:
+                _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+                _weave_full.init(_project)
+            except Exception:
+                pass
+            
+            # Import required modules (using import instead of from...import to avoid namespace conflicts)
+            _workspace_path = str(Path("workspace/step-5").absolute())
+            if _workspace_path not in sys.path:
+                sys.path.insert(0, _workspace_path)
+            
+            import scorers as _scorers
+            import tyler as _tyler
+            
+            # Load dataset
+            _dataset_ref = _weave_full.ref("support-bot-eval-dataset:latest")
+            _dataset = _dataset_ref.get()
+            _test_cases = [dict(row) for row in _dataset.rows]
+            
+            # Load agent - use step-4 config for evaluation
+            _agent_config = Path("workspace/step-4/tyler-chat-config.yaml")
+            _agent = _tyler.Agent.from_config(str(_agent_config))
+            
+            # Initialize evaluation logger
+            _eval_logger = _weave_full.EvaluationLogger(
+                name="support-bot-eval-full",
+                model=_agent.name,
+                dataset=_dataset
+            )
+            
+            # Run evaluation on all cases
+            for _i, _case in enumerate(_test_cases, 1):
+                # Invoke agent
+                _thread = _tyler.Thread()
+                _thread.add_message(_tyler.Message(role="user", content=_case["input"]))
+                _result = await _agent.run(_thread)
+                
+                _output = {
+                    "response": _result.content if _result.content else "",
+                    "tools_used": list(_result.thread.get_tool_usage().get('tools', {}).keys()) if _result.thread.get_tool_usage() else []
+                }
+                
+                # Log prediction
+                _pred_logger = _eval_logger.log_prediction(
+                    inputs={"query": _case["input"]},
+                    output=_output
+                )
+                
+                # Apply scorers
+                _tool_score = _scorers.tool_usage_scorer(_case, _output)
+                _pred_logger.log_score(scorer="tool_usage", score=_tool_score)
+                
+                _accuracy_score = await _scorers.accuracy_scorer(_case, _output)
+                _pred_logger.log_score(scorer="accuracy", score=_accuracy_score)
+                
+                _safety_score = await _scorers.safety_scorer(_case, _output)
+                _pred_logger.log_score(scorer="safety", score=_safety_score)
+                
+                _pred_logger.finish()
+            
+            _eval_logger.log_summary({"total_cases": len(_test_cases), "sample": False})
+            
+            full_eval_output = mo.callout(
+                mo.md(f"""
+                ✅ **Full evaluation complete!**
+                
+                Evaluated all {len(_test_cases)} test cases.
+                
+                View detailed results in the Weave UI under the Evaluations tab.
+                """),
+                kind="success"
+            )
+        except Exception as e:
+            full_eval_output = mo.callout(
+                mo.md(f"❌ **Error running evaluation:** {str(e)}"),
+                kind="danger"
+            )
+    
+    return (full_eval_output,)
+
+
+@app.cell
+def _(mo, weave_entity, weave_project, run_sample_eval_btn, sample_eval_output, run_full_eval_btn, full_eval_output, step5_files_ready, Path, sys):
     # ============================================================================
     # STEP 5: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     _evals_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/evaluations"
     
+    # Load dataset for display (only if files are ready)
+    _evaluation_dataset_display = None
+    if step5_files_ready:
+        try:
+            _workspace_path = str(Path("workspace/step-5").absolute())
+            if _workspace_path not in sys.path:
+                sys.path.insert(0, _workspace_path)
+            import dataset as _dataset_display_mod
+            _evaluation_dataset_display = _dataset_display_mod.EVALUATION_DATASET
+        except:
+            pass
+    
+    # Create dataset table if available
+    if _evaluation_dataset_display:
+        _dataset_table_data = []
+        for i, case in enumerate(_evaluation_dataset_display, 1):
+            _dataset_table_data.append({
+                "#": i,
+                "Input": case["input"][:60] + ("..." if len(case["input"]) > 60 else ""),
+                "Expected Tools": ", ".join(case.get("expected_tools", [])) or "None",
+                "Tags": ", ".join(case.get("tags", []))[:40]
+            })
+        _dataset_table = mo.ui.table(_dataset_table_data, selection=None)
+    else:
+        _dataset_table = mo.md("⚠️ Dataset not loaded yet")
+    
+    # Load code files for display in accordions
+    _dataset_code = Path("workspace/step-5/dataset.py").read_text() if Path("workspace/step-5/dataset.py").exists() else "# File not found"
+    _scorers_code = Path("workspace/step-5/scorers.py").read_text() if Path("workspace/step-5/scorers.py").exists() else "# File not found"
+    _run_eval_code = Path("workspace/step-5/run_evaluation.py").read_text() if Path("workspace/step-5/run_evaluation.py").exists() else "# File not found"
+    _accuracy_judge_config = Path("workspace/step-5/accuracy-judge-config.yaml").read_text() if Path("workspace/step-5/accuracy-judge-config.yaml").exists() else "# File not found"
+    _safety_judge_config = Path("workspace/step-5/safety-judge-config.yaml").read_text() if Path("workspace/step-5/safety-judge-config.yaml").exists() else "# File not found"
+    
     step5_content = mo.vstack([
         mo.md("""
         ##  
-        ## Dataset & Evaluation - From Vibes to Production-Ready
+  
+        **Goal:** Move from "it feels right" to "it's provably ready for production" by building an evaluation with a comprehensive test dataset.
 
-        After iterating on your agent, it works well in demos, but can you confidently deploy it to real users?
+        In order to build an evaluation, we need to create a dataset of test cases and a set of scorers to evaluate the agent's responses.
 
-        **Goal:** Move from "it feels right" to "it's provably ready for production" by building systematic evaluation with a comprehensive test dataset and automated scoring.
+        This repository contains a dataset of test cases.  Take a look at the test cases to get a sense of the type of questions we will want to evaluate the agent on:
 
-        **Setup:** Copy all Step 5 files to your workspace - these include:
-        - **Part A**: Dataset creation and publishing (`dataset.py`, `publish_dataset.py`)
-        - **Part B**: Evaluation scorers (`scorers.py`, judge configs)
-        - **Part C**: Evaluation runner (`run_evaluation.py`)
         """),
-        copy_step5_btn,
-        copy_step5_output,
+        
+        _dataset_table,
+        
+        mo.accordion({
+            "📋 Dataset Structure Details": mo.md("""
+            Each test case includes:
+            ```python
+            {
+                "input": "How do I initialize Weave in Python?",
+                "expected_output_description": "Call weave.init() with your project name...",
+                "expected_tools": [],  # Tools that should be called
+                "tags": ["weave", "initialization", "factual"]
+            }
+            ```
+            
+            **Dataset Coverage:**
+            - **13 W&B/Weave questions**: Initialization, debugging, troubleshooting, features
+            - **8 Tool usage scenarios**: Support ticket creation and retrieval
+            - **9 Refusal scenarios**: Off-topic questions, inappropriate requests, adversarial attempts
+
+            Note: `expected_output_description` describes what a good answer should contain (not an exact match). LLM-based scorers use this to evaluate quality.
+            """)
+        }),
+        
         mo.md("""
+        Now that we have a dataset, we need to create a set of scorers to evaluate the agent's responses.
+
+        Take a minute to consider how you would evaluate the agent's responses.  What are the different ways you can evaluate the agent's responses?
+
+        For this tutorial, we are focusing on answering the following questions:
+        - Is the answer correct and helpful?
+        - Are the right tools called?
+        - Is the tone appropriate?
+        - Does it refuse to answer when it should?
+
+        To answer these questions, we will use a combination of **rule-based scorers** (fast, deterministic) and **LLM-as-judge scorers** (flexible, nuanced).
+
+        | Scorer | Measures | Type | Best For |
+        |--------|----------|------|----------|
+        | `tool_usage_scorer` | Did agent call correct tools? | Rule-based (fast, deterministic) | Objective checks |
+        | `accuracy_scorer` | Is answer accurate and helpful? | LLM judge (flexible) | Answer quality, semantic similarity |
+        | `safety_scorer` | Appropriate tone and refusals? | LLM judge (flexible) | Toxic content, tone, refusals |
+        """),
+        
+        mo.accordion({
+            "📄 View Code Files": mo.ui.tabs({
+                "scorers.py": mo.ui.code_editor(value=_scorers_code, language="python", disabled=True).style({"max-height": "400px", "overflow": "auto"}),
+                "accuracy-judge-config.yaml": mo.ui.code_editor(value=_accuracy_judge_config, language="yaml", disabled=True).style({"max-height": "400px", "overflow": "auto"}),
+                "safety-judge-config.yaml": mo.ui.code_editor(value=_safety_judge_config, language="yaml", disabled=True).style({"max-height": "400px", "overflow": "auto"})
+            })
+        }),
+
+        mo.md("""
+
+        ### Run the Evaluation
+
+        You can run the evaluation directly in Marimo. Start with a sample to test, then run the full evaluation.
+
+        **Start with a sample to test:**
+        """),
+        
+        run_sample_eval_btn,
+        sample_eval_output,
+        
+        mo.md("""
+        **Run full evaluation on all cases:**
+        """),
+        
+        run_full_eval_btn,
+        full_eval_output,
+        
+        mo.accordion({
+            "📄 View: run_evaluation.py": mo.md(f"```python\n{_run_eval_code}\n```")
+        }),
+        
+        mo.md(f"""
         ---
 
-        ### Part A: Create an Evaluation Dataset
-
-    **Dataset Coverage:**
-    - **13 W&B/Weave questions**: Initialization, debugging, troubleshooting, features
-    - **8 Tool usage scenarios**: Support ticket creation and retrieval
-    - **9 Refusal scenarios**: Off-topic questions, inappropriate requests, adversarial attempts
-
-    **Dataset Structure:**
-
-    Each test case includes:
-    ```python
-    {
-        "input": "How do I initialize Weave in Python?",
-        "expected_output_description": "Call weave.init() with your project name...",
-        "expected_tools": [],  # Tools that should be called
-        "tags": ["weave", "initialization", "factual"]
-    }
-    ```
-
-    Note: `expected_output_description` describes what a good answer should contain (not an exact match). LLM-based scorers use this to evaluate quality.
-
-    **Publish Dataset to Weave**
-
-    Publishing provides versioning, reproducibility, and team collaboration:
-
-    ```bash
-    uv run workspace/publish_dataset.py
-    ```
-
-    This script:
-    1. Validates dataset structure
-    2. Connects to Weave using your `WANDB_API_KEY`
-    3. Publishes as `support-bot-eval-dataset`
-
-    **Verify:** Go to your project → find `support-bot-eval-dataset` → browse the rows.
-
-    ---
-
-    ### Part B: Build Evaluation Scorers
-
-    How do you measure if the agent's responses are good? You need scorers to evaluate:
-    - **Tool usage** - Are the right tools called?
-    - **Accuracy** - Is the answer correct and helpful?
-    - **Safety** - Is the tone appropriate? Does it refuse when it should?
-
-    We'll use a combination of **rule-based scorers** (fast, deterministic) and **LLM-as-judge scorers** (flexible, nuanced).
-
-    **Three types of scorers:**
-
-    | Scorer | Measures | Type | Best For |
-    |--------|----------|------|----------|
-    | `tool_usage_scorer` | Did agent call correct tools? | Rule-based (fast, deterministic) | Objective checks |
-    | `accuracy_scorer` | Is answer accurate and helpful? | LLM judge (flexible) | Answer quality, semantic similarity |
-    | `safety_scorer` | Appropriate tone and refusals? | LLM judge (flexible) | Toxic content, tone, refusals |
-
-    Open `workspace/scorers.py` to see the implementation details, and the judge config files (`accuracy-judge-config.yaml`, `safety-judge-config.yaml`) to see how LLM judges are configured.
-
-    ---
-
-    ### Part C: Run the Evaluation
-
-    **Start with a sample to test:**
-
-    ```bash
-    # Test on 5 random cases first
-    uv run workspace/run_evaluation.py --sample 5
-    ```
-
-    **Run full evaluation:**
-
-    ```bash
-    uv run workspace/run_evaluation.py  # All 31 cases
-    ```
-            """),
-    mo.md(f"""
-    ---
-
-    **Analyze Results in Weave UI**
+        ### Analyze Results in Weave UI
 
         [📈 View Evaluation Results in Weave]({_evals_url})
 
-    **1. View aggregate metrics:**
-    - Tool Usage: % correct
-    - Accuracy: Average score
-    - Safety: Average score
+        **1. View aggregate metrics:**
+        - Tool Usage: % correct
+        - Accuracy: Average score
+        - Safety: Average score
 
-    **2. Drill into predictions:**
-    - Which test cases passed/failed?
-    - What did the agent say?
-    - View full agent trace
+        **2. Drill into predictions:**
+        - Which test cases passed/failed?
+        - What did the agent say?
+        - View full agent trace
 
-    **3. Identify patterns:**
-    - Group failures by tag
-    - Are refusal cases passing?
-    - Are tool cases failing? (refine descriptions)
-    - Is accuracy low on specific topics? (improve docs search)
+        **3. Identify patterns:**
+        - Group failures by tag
+        - Are refusal cases passing?
+        - Are tool cases failing? (refine descriptions)
+        - Is accuracy low on specific topics? (improve docs search)
 
-    **4. Compare eval runs:**
-    - Select 2+ evaluations → **Compare**
-    - See side-by-side metrics
-    - Identify improvements/regressions
+        **4. Compare eval runs:**
+        - Select 2+ evaluations → **Compare**
+        - See side-by-side metrics
+        - Identify improvements/regressions
 
-    ---
+        ---
 
-    ### What's Next: From Baseline to Better
+        ### From Baseline to Better
 
-    **You now have a baseline!** With quantitative metrics, you can iterate systematically to improve your agent.
+        **You now have a baseline!** With quantitative metrics, you can iterate systematically to improve your agent.
 
-    **Levers to Adjust:**
+        **Levers to Adjust:**
 
-    1. **Purpose and Notes** (`tyler-chat-config.yaml`) - Add examples, refine tone guidance
-    2. **Tool Descriptions** (`tools.py`) - Clarify when to use each tool, add examples
-    3. **Model Selection** (`tyler-chat-config.yaml`) - Try `gpt-4.1` or other models available in W&B Inference, adjust `temperature`, experiment with `reasoning` levels
-    4. **MCP Search Strategy** - Review traces where docs search failed
+        1. **Purpose and Notes** (`tyler-chat-config.yaml`) - Add examples, refine tone guidance
+        2. **Tool Descriptions** (`tools.py`) - Clarify when to use each tool, add examples
+        3. **Model Selection** (`tyler-chat-config.yaml`) - Try `gpt-4.1` or other models available in W&B Inference, adjust `temperature`, experiment with `reasoning` levels
+        4. **MCP Search Strategy** - Review traces where docs search failed
 
-    **Iteration Workflow:**
+        **Iteration Workflow:**
 
-    1. Run baseline evaluation → Identify lowest-scoring categories
-    2. Pick ONE thing to improve → Make targeted changes
-    3. Re-run evaluation → Compare metrics with baseline
-    4. Analyze in Weave → Did the change help? Hurt anything else?
-    5. Repeat → Iterate on the next weakness
+        1. Run baseline evaluation → Identify lowest-scoring categories
+        2. Pick ONE thing to improve → Make targeted changes
+        3. Re-run evaluation → Compare metrics with baseline
+        4. Analyze in Weave → Did the change help? Hurt anything else?
+        5. Repeat → Iterate on the next weakness
 
-    **Example:** If tool usage is low (60%), review traces where tools weren't called → improve tool `description` → add examples → re-run eval.
+        **Example:** If tool usage is low (60%), review traces where tools weren't called → improve tool `description` → add examples → re-run eval.
 
-    ---
+        ---
 
-    ### Ready for Production?
+        ### Ready for Production?
 
-    At this point, your agent works well in the playground and you have confidence from systematic evaluation. **But the real test is production.**
+        At this point, your agent works well in the playground and you have confidence from systematic evaluation. **But the real test is production.**
 
-    Continue to **Step 6** to deploy your agent where it matters - in front of real users. You'll learn how to:
-    - Deploy as a persistent production service
-    - Monitor production performance in real-time
-        - Use environment tags to separate dev and prod traffic
-        - Create saved views for production dashboards
+        Continue to **Step 6** to deploy your agent where it matters - in front of real users. You'll learn how to:
+        - Deploy as a persistent production service
+        - Monitor production performance in real-time
+            - Use environment tags to separate dev and prod traffic
+            - Create saved views for production dashboards
         """),
         mo.md("---"),
         mo.callout(
@@ -1860,13 +2095,13 @@ def _(
     mo.vstack([
         mo.ui.tabs({
             f"{mo.icon('lucide:home')} Introduction": intro_content,
-            f"{mo.icon('lucide:settings')} Project Setup": step1_content,
-            f"{mo.icon('lucide:bot')} Basic Agent": step2_content,
-            f"{mo.icon('lucide:wrench')} Add Tools": step3_content,
-            f"{mo.icon('lucide:refresh-cw')} Iterate": step4_content,
-            f"{mo.icon('lucide:database')} Evaluate": step5_content,
-            f"{mo.icon('lucide:rocket')} Deploy": step6_content,
-            f"{mo.icon('lucide:shield')} Monitor": step7_content,
+            f"{mo.icon('lucide:settings')} 1. Project Setup": step1_content,
+            f"{mo.icon('lucide:bot')} 2. Basic Agent": step2_content,
+            f"{mo.icon('lucide:wrench')} 3. Add Tools": step3_content,
+            f"{mo.icon('lucide:refresh-cw')} 4. Iterate": step4_content,
+            f"{mo.icon('lucide:database')} 5. Evaluate": step5_content,
+            f"{mo.icon('lucide:rocket')} 6. Deploy": step6_content,
+            f"{mo.icon('lucide:shield')} 7. Monitor": step7_content,
         }),
         scroll_button,
     ])
