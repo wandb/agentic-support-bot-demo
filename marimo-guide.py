@@ -640,6 +640,112 @@ def _(mo, agent_2a, chat_function_2a, agent_status_2a):
 
 
 @app.cell
+def _(mo, os, weave_entity, weave_project, chat_widget_2a):
+    # ============================================================================
+    # STEP 2: RECENT TRACES TABLE
+    # ============================================================================
+    
+    traces_table_2a = None
+    traces_error_2a = None
+    
+    # Only fetch traces if chat widget has been used (has at least one message)
+    if chat_widget_2a is not None and len(chat_widget_2a.value) > 0:
+        import requests
+        import json
+        from datetime import datetime
+        
+        # Get credentials
+        wandb_token = os.getenv("WANDB_API_KEY", "")
+        
+        if wandb_token:
+            try:
+                # Fetch recent traces using Weave Service API
+                url = "https://trace.wandb.ai/calls/stream_query"
+                headers = {"Content-Type": "application/json"}
+                
+                query_payload = {
+                    "project_id": f"{weave_entity}/{weave_project}",
+                    "filter": {"trace_roots_only": True},
+                    "query": {
+                        "$expr": {"$eq": [{"$getField": "op_name"}, {"$literal": "Agent.run"}]}
+                    },
+                    "limit": 10,
+                    "offset": 0,
+                    "sort_by": [{"field": "started_at", "direction": "desc"}],
+                    "include_feedback": False,
+                }
+                
+                response = requests.post(
+                    url, 
+                    headers=headers, 
+                    json=query_payload, 
+                    auth=("api", wandb_token),
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    # Parse newline-delimited JSON response
+                    json_objects = response.text.strip().split("\n")
+                    traces = [json.loads(obj) for obj in json_objects if obj]
+                    
+                    # Build table data with clickable links
+                    table_data = []
+                    for trace in traces[:10]:  # Limit to 10 most recent
+                        trace_id = trace.get('id', '')
+                        trace_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces/{trace_id}"
+                        
+                        # Format timestamp
+                        started_at = trace.get('started_at', '')
+                        if started_at:
+                            dt = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+                            time_str = dt.strftime('%Y-%m-%d %H:%M:%S')
+                        else:
+                            time_str = 'N/A'
+                        
+                        # Get status from summary
+                        status = trace.get('summary', {}).get('weave', {}).get('status', 'unknown')
+                        
+                        # Get latency
+                        latency_ms = trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
+                        if latency_ms:
+                            latency_str = f"{latency_ms:.0f}ms"
+                        else:
+                            latency_str = 'N/A'
+                        
+                        table_data.append({
+                            "Time": time_str,
+                            "Status": status,
+                            "Latency": latency_str,
+                            "Trace ID": trace_id[:8] + "...",
+                            "Link": trace_url
+                        })
+                    
+                    if table_data:
+                        # Create table with markdown links
+                        traces_table_2a = mo.ui.table(
+                            [
+                                {
+                                    "Time": row["Time"],
+                                    "Status": row["Status"],
+                                    "Latency": row["Latency"],
+                                    "Trace": f"[{row['Trace ID']}]({row['Link']})"
+                                }
+                                for row in table_data
+                            ],
+                            selection=None
+                        )
+                else:
+                    traces_error_2a = f"Failed to fetch traces: HTTP {response.status_code}"
+                    
+            except Exception as e:
+                traces_error_2a = f"Error fetching traces: {str(e)}"
+        else:
+            traces_error_2a = "WANDB_API_KEY not set"
+    
+    return traces_table_2a, traces_error_2a
+
+
+@app.cell
 def _(mo, agent_3, chat_function_2a, agent_status_3, create_chat_adapter):
     # ============================================================================
     # STEP 3: CHAT WIDGET (with tools and MCP)
@@ -714,12 +820,42 @@ def _(mo, agent_4, agent_status_4, create_chat_adapter):
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2):
+def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_table_2a, traces_error_2a):
     # ============================================================================
     # STEP 2: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     try:
         _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+        
+        # Build traces section components
+        _traces_section = []
+        
+        if traces_table_2a is not None:
+            # Show traces table
+            _traces_section = [
+                mo.md("""
+                ---
+                
+                ### 🔍 Your Recent Traces
+                
+                Each time you send a message to the chat above, Weave creates a trace. Click the links below to explore how the agent processed your requests:
+                """),
+                traces_table_2a,
+                mo.md(f"""
+                💡 **Tip:** Click on any trace link to view the full execution details in Weave, including inputs, outputs, and timing information.
+                
+                Or view all traces in your project: [Open Weave Traces]({_traces_url})
+                """)
+            ]
+        elif traces_error_2a:
+            # Show error if traces failed to load
+            _traces_section = [
+                mo.md("---"),
+                mo.callout(
+                    mo.md(f"⚠️ Could not load traces: {traces_error_2a}"),
+                    kind="warn"
+                )
+            ]
         
         # Single column layout
         step2_content = mo.vstack([
@@ -741,6 +877,9 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2):
             """),
 
             chat_widget_2a if chat_widget_2a is not None else mo.callout(mo.md("⚠️ Agent not loaded. Check your API keys in Step 1."), kind="warn"),
+            
+            # Add traces section after chat widget
+            *_traces_section,
             
             mo.accordion({
                 "💡 (Optional) How It Works - The Agent's Configuration": mo.vstack([
