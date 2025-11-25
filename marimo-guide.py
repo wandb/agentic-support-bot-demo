@@ -652,8 +652,9 @@ def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, sessi
     traces_table_2a = None
     traces_error_2a = None
     
-    # Only fetch traces if chat widget has been used (has at least one message)
-    if chat_widget_2a is not None and len(chat_widget_2a.value) > 0:
+    # Always fetch traces if chat widget exists (persists across chat resets)
+    # Only page refresh will reset the traces by resetting session_start_time
+    if chat_widget_2a is not None:
         import requests
         
         # Get credentials
@@ -747,10 +748,11 @@ def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, sessi
                         # Get status from summary
                         status = trace.get('summary', {}).get('weave', {}).get('status', 'unknown')
                         
-                        # Get latency
+                        # Get latency (convert from ms to seconds with 3 decimal places)
                         latency_ms = trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
                         if latency_ms:
-                            latency_str = f"{latency_ms:.0f}ms"
+                            latency_seconds = latency_ms / 1000.0
+                            latency_str = f"{latency_seconds:.3f}s"
                         else:
                             latency_str = 'N/A'
                         
@@ -883,10 +885,8 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
         
         # Build traces section components - ALWAYS show this section
         _traces_section = [
-            mo.md("""
-            ### 🔍 Your Recent Traces
-            
-            Each time you send a message to the chat above, Weave creates a trace. Traces will appear below:
+            mo.md("""            
+            Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Traces will appear below:
             """)
         ]
         
