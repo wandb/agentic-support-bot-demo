@@ -651,7 +651,6 @@ def _(mo, os, weave_entity, weave_project, chat_widget_2a):
     # Only fetch traces if chat widget has been used (has at least one message)
     if chat_widget_2a is not None and len(chat_widget_2a.value) > 0:
         import requests
-        import json
         from datetime import datetime
         
         # Get credentials
