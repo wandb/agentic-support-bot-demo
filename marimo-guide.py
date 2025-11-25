@@ -28,6 +28,10 @@ def _():
     import re
     import sys
     import random
+    from datetime import datetime, timezone
+
+    # Capture session start time for filtering traces
+    session_start_time = datetime.now(timezone.utc).isoformat()
 
     # Auto-setup on notebook start
     # Create .env from example if it doesn't exist
@@ -48,7 +52,7 @@ def _():
     
     # Load environment variables (suppress output)
     _ = load_dotenv()
-    return Path, glob, json, load_dotenv, mo, os, random, re, shutil, subprocess, sys, yaml
+    return Path, datetime, glob, json, load_dotenv, mo, os, random, re, shutil, subprocess, sys, timezone, yaml, session_start_time
 
 
 @app.cell
@@ -640,7 +644,7 @@ def _(mo, agent_2a, chat_function_2a, agent_status_2a):
 
 
 @app.cell
-def _(mo, os, json, weave_entity, weave_project, chat_widget_2a):
+def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, session_start_time):
     # ============================================================================
     # STEP 2: RECENT TRACES TABLE
     # ============================================================================
@@ -651,7 +655,6 @@ def _(mo, os, json, weave_entity, weave_project, chat_widget_2a):
     # Only fetch traces if chat widget has been used (has at least one message)
     if chat_widget_2a is not None and len(chat_widget_2a.value) > 0:
         import requests
-        from datetime import datetime
         
         # Get credentials
         wandb_token = os.getenv("WANDB_API_KEY", "")
@@ -662,15 +665,29 @@ def _(mo, os, json, weave_entity, weave_project, chat_widget_2a):
                 url = "https://trace.wandb.ai/calls/stream_query"
                 headers = {"Content-Type": "application/json"}
                 
+                # Convert session start time to format without Z suffix (API requirement)
+                # The API expects "2025-11-25T16:25:11.424651" format (no timezone suffix)
+                session_start_no_tz = session_start_time.split('+')[0].rstrip('Z')
+                
                 query_payload = {
                     "project_id": f"{weave_entity}/{weave_project}",
-                    "filter": {"trace_roots_only": True},
-                    "query": {
-                        "$expr": {"$eq": [{"$getField": "op_name"}, {"$literal": "Agent.run"}]}
+                    "filter": {
+                        "trace_roots_only": True,
+                        "op_names": [f"weave:///{weave_entity}/{weave_project}/op/Agent.stream:*"]
                     },
-                    "limit": 10,
+                    # Use API-side filtering with $gte
+                    "query": {
+                        "$expr": {
+                            "$gte": [
+                                {"$getField": "started_at"},
+                                {"$literal": session_start_no_tz}
+                            ]
+                        }
+                    },
+                    "limit": 50,
                     "offset": 0,
                     "sort_by": [{"field": "started_at", "direction": "desc"}],
+                    "include_costs": True,
                     "include_feedback": False,
                 }
                 
@@ -687,11 +704,37 @@ def _(mo, os, json, weave_entity, weave_project, chat_widget_2a):
                     json_objects = response.text.strip().split("\n")
                     traces = [json.loads(obj) for obj in json_objects if obj]
                     
+                    # If no traces with Agent.stream, try without filter to see if ANY traces exist
+                    if len(traces) == 0:
+                        # Try getting any traces
+                        query_payload_all = {
+                            "project_id": f"{weave_entity}/{weave_project}",
+                            "filter": {"trace_roots_only": True},
+                            "limit": 5,
+                            "offset": 0,
+                            "sort_by": [{"field": "started_at", "direction": "desc"}],
+                            "include_feedback": False,
+                        }
+                        response_all = requests.post(url, headers=headers, json=query_payload_all, auth=("api", wandb_token), timeout=10)
+                        if response_all.status_code == 200:
+                            all_traces = [json.loads(obj) for obj in response_all.text.strip().split("\n") if obj]
+                            traces_debug_2a += f"\nTotal traces in project: {len(all_traces)}"
+                            if all_traces:
+                                # Show available op_names
+                                op_names = [t.get('op_name', 'unknown') for t in all_traces[:5]]
+                                traces_debug_2a += f"\nAvailable op_names: {', '.join(set(op_names))}"
+                
+                if response.status_code == 200:
+                    # Parse newline-delimited JSON response
+                    json_objects = response.text.strip().split("\n")
+                    traces = [json.loads(obj) for obj in json_objects if obj]
+                    
                     # Build table data with clickable links
                     table_data = []
                     for trace in traces[:10]:  # Limit to 10 most recent
                         trace_id = trace.get('id', '')
-                        trace_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces/{trace_id}"
+                        # Use peekPath format for proper trace viewing
+                        trace_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces?view=traces_default&peekPath=%2F{weave_entity}%2F{weave_project}%2Fcalls%2F{trace_id}"
                         
                         # Format timestamp
                         started_at = trace.get('started_at', '')
@@ -711,11 +754,21 @@ def _(mo, os, json, weave_entity, weave_project, chat_widget_2a):
                         else:
                             latency_str = 'N/A'
                         
+                        # Get cost (from costs field if available)
+                        costs = trace.get('costs', {})
+                        if costs:
+                            # Sum up all costs (could be multiple models)
+                            total_cost = sum(costs.values())
+                            cost_str = f"${total_cost:.4f}" if total_cost > 0 else "$0.00"
+                        else:
+                            cost_str = 'N/A'
+                        
                         table_data.append({
                             "Time": time_str,
                             "Status": status,
                             "Latency": latency_str,
-                            "Trace ID": trace_id[:8] + "...",
+                            "Cost": cost_str,
+                            "Trace ID": trace_id,  # Full trace ID, not truncated
                             "Link": trace_url
                         })
                     
@@ -724,15 +777,17 @@ def _(mo, os, json, weave_entity, weave_project, chat_widget_2a):
                         traces_table_2a = mo.ui.table(
                             [
                                 {
-                                    "Time": row["Time"],
-                                    "Status": row["Status"],
+                                    "Link": mo.md(f"[{row['Trace ID']}]({row['Link']})"),
                                     "Latency": row["Latency"],
-                                    "Trace": f"[{row['Trace ID']}]({row['Link']})"
+                                    "Cost": row["Cost"]
                                 }
                                 for row in table_data
                             ],
                             selection=None
                         )
+                    else:
+                        # No traces found yet
+                        traces_error_2a = "No traces found yet. Traces may take a few seconds to appear in Weave after sending a message."
                 else:
                     traces_error_2a = f"Failed to fetch traces: HTTP {response.status_code}"
                     
@@ -829,8 +884,6 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
         # Build traces section components - ALWAYS show this section
         _traces_section = [
             mo.md("""
-            ---
-            
             ### 🔍 Your Recent Traces
             
             Each time you send a message to the chat above, Weave creates a trace. Traces will appear below:
@@ -848,13 +901,22 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
                 """)
             ])
         elif traces_error_2a:
-            # Show error if traces failed to load
-            _traces_section.append(
-                mo.callout(
-                    mo.md(f"⚠️ Could not load traces: {traces_error_2a}"),
-                    kind="warn"
+            # Show message if traces failed to load or aren't available yet
+            # Check if it's a "no traces yet" message vs actual error
+            if "No traces found yet" in traces_error_2a:
+                _traces_section.append(
+                    mo.callout(
+                        mo.md(f"⏳ {traces_error_2a}"),
+                        kind="info"
+                    )
                 )
-            )
+            else:
+                _traces_section.append(
+                    mo.callout(
+                        mo.md(f"⚠️ {traces_error_2a}"),
+                        kind="warn"
+                    )
+                )
         elif chat_widget_2a is not None and len(chat_widget_2a.value) == 0:
             # No messages sent yet
             _traces_section.append(
@@ -890,9 +952,6 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
 
             chat_widget_2a if chat_widget_2a is not None else mo.callout(mo.md("⚠️ Agent not loaded. Check your API keys in Step 1."), kind="warn"),
             
-            # Add traces section after chat widget
-            *_traces_section,
-            
             mo.accordion({
                 "💡 (Optional) How It Works - The Agent's Configuration": mo.vstack([
                     mo.md("""
@@ -901,6 +960,9 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
                     config_editor_2,
                 ])
             }),
+            
+            # Add traces section after chat widget
+            *_traces_section,
                         
             mo.md("""
             ##  
