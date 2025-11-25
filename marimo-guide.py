@@ -640,7 +640,7 @@ def _(mo, agent_2a, chat_function_2a, agent_status_2a):
 
 
 @app.cell
-def _(mo, os, weave_entity, weave_project, chat_widget_2a):
+def _(mo, os, json, weave_entity, weave_project, chat_widget_2a):
     # ============================================================================
     # STEP 2: RECENT TRACES TABLE
     # ============================================================================
