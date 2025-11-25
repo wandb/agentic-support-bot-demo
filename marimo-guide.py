@@ -9,7 +9,7 @@ Launch with: marimo edit marimo-guide.py
 
 import marimo
 
-__generated_with = "0.17.7"
+__generated_with = "0.18.0"
 app = marimo.App(width="medium", app_title="Agentic Chatbot with Weave")
 
 
@@ -530,24 +530,24 @@ def _(agent_2a):
     
     def create_chat_adapter(agent):
         """
-        Create chat function for mo.ui.chat() that uses Tyler Agent.
+        Create chat function for mo.ui.chat() that uses Tyler Agent with streaming.
         
         Args:
             agent: Loaded Tyler Agent instance
             
         Returns:
-            Callable compatible with mo.ui.chat() signature
+            Async callable compatible with mo.ui.chat() signature (streaming enabled in marimo 0.18.0+)
         """
-        def sync_chat(messages, config):
+        async def streaming_chat(messages, config):
             """
-            Sync chat function using Tyler Agent.
+            Async streaming chat function using Tyler Agent.
             
             Args:
                 messages: List of ChatMessage objects (or dicts with role/content)
                 config: Model config from marimo (unused, for compatibility)
                 
-            Returns:
-                Complete response string from agent
+            Yields:
+                Accumulated content as it's generated (full response so far)
             """
             try:
                 from tyler import Thread, Message
@@ -569,41 +569,26 @@ def _(agent_2a):
                         content=content
                     ))
                 
-                # Run agent - handle async in marimo's event loop
-                # Use ThreadPoolExecutor to run async code from sync context
-                import concurrent.futures
+                # Accumulate response text
+                accumulated_response = ""
                 
-                def run_async_in_thread():
-                    # Create new event loop in thread
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
-                    try:
-                        # Use agent.run() non-streaming mode (preferred method)
-                        return new_loop.run_until_complete(agent.run(thread))
-                    finally:
-                        new_loop.close()
-                
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(run_async_in_thread)
-                    result = future.result()
-                
-                # Extract final assistant message from AgentResult
-                # result.content contains the final assistant response
-                if result.content:
-                    return result.content
-                elif result.new_messages:
-                    # Fallback: get last assistant message
-                    for msg in reversed(result.new_messages):
-                        if msg.role == "assistant":
-                            return msg.content
-                    return "No response generated."
-                else:
-                    return "No response generated."
+                # Stream response from Tyler agent
+                # Uses agent.stream() with mode="raw" to get raw chunks (similar to server.py)
+                async for chunk in agent.stream(thread, mode="raw"):
+                    # Extract content from chunk (same pattern as server.py serialization)
+                    if hasattr(chunk, 'choices') and chunk.choices:
+                        for choice in chunk.choices:
+                            if hasattr(choice, 'delta'):
+                                delta = choice.delta
+                                # Accumulate content and yield full response so far
+                                if hasattr(delta, 'content') and delta.content is not None:
+                                    accumulated_response += delta.content
+                                    yield accumulated_response
                 
             except Exception as e:
-                return f"❌ Error: {str(e)}\n\nPlease check your configuration and try again."
+                yield f"❌ Error: {str(e)}\n\nPlease check your configuration and try again."
         
-        return sync_chat
+        return streaming_chat
     
     # Create chat function if agent is loaded
     if agent_2a is not None:
@@ -1490,11 +1475,11 @@ def _(mo, weave_entity, weave_project, run_sample_eval_btn, sample_eval_output, 
 
         To answer these questions, we will use a combination of **rule-based scorers** (fast, deterministic) and **LLM-as-judge scorers** (flexible, nuanced).
 
-        | Scorer | Measures | Type | Best For |
-        |--------|----------|------|----------|
-        | `tool_usage_scorer` | Did agent call correct tools? | Rule-based (fast, deterministic) | Objective checks |
-        | `accuracy_scorer` | Is answer accurate and helpful? | LLM judge (flexible) | Answer quality, semantic similarity |
-        | `safety_scorer` | Appropriate tone and refusals? | LLM judge (flexible) | Toxic content, tone, refusals |
+        | Scorer | Type | Measures | Best For |
+        |--------|------|----------|----------|
+        | `tool_usage_scorer` | Rule-based (fast, deterministic) | Did agent call correct tools? | Objective checks |
+        | `accuracy_scorer` | LLM judge (flexible) | Is answer accurate and helpful? | Answer quality, semantic similarity |
+        | `safety_scorer` | LLM judge (flexible) | Appropriate tone and refusals? | Toxic content, tone, refusals |
         """),
         
         mo.accordion({
