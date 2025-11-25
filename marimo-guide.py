@@ -826,35 +826,48 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
     try:
         _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
         
-        # Build traces section components
-        _traces_section = []
+        # Build traces section components - ALWAYS show this section
+        _traces_section = [
+            mo.md("""
+            ---
+            
+            ### 🔍 Your Recent Traces
+            
+            Each time you send a message to the chat above, Weave creates a trace. Traces will appear below:
+            """)
+        ]
         
         if traces_table_2a is not None:
-            # Show traces table
-            _traces_section = [
-                mo.md("""
-                ---
-                
-                ### 🔍 Your Recent Traces
-                
-                Each time you send a message to the chat above, Weave creates a trace. Click the links below to explore how the agent processed your requests:
-                """),
+            # Show traces table when available
+            _traces_section.extend([
                 traces_table_2a,
                 mo.md(f"""
                 💡 **Tip:** Click on any trace link to view the full execution details in Weave, including inputs, outputs, and timing information.
                 
                 Or view all traces in your project: [Open Weave Traces]({_traces_url})
                 """)
-            ]
+            ])
         elif traces_error_2a:
             # Show error if traces failed to load
-            _traces_section = [
-                mo.md("---"),
+            _traces_section.append(
                 mo.callout(
                     mo.md(f"⚠️ Could not load traces: {traces_error_2a}"),
                     kind="warn"
                 )
-            ]
+            )
+        elif chat_widget_2a is not None and len(chat_widget_2a.value) == 0:
+            # No messages sent yet
+            _traces_section.append(
+                mo.callout(
+                    mo.md("💬 **Send a message above** to see traces appear here automatically."),
+                    kind="info"
+                )
+            )
+        else:
+            # Messages exist but traces not loaded yet (shouldn't happen, but handle it)
+            _traces_section.append(
+                mo.md("⏳ Loading traces...")
+            )
         
         # Single column layout
         step2_content = mo.vstack([
