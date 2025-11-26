@@ -526,25 +526,29 @@ def _(yaml, os, Path, load_agent_from_config, config_editor_4, step4_inputs_tupl
 
 
 @app.cell
-def _(agent_2a):
+def _(agent_2a, Path, sys, os, json, subprocess):
     # ============================================================================
-    # STEP 2A: CHAT ADAPTER (convert marimo messages to Tyler format)
+    # STEP 2A: CHAT ADAPTER (uses subprocess for isolated Weave trace context)
     # ============================================================================
     import asyncio
     
-    def create_chat_adapter(agent):
+    def create_chat_adapter_subprocess(config_path):
         """
-        Create chat function for mo.ui.chat() that uses Tyler Agent with streaming.
+        Create chat function that runs agent in subprocess for fresh Weave trace context.
+        
+        In Marimo, the cell execution context persists across multiple chat messages,
+        causing Weave traces to nest under a parent context. Running the agent in a
+        subprocess ensures each message creates its own root trace (like the FastAPI server).
         
         Args:
-            agent: Loaded Tyler Agent instance
+            config_path: Path to Tyler agent config YAML file
             
         Returns:
-            Async callable compatible with mo.ui.chat() signature (streaming enabled in marimo 0.18.1+)
+            Async callable compatible with mo.ui.chat() signature (streaming enabled)
         """
         async def streaming_chat(messages, config):
             """
-            Async streaming chat function using Tyler Agent with delta-based streaming.
+            Run agent in isolated subprocess to ensure fresh Weave trace context.
             
             Args:
                 messages: List of ChatMessage objects (or dicts with role/content)
@@ -554,49 +558,76 @@ def _(agent_2a):
                 Content deltas (new chunks only, marimo 0.18.1+ handles accumulation)
             """
             try:
-                from tyler import Thread, Message
-                
-                # Convert marimo messages to Tyler Thread
-                thread = Thread()
+                # Convert marimo messages to simple dicts for JSON serialization
+                messages_data = []
                 for msg in messages:
-                    # Handle both ChatMessage objects (with .role and .content attributes)
-                    # and dict-like messages (with ["role"] and ["content"] keys)
                     if hasattr(msg, "role") and hasattr(msg, "content"):
-                        role = msg.role
-                        content = msg.content
+                        messages_data.append({"role": msg.role, "content": msg.content})
                     else:
-                        role = msg["role"]
-                        content = msg["content"]
+                        messages_data.append({"role": msg["role"], "content": msg["content"]})
+                
+                # Prepare input for subprocess
+                input_json = json.dumps({
+                    "messages": messages_data,
+                    "config_path": str(Path(config_path).absolute())
+                })
+                
+                # Get path to isolated agent runner script
+                runner_script = Path(__file__).parent / "helpers" / "isolated_agent_runner.py"
+                
+                # Run agent in subprocess for fresh Weave context
+                process = await asyncio.create_subprocess_exec(
+                    sys.executable,  # Python executable
+                    str(runner_script.absolute()),
+                    stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env=os.environ.copy()  # Pass environment variables (API keys, etc.)
+                )
+                
+                # Send input to subprocess
+                process.stdin.write(input_json.encode())
+                await process.stdin.drain()
+                process.stdin.close()
+                
+                # Stream output from subprocess line by line
+                while True:
+                    line = await process.stdout.readline()
+                    if not line:
+                        break
                     
-                    thread.add_message(Message(
-                        role=role,
-                        content=content
-                    ))
+                    try:
+                        chunk = json.loads(line.decode().strip())
+                        if "content" in chunk:
+                            yield chunk["content"]
+                        elif "error" in chunk:
+                            yield f"❌ Error: {chunk['error']}"
+                    except json.JSONDecodeError:
+                        continue
                 
-                # Stream response from Tyler agent using delta-based approach
-                # Uses agent.stream() with mode="raw" to get raw chunks (similar to server.py)
-                async for chunk in agent.stream(thread, mode="raw"):
-                    # Extract content from chunk (same pattern as server.py serialization)
-                    if hasattr(chunk, 'choices') and chunk.choices:
-                        for choice in chunk.choices:
-                            if hasattr(choice, 'delta'):
-                                delta = choice.delta
-                                # Yield delta content directly (marimo 0.18.1+ standard)
-                                if hasattr(delta, 'content') and delta.content is not None:
-                                    yield delta.content
+                # Wait for process to complete
+                await process.wait()
                 
+                # Check for errors
+                if process.returncode != 0:
+                    stderr = await process.stderr.read()
+                    error_msg = stderr.decode().strip()
+                    if error_msg:
+                        yield f"\n\n❌ Process error: {error_msg}"
+            
             except Exception as e:
                 yield f"❌ Error: {str(e)}\n\nPlease check your configuration and try again."
         
         return streaming_chat
     
-    # Create chat function if agent is loaded
+    # Create chat function using subprocess approach if agent is loaded
     if agent_2a is not None:
-        chat_function_2a = create_chat_adapter(agent_2a)
+        _config_path_2a = Path("workspace/step-2/tyler-chat-config.yaml")
+        chat_function_2a = create_chat_adapter_subprocess(_config_path_2a)
     else:
         chat_function_2a = None
     
-    return chat_function_2a, create_chat_adapter
+    return chat_function_2a, create_chat_adapter_subprocess
 
 
 @app.cell
@@ -796,14 +827,15 @@ def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, sessi
 
 
 @app.cell
-def _(mo, agent_3, chat_function_2a, agent_status_3, create_chat_adapter):
+def _(mo, agent_3, chat_function_2a, agent_status_3, create_chat_adapter_subprocess, Path):
     # ============================================================================
     # STEP 3: CHAT WIDGET (with tools and MCP)
     # ============================================================================
     
     if agent_3 is not None:
-        # Create chat function for Step 3 agent
-        chat_function_3 = create_chat_adapter(agent_3)
+        # Create chat function for Step 3 agent using subprocess for fresh trace context
+        _config_path_3 = Path("workspace/step-3/tyler-chat-config.yaml")
+        chat_function_3 = create_chat_adapter_subprocess(_config_path_3)
         
         # Show agent status (success)
         agent_status_display_3 = mo.callout(
@@ -838,14 +870,15 @@ def _(mo, agent_3, chat_function_2a, agent_status_3, create_chat_adapter):
 
 
 @app.cell
-def _(mo, agent_4, agent_status_4, create_chat_adapter):
+def _(mo, agent_4, agent_status_4, create_chat_adapter_subprocess, Path):
     # ============================================================================
     # STEP 4: CHAT WIDGET (iterate)
     # ============================================================================
     
     if agent_4 is not None:
-        # Create chat function for Step 4 agent
-        chat_function_4 = create_chat_adapter(agent_4)
+        # Create chat function for Step 4 agent using subprocess for fresh trace context
+        _config_path_4 = Path("workspace/step-4/tyler-chat-config.yaml")
+        chat_function_4 = create_chat_adapter_subprocess(_config_path_4)
         
         # Create chat widget with prompts
         chat_widget_4 = mo.ui.chat(
