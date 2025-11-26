@@ -9,7 +9,7 @@ Launch with: marimo edit marimo-guide.py
 
 import marimo
 
-__generated_with = "0.18.0"
+__generated_with = "0.18.1"
 app = marimo.App(width="medium", app_title="Agentic Chatbot with Weave")
 
 
@@ -540,18 +540,18 @@ def _(agent_2a):
             agent: Loaded Tyler Agent instance
             
         Returns:
-            Async callable compatible with mo.ui.chat() signature (streaming enabled in marimo 0.18.0+)
+            Async callable compatible with mo.ui.chat() signature (streaming enabled in marimo 0.18.1+)
         """
         async def streaming_chat(messages, config):
             """
-            Async streaming chat function using Tyler Agent.
+            Async streaming chat function using Tyler Agent with delta-based streaming.
             
             Args:
                 messages: List of ChatMessage objects (or dicts with role/content)
                 config: Model config from marimo (unused, for compatibility)
                 
             Yields:
-                Accumulated content as it's generated (full response so far)
+                Content deltas (new chunks only, marimo 0.18.1+ handles accumulation)
             """
             try:
                 from tyler import Thread, Message
@@ -573,10 +573,7 @@ def _(agent_2a):
                         content=content
                     ))
                 
-                # Accumulate response text
-                accumulated_response = ""
-                
-                # Stream response from Tyler agent
+                # Stream response from Tyler agent using delta-based approach
                 # Uses agent.stream() with mode="raw" to get raw chunks (similar to server.py)
                 async for chunk in agent.stream(thread, mode="raw"):
                     # Extract content from chunk (same pattern as server.py serialization)
@@ -584,10 +581,9 @@ def _(agent_2a):
                         for choice in chunk.choices:
                             if hasattr(choice, 'delta'):
                                 delta = choice.delta
-                                # Accumulate content and yield full response so far
+                                # Yield delta content directly (marimo 0.18.1+ standard)
                                 if hasattr(delta, 'content') and delta.content is not None:
-                                    accumulated_response += delta.content
-                                    yield accumulated_response
+                                    yield delta.content
                 
             except Exception as e:
                 yield f"❌ Error: {str(e)}\n\nPlease check your configuration and try again."
