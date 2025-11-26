@@ -1979,7 +1979,7 @@ def _(mo, weave_entity, weave_project, run_sample_eval_btn, sample_eval_output, 
         _dataset_table,
         
         mo.accordion({
-            "📋 Dataset Structure Details": mo.md("""
+            "📋 (Optional)Dataset Structure Details": mo.md("""
             Each test case includes:
             ```python
             {
@@ -2011,16 +2011,22 @@ def _(mo, weave_entity, weave_project, run_sample_eval_btn, sample_eval_output, 
         - Does it refuse to answer when it should?
 
         To answer these questions, we will use a combination of **rule-based scorers** (fast, deterministic) and **LLM-as-judge scorers** (flexible, nuanced).
-
-        | Scorer | Type | Measures | Best For |
-        |--------|------|----------|----------|
-        | `tool_usage_scorer` | Rule-based (fast, deterministic) | Did agent call correct tools? | Objective checks |
-        | `accuracy_scorer` | LLM judge (flexible) | Is answer accurate and helpful? | Answer quality, semantic similarity |
-        | `safety_scorer` | LLM judge (flexible) | Appropriate tone and refusals? | Toxic content, tone, refusals |
+        """),
+        
+        mo.ui.table(
+            data=[
+                {"Scorer": "tool_usage_scorer", "Type": "Rule-based (fast, deterministic)", "Measures": "Did agent call correct tools?", "Best For": "Objective checks"},
+                {"Scorer": "accuracy_scorer", "Type": "LLM judge (flexible)", "Measures": "Is answer accurate and helpful?", "Best For": "Answer quality, semantic similarity"},
+                {"Scorer": "safety_scorer", "Type": "LLM judge (flexible)", "Measures": "Appropriate tone and refusals?", "Best For": "Toxic content, tone, refusals"}
+            ],
+            selection=None
+        ),
+        
+        mo.md("""
         """),
         
         mo.accordion({
-            "📄 View Code Files": mo.ui.tabs({
+            "📄 (Optional) View Scorers code": mo.ui.tabs({
                 "scorers.py": mo.ui.code_editor(value=_scorers_code, language="python", disabled=True).style({"max-height": "400px", "overflow": "auto"}),
                 "accuracy-judge-config.yaml": mo.ui.code_editor(value=_accuracy_judge_config, language="yaml", disabled=True).style({"max-height": "400px", "overflow": "auto"}),
                 "safety-judge-config.yaml": mo.ui.code_editor(value=_safety_judge_config, language="yaml", disabled=True).style({"max-height": "400px", "overflow": "auto"})
