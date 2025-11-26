@@ -719,11 +719,9 @@ def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, sessi
                         response_all = requests.post(url, headers=headers, json=query_payload_all, auth=("api", wandb_token), timeout=10)
                         if response_all.status_code == 200:
                             all_traces = [json.loads(obj) for obj in response_all.text.strip().split("\n") if obj]
-                            traces_debug_2a += f"\nTotal traces in project: {len(all_traces)}"
                             if all_traces:
                                 # Show available op_names
                                 op_names = [t.get('op_name', 'unknown') for t in all_traces[:5]]
-                                traces_debug_2a += f"\nAvailable op_names: {', '.join(set(op_names))}"
                 
                 if response.status_code == 200:
                     # Parse newline-delimited JSON response
@@ -885,7 +883,9 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
         
         # Build traces section components - ALWAYS show this section
         _traces_section = [
-            mo.md("""            
+            mo.md("""
+            ## 
+                       
             Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Traces will appear below:
             """)
         ]
@@ -895,9 +895,7 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
             _traces_section.extend([
                 traces_table_2a,
                 mo.md(f"""
-                💡 **Tip:** Click on any trace link to view the full execution details in Weave, including inputs, outputs, and timing information.
-                
-                Or view all traces in your project: [Open Weave Traces]({_traces_url})
+                💡 **Tip:** Click on the trace link to view the full execution details in Weave, including inputs, outputs, and timing information, or view all traces in [your project]({_traces_url})
                 """)
             ])
         elif traces_error_2a:
