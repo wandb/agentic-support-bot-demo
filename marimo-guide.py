@@ -1703,7 +1703,154 @@ def _(step5_files_ready, Path, sys):
 @app.cell
 def _(mo):
     # ============================================================================
-    # STEP 5: UI ELEMENTS
+    # STEP 5: REFRESH BUTTON
+    # ============================================================================
+    
+    # Refresh button - clicking increments the value
+    refresh_btn = mo.ui.button(
+        label="🔄",
+        value=0,
+        on_click=lambda v: v + 1
+    )
+    
+    return (refresh_btn,)
+
+
+@app.cell
+def _(mo, os, weave_entity, weave_project, refresh_btn):
+    # ============================================================================
+    # STEP 5: QUERY MODELS (re-runs when refresh_btn is clicked)
+    # ============================================================================
+    
+    # This cell depends on refresh_btn.value, so it re-runs when clicked
+    _refresh_count = refresh_btn.value
+    
+    def fetch_models():
+        """Fetch all Model versions from Weave using the objs/query API."""
+        try:
+            import requests
+            
+            api_key = os.getenv("WANDB_API_KEY")
+            if not api_key:
+                return {}
+            
+            project_id = f"{weave_entity}/{weave_project}"
+            
+            # Query for Model objects
+            url = "https://trace.wandb.ai/objs/query"
+            headers = {
+                "Content-Type": "application/json",
+            }
+            
+            payload = {
+                "project_id": project_id,
+                "filter": {
+                    "base_object_classes": ["Model"],
+                    "latest_only": False
+                },
+                "sort_by": [{"field": "created_at", "direction": "desc"}],
+                "limit": 100
+            }
+            
+            response = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                auth=("api", api_key),
+                timeout=10
+            )
+            
+            if response.status_code != 200:
+                return {}
+            
+            data = response.json()
+            
+            # Models to exclude (scoring judges)
+            excluded_models = {"safety-judge", "accuracy-judge"}
+            
+            # Group by model name, collect versions
+            models_dict = {}
+            
+            for obj in data.get("objs", []):
+                object_id = obj.get("object_id", "")
+                version_index = obj.get("version_index", 0)
+                
+                if object_id in excluded_models:
+                    continue
+                
+                if object_id not in models_dict:
+                    models_dict[object_id] = []
+                models_dict[object_id].append(f"v{version_index}")
+            
+            for model_name in models_dict:
+                models_dict[model_name].sort(key=lambda v: int(v[1:]), reverse=True)
+            
+            return models_dict
+            
+        except Exception as e:
+            return {}
+    
+    # Fetch models (re-runs when refresh button is clicked)
+    available_models_dict = fetch_models()
+    model_names = list(available_models_dict.keys()) if available_models_dict else ["No models found"]
+    
+    return (available_models_dict, model_names)
+
+
+@app.cell
+def _(mo, available_models_dict, model_names):
+    # ============================================================================
+    # STEP 5: UI ELEMENTS - MODEL DROPDOWN
+    # ============================================================================
+    
+    # First dropdown: Select model name
+    model_selector = mo.ui.dropdown(
+        options=model_names,
+        value=model_names[0] if model_names else None,
+        label="Model:"
+    )
+    
+    return (model_selector,)
+
+
+@app.cell
+def _(mo, model_selector, available_models_dict):
+    # ============================================================================
+    # STEP 5: VERSION DROPDOWN (depends on model selection)
+    # ============================================================================
+    
+    # Get versions for selected model
+    selected_model = model_selector.value
+    versions = available_models_dict.get(selected_model, ["v0"]) if selected_model else ["v0"]
+    
+    # Second dropdown: Select version
+    version_selector = mo.ui.dropdown(
+        options=versions,
+        value=versions[0] if versions else None,
+        label="Version:"
+    )
+    
+    return (version_selector,)
+
+
+@app.cell
+def _(model_selector, version_selector):
+    # ============================================================================
+    # STEP 5: COMBINE MODEL + VERSION INTO REF
+    # ============================================================================
+    
+    # Combine into full ref for evaluation
+    _model = model_selector.value
+    _version = version_selector.value
+    selected_model_ref = f"{_model}:{_version}" if _model and _version else None
+    
+    return (selected_model_ref,)
+
+
+@app.cell
+def _(mo):
+    # ============================================================================
+    # STEP 5: EVAL BUTTONS
     # ============================================================================
     
     # Button to run sample evaluation
@@ -1720,106 +1867,124 @@ def _(mo):
         on_click=lambda v: v + 1
     )
     
-    return run_sample_eval_btn, run_full_eval_btn
+    return (run_sample_eval_btn, run_full_eval_btn)
 
 
 @app.cell  
-async def _(mo, run_sample_eval_btn, Path, sys, random, os):
+async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, random, os):
     # ============================================================================
     # STEP 5: RUN SAMPLE EVALUATION LOGIC
     # ============================================================================
     
+    # Always initialize the output variable
     sample_eval_output = mo.md("")
     
     if run_sample_eval_btn.value:
         try:
-            # Import weave locally to avoid namespace conflicts
-            import weave as _weave_sample
+            # Get selected model ref
+            _selected_agent_ref = selected_model_ref
             
-            # Initialize Weave if not already done
-            try:
-                _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
-                _weave_sample.init(_project)
-            except Exception:
-                pass
-            
-            # Import required modules (using import instead of from...import to avoid namespace conflicts)
-            _workspace_path = str(Path("workspace/step-5").absolute())
-            if _workspace_path not in sys.path:
-                sys.path.insert(0, _workspace_path)
-            
-            import scorers as _scorers
-            import tyler as _tyler
-            
-            # Load dataset
-            _dataset_ref = _weave_sample.ref("support-bot-eval-dataset:latest")
-            _dataset = _dataset_ref.get()
-            _test_cases = [dict(row) for row in _dataset.rows]
-            
-            # Sample 5 random cases
-            _sample_cases = random.sample(_test_cases, min(5, len(_test_cases)))
-            
-            # Load agent - use step-4 config for evaluation
-            _agent_config = Path("workspace/step-4/tyler-chat-config.yaml")
-            _agent = _tyler.Agent.from_config(str(_agent_config))
-            
-            # Initialize evaluation logger
-            _eval_logger = _weave_sample.EvaluationLogger(
-                name="support-bot-eval-sample",
-                model=_agent.name,
-                dataset=_dataset
-            )
-            
-            # Run evaluation on sample
-            _results = []
-            for _i, _case in enumerate(_sample_cases, 1):
-                # Invoke agent
-                _thread = _tyler.Thread()
-                _thread.add_message(_tyler.Message(role="user", content=_case["input"]))
-                _result = await _agent.run(_thread)
-                
-                _output = {
-                    "response": _result.content if _result.content else "",
-                    "tools_used": list(_result.thread.get_tool_usage().get('tools', {}).keys()) if _result.thread.get_tool_usage() else []
-                }
-                
-                # Log prediction
-                _pred_logger = _eval_logger.log_prediction(
-                    inputs={"query": _case["input"]},
-                    output=_output
+            # Check if valid model selected
+            if not _selected_agent_ref or "No models" in str(_selected_agent_ref):
+                sample_eval_output = mo.callout(
+                    mo.md(f"⚠️ **Please select a valid model to evaluate.**\n\nCurrent selection: {_selected_agent_ref}"),
+                    kind="warn"
                 )
+            else:
+                # Import weave locally to avoid namespace conflicts
+                import weave as _weave_sample
                 
-                # Apply scorers
-                _tool_score = _scorers.tool_usage_scorer(_case, _output)
-                _pred_logger.log_score(scorer="tool_usage", score=_tool_score)
+                # Initialize Weave if not already done
+                try:
+                    _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+                    _weave_sample.init(_project)
+                except Exception:
+                    pass
                 
-                _accuracy_score = await _scorers.accuracy_scorer(_case, _output)
-                _pred_logger.log_score(scorer="accuracy", score=_accuracy_score)
+                # Import required modules (using import instead of from...import to avoid namespace conflicts)
+                _workspace_path = str(Path("workspace/step-5").absolute())
+                if _workspace_path not in sys.path:
+                    sys.path.insert(0, _workspace_path)
                 
-                _safety_score = await _scorers.safety_scorer(_case, _output)
-                _pred_logger.log_score(scorer="safety", score=_safety_score)
+                import scorers as _scorers
+                import tyler as _tyler
                 
-                _pred_logger.finish()
+                # Load dataset
+                _dataset_ref = _weave_sample.ref("support-bot-eval-dataset:latest")
+                _dataset = _dataset_ref.get()
+                _test_cases = [dict(row) for row in _dataset.rows]
                 
-                _results.append({
-                    "input": _case["input"][:60] + "...",
-                    "tool_score": _tool_score.get("score", 0),
-                    "accuracy": _accuracy_score.get("accuracy", 0),
-                    "safety": _safety_score.get("overall_safety", 0)
-                })
-            
-            _eval_logger.log_summary({"total_cases": len(_sample_cases), "sample": True})
-            
-            sample_eval_output = mo.callout(
-                mo.md(f"""
-                ✅ **Sample evaluation complete!**
+                # Sample 5 random cases
+                _sample_cases = random.sample(_test_cases, min(5, len(_test_cases)))
                 
-                Evaluated {len(_sample_cases)} test cases.
-                
-                View detailed results in the Weave UI under the Evaluations tab.
-                """),
-                kind="success"
-            )
+                # Load agent from Weave
+                try:
+                    _agent_ref = _weave_sample.ref(_selected_agent_ref)
+                    _agent = _agent_ref.get()
+                except Exception as e:
+                    sample_eval_output = mo.callout(
+                        mo.md(f"❌ **Error loading agent '{_selected_agent_ref}' from Weave:** {str(e)}\n\nMake sure you've run the agent in Step 4 first."),
+                        kind="danger"
+                    )
+                else:
+                    # Only run evaluation if agent loaded successfully
+                    # Initialize evaluation logger
+                    _eval_logger = _weave_sample.EvaluationLogger(
+                        name="support-bot-eval-sample",
+                        model=_agent.name,
+                        dataset=_dataset
+                    )
+                    
+                    # Run evaluation on sample
+                    _results = []
+                    for _i, _case in enumerate(_sample_cases, 1):
+                        # Invoke agent
+                        _thread = _tyler.Thread()
+                        _thread.add_message(_tyler.Message(role="user", content=_case["input"]))
+                        _result = await _agent.run(_thread)
+                        
+                        _output = {
+                            "response": _result.content if _result.content else "",
+                            "tools_used": list(_result.thread.get_tool_usage().get('tools', {}).keys()) if _result.thread.get_tool_usage() else []
+                        }
+                        
+                        # Log prediction
+                        _pred_logger = _eval_logger.log_prediction(
+                            inputs={"query": _case["input"]},
+                            output=_output
+                        )
+                        
+                        # Apply scorers
+                        _tool_score = _scorers.tool_usage_scorer(_case, _output)
+                        _pred_logger.log_score(scorer="tool_usage", score=_tool_score)
+                        
+                        _accuracy_score = await _scorers.accuracy_scorer(_case, _output)
+                        _pred_logger.log_score(scorer="accuracy", score=_accuracy_score)
+                        
+                        _safety_score = await _scorers.safety_scorer(_case, _output)
+                        _pred_logger.log_score(scorer="safety", score=_safety_score)
+                        
+                        _pred_logger.finish()
+                        
+                        _results.append({
+                            "input": _case["input"][:60] + "...",
+                            "tool_score": _tool_score.get("score", 0),
+                            "accuracy": _accuracy_score.get("accuracy", 0),
+                            "safety": _safety_score.get("overall_safety", 0)
+                        })
+                    
+                    _eval_logger.log_summary({"total_cases": len(_sample_cases), "sample": True})
+                    
+                    sample_eval_output = mo.callout(
+                        mo.md(f"""
+                        ✅ **Sample evaluation complete!**
+                        
+                        Evaluated **{_selected_agent_ref}** on {len(_sample_cases)} test cases.
+                        
+                        View detailed results in the Weave UI under the Evaluations tab.
+                        """),
+                        kind="success"
+                    )
         except Exception as e:
             sample_eval_output = mo.callout(
                 mo.md(f"❌ **Error running evaluation:** {str(e)}"),
@@ -1830,91 +1995,109 @@ async def _(mo, run_sample_eval_btn, Path, sys, random, os):
 
 
 @app.cell
-async def _(mo, run_full_eval_btn, Path, sys, os):
+async def _(mo, run_full_eval_btn, selected_model_ref, Path, sys, os):
     # ============================================================================
     # STEP 5: RUN FULL EVALUATION LOGIC
     # ============================================================================
     
+    # Always initialize the output variable
     full_eval_output = mo.md("")
     
     if run_full_eval_btn.value:
         try:
-            # Import weave locally to avoid namespace conflicts
-            import weave as _weave_full
+            # Get selected model ref
+            _selected_agent_ref = selected_model_ref
             
-            # Initialize Weave if not already done
-            try:
-                _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
-                _weave_full.init(_project)
-            except Exception:
-                pass
-            
-            # Import required modules (using import instead of from...import to avoid namespace conflicts)
-            _workspace_path = str(Path("workspace/step-5").absolute())
-            if _workspace_path not in sys.path:
-                sys.path.insert(0, _workspace_path)
-            
-            import scorers as _scorers
-            import tyler as _tyler
-            
-            # Load dataset
-            _dataset_ref = _weave_full.ref("support-bot-eval-dataset:latest")
-            _dataset = _dataset_ref.get()
-            _test_cases = [dict(row) for row in _dataset.rows]
-            
-            # Load agent - use step-4 config for evaluation
-            _agent_config = Path("workspace/step-4/tyler-chat-config.yaml")
-            _agent = _tyler.Agent.from_config(str(_agent_config))
-            
-            # Initialize evaluation logger
-            _eval_logger = _weave_full.EvaluationLogger(
-                name="support-bot-eval-full",
-                model=_agent.name,
-                dataset=_dataset
-            )
-            
-            # Run evaluation on all cases
-            for _i, _case in enumerate(_test_cases, 1):
-                # Invoke agent
-                _thread = _tyler.Thread()
-                _thread.add_message(_tyler.Message(role="user", content=_case["input"]))
-                _result = await _agent.run(_thread)
-                
-                _output = {
-                    "response": _result.content if _result.content else "",
-                    "tools_used": list(_result.thread.get_tool_usage().get('tools', {}).keys()) if _result.thread.get_tool_usage() else []
-                }
-                
-                # Log prediction
-                _pred_logger = _eval_logger.log_prediction(
-                    inputs={"query": _case["input"]},
-                    output=_output
+            # Check if valid model selected
+            if not _selected_agent_ref or "No models" in str(_selected_agent_ref):
+                full_eval_output = mo.callout(
+                    mo.md(f"⚠️ **Please select a valid model to evaluate.**\n\nCurrent selection: {_selected_agent_ref}"),
+                    kind="warn"
                 )
+            else:
+                # Import weave locally to avoid namespace conflicts
+                import weave as _weave_full
                 
-                # Apply scorers
-                _tool_score = _scorers.tool_usage_scorer(_case, _output)
-                _pred_logger.log_score(scorer="tool_usage", score=_tool_score)
+                # Initialize Weave if not already done
+                try:
+                    _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+                    _weave_full.init(_project)
+                except Exception:
+                    pass
                 
-                _accuracy_score = await _scorers.accuracy_scorer(_case, _output)
-                _pred_logger.log_score(scorer="accuracy", score=_accuracy_score)
+                # Import required modules (using import instead of from...import to avoid namespace conflicts)
+                _workspace_path = str(Path("workspace/step-5").absolute())
+                if _workspace_path not in sys.path:
+                    sys.path.insert(0, _workspace_path)
                 
-                _safety_score = await _scorers.safety_scorer(_case, _output)
-                _pred_logger.log_score(scorer="safety", score=_safety_score)
+                import scorers as _scorers
+                import tyler as _tyler
                 
-                _pred_logger.finish()
-            
-            _eval_logger.log_summary({"total_cases": len(_test_cases), "sample": False})
-            
-            full_eval_output = mo.callout(
-                mo.md(f"""
-                ✅ **Full evaluation complete!**
+                # Load dataset
+                _dataset_ref = _weave_full.ref("support-bot-eval-dataset:latest")
+                _dataset = _dataset_ref.get()
+                _test_cases = [dict(row) for row in _dataset.rows]
                 
-                Evaluated all {len(_test_cases)} test cases.
-                
-                View detailed results in the Weave UI under the Evaluations tab.
-                """),
-                kind="success"
-            )
+                # Load agent from Weave
+                try:
+                    _agent_ref = _weave_full.ref(_selected_agent_ref)
+                    _agent = _agent_ref.get()
+                except Exception as e:
+                    full_eval_output = mo.callout(
+                        mo.md(f"❌ **Error loading agent '{_selected_agent_ref}' from Weave:** {str(e)}\n\nMake sure you've run the agent in Step 4 first."),
+                        kind="danger"
+                    )
+                else:
+                    # Only run evaluation if agent loaded successfully
+                    # Initialize evaluation logger
+                    _eval_logger = _weave_full.EvaluationLogger(
+                        name="support-bot-eval-full",
+                        model=_agent.name,
+                        dataset=_dataset
+                    )
+                    
+                    # Run evaluation on all cases
+                    for _i, _case in enumerate(_test_cases, 1):
+                        # Invoke agent
+                        _thread = _tyler.Thread()
+                        _thread.add_message(_tyler.Message(role="user", content=_case["input"]))
+                        _result = await _agent.run(_thread)
+                        
+                        _output = {
+                            "response": _result.content if _result.content else "",
+                            "tools_used": list(_result.thread.get_tool_usage().get('tools', {}).keys()) if _result.thread.get_tool_usage() else []
+                        }
+                        
+                        # Log prediction
+                        _pred_logger = _eval_logger.log_prediction(
+                            inputs={"query": _case["input"]},
+                            output=_output
+                        )
+                        
+                        # Apply scorers
+                        _tool_score = _scorers.tool_usage_scorer(_case, _output)
+                        _pred_logger.log_score(scorer="tool_usage", score=_tool_score)
+                        
+                        _accuracy_score = await _scorers.accuracy_scorer(_case, _output)
+                        _pred_logger.log_score(scorer="accuracy", score=_accuracy_score)
+                        
+                        _safety_score = await _scorers.safety_scorer(_case, _output)
+                        _pred_logger.log_score(scorer="safety", score=_safety_score)
+                        
+                        _pred_logger.finish()
+                    
+                    _eval_logger.log_summary({"total_cases": len(_test_cases), "sample": False})
+                    
+                    full_eval_output = mo.callout(
+                        mo.md(f"""
+                        ✅ **Full evaluation complete!**
+                        
+                        Evaluated **{_selected_agent_ref}** on all {len(_test_cases)} test cases.
+                        
+                        View detailed results in the Weave UI under the Evaluations tab.
+                        """),
+                        kind="success"
+                    )
         except Exception as e:
             full_eval_output = mo.callout(
                 mo.md(f"❌ **Error running evaluation:** {str(e)}"),
@@ -1925,7 +2108,7 @@ async def _(mo, run_full_eval_btn, Path, sys, os):
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, run_sample_eval_btn, sample_eval_output, run_full_eval_btn, full_eval_output, step5_files_ready, Path, sys):
+def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh_btn, run_sample_eval_btn, sample_eval_output, run_full_eval_btn, full_eval_output, step5_files_ready, Path, sys):
     # ============================================================================
     # STEP 5: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2035,18 +2218,32 @@ def _(mo, weave_entity, weave_project, run_sample_eval_btn, sample_eval_output, 
 
         mo.md("""
 
-        ### Run the Evaluation
+        Now that we have our dataset and scorers, we can run an evaluation.  This evaluation will loop through each row in our dataset and use the scorers to evaluate the agent's response.
 
-        You can run the evaluation directly in Marimo. Start with a sample to test, then run the full evaluation.
+        We can start with a sample to test.  This will evaluate the agent's response on 5 random cases from our dataset.  Normally, we would run this using a script in the terminal like this:
 
-        **Start with a sample to test:**
+        ```bash
+        uv run workspace/run_evaluation.py --agent-name Buzz --sample 5
+        ```
+
+        But we have a handy UI to do this for us. First, select which model and version you want to evaluate:
+        """),
+        
+        mo.hstack([model_selector, version_selector, refresh_btn], justify="start", gap=1),
+        
+        mo.md("""
+        Now click the button to run a sample evaluation on the selected model:
         """),
         
         run_sample_eval_btn,
         sample_eval_output,
         
         mo.md("""
-        **Run full evaluation on all cases:**
+        ## 
+        
+        We can also run a full evaluation on all cases.  This will evaluate the agent's response on all cases in our dataset.
+
+        The full evaluation will use the same agent you selected above:
         """),
         
         run_full_eval_btn,
