@@ -651,22 +651,22 @@ def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, sessi
     # Always fetch traces if chat widget exists (persists across chat resets)
     # Only page refresh will reset the traces by resetting session_start_time
     if chat_widget_2a is not None:
-        import requests
+        import requests as _requests_2a
         
         # Get credentials
-        wandb_token = os.getenv("WANDB_API_KEY", "")
+        _wandb_token = os.getenv("WANDB_API_KEY", "")
         
-        if wandb_token:
+        if _wandb_token:
             try:
                 # Fetch recent traces using Weave Service API
-                url = "https://trace.wandb.ai/calls/stream_query"
-                headers = {"Content-Type": "application/json"}
+                _url = "https://trace.wandb.ai/calls/stream_query"
+                _headers = {"Content-Type": "application/json"}
                 
                 # Convert session start time to format without Z suffix (API requirement)
                 # The API expects "2025-11-25T16:25:11.424651" format (no timezone suffix)
-                session_start_no_tz = session_start_time.split('+')[0].rstrip('Z')
+                _session_start_no_tz = session_start_time.split('+')[0].rstrip('Z')
                 
-                query_payload = {
+                _query_payload = {
                     "project_id": f"{weave_entity}/{weave_project}",
                     "filter": {
                         "trace_roots_only": True,
@@ -677,7 +677,7 @@ def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, sessi
                         "$expr": {
                             "$gte": [
                                 {"$getField": "started_at"},
-                                {"$literal": session_start_no_tz}
+                                {"$literal": _session_start_no_tz}
                             ]
                         }
                     },
@@ -688,23 +688,23 @@ def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, sessi
                     "include_feedback": False,
                 }
                 
-                response = requests.post(
-                    url, 
-                    headers=headers, 
-                    json=query_payload, 
-                    auth=("api", wandb_token),
+                _response = _requests_2a.post(
+                    _url, 
+                    headers=_headers, 
+                    json=_query_payload, 
+                    auth=("api", _wandb_token),
                     timeout=10
                 )
                 
-                if response.status_code == 200:
+                if _response.status_code == 200:
                     # Parse newline-delimited JSON response
-                    json_objects = response.text.strip().split("\n")
-                    traces = [json.loads(obj) for obj in json_objects if obj]
+                    _json_objects = _response.text.strip().split("\n")
+                    _traces = [json.loads(obj) for obj in _json_objects if obj]
                     
                     # If no traces with Agent.stream, try without filter to see if ANY traces exist
-                    if len(traces) == 0:
+                    if len(_traces) == 0:
                         # Try getting any traces
-                        query_payload_all = {
+                        _query_payload_all = {
                             "project_id": f"{weave_entity}/{weave_project}",
                             "filter": {"trace_roots_only": True},
                             "limit": 5,
@@ -712,63 +712,63 @@ def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, sessi
                             "sort_by": [{"field": "started_at", "direction": "desc"}],
                             "include_feedback": False,
                         }
-                        response_all = requests.post(url, headers=headers, json=query_payload_all, auth=("api", wandb_token), timeout=10)
-                        if response_all.status_code == 200:
-                            all_traces = [json.loads(obj) for obj in response_all.text.strip().split("\n") if obj]
-                            if all_traces:
+                        _response_all = _requests_2a.post(_url, headers=_headers, json=_query_payload_all, auth=("api", _wandb_token), timeout=10)
+                        if _response_all.status_code == 200:
+                            _all_traces = [json.loads(obj) for obj in _response_all.text.strip().split("\n") if obj]
+                            if _all_traces:
                                 # Show available op_names
-                                op_names = [t.get('op_name', 'unknown') for t in all_traces[:5]]
+                                _op_names = [t.get('op_name', 'unknown') for t in _all_traces[:5]]
                 
-                if response.status_code == 200:
+                if _response.status_code == 200:
                     # Parse newline-delimited JSON response
-                    json_objects = response.text.strip().split("\n")
-                    traces = [json.loads(obj) for obj in json_objects if obj]
+                    _json_objects = _response.text.strip().split("\n")
+                    _traces = [json.loads(obj) for obj in _json_objects if obj]
                     
                     # Build table data with clickable links
-                    table_data = []
-                    for trace in traces[:10]:  # Limit to 10 most recent
-                        trace_id = trace.get('id', '')
+                    _table_data = []
+                    for _trace in _traces[:10]:  # Limit to 10 most recent
+                        _trace_id = _trace.get('id', '')
                         # Use peekPath format for proper trace viewing
-                        trace_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces?view=traces_default&peekPath=%2F{weave_entity}%2F{weave_project}%2Fcalls%2F{trace_id}"
+                        _trace_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces?view=traces_default&peekPath=%2F{weave_entity}%2F{weave_project}%2Fcalls%2F{_trace_id}"
                         
                         # Format timestamp
-                        started_at = trace.get('started_at', '')
-                        if started_at:
-                            dt = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
-                            time_str = dt.strftime('%Y-%m-%d %H:%M:%S')
+                        _started_at = _trace.get('started_at', '')
+                        if _started_at:
+                            _dt = datetime.fromisoformat(_started_at.replace('Z', '+00:00'))
+                            _time_str = _dt.strftime('%Y-%m-%d %H:%M:%S')
                         else:
-                            time_str = 'N/A'
+                            _time_str = 'N/A'
                         
                         # Get status from summary
-                        status = trace.get('summary', {}).get('weave', {}).get('status', 'unknown')
+                        _status = _trace.get('summary', {}).get('weave', {}).get('status', 'unknown')
                         
                         # Get latency (convert from ms to seconds with 3 decimal places)
-                        latency_ms = trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
-                        if latency_ms:
-                            latency_seconds = latency_ms / 1000.0
-                            latency_str = f"{latency_seconds:.3f}s"
+                        _latency_ms = _trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
+                        if _latency_ms:
+                            _latency_seconds = _latency_ms / 1000.0
+                            _latency_str = f"{_latency_seconds:.3f}s"
                         else:
-                            latency_str = 'N/A'
+                            _latency_str = 'N/A'
                         
                         # Get cost (from costs field if available)
-                        costs = trace.get('costs', {})
-                        if costs:
+                        _costs = _trace.get('costs', {})
+                        if _costs:
                             # Sum up all costs (could be multiple models)
-                            total_cost = sum(costs.values())
-                            cost_str = f"${total_cost:.4f}" if total_cost > 0 else "$0.00"
+                            _total_cost = sum(_costs.values())
+                            _cost_str = f"${_total_cost:.4f}" if _total_cost > 0 else "$0.00"
                         else:
-                            cost_str = 'N/A'
+                            _cost_str = 'N/A'
                         
-                        table_data.append({
-                            "Time": time_str,
-                            "Status": status,
-                            "Latency": latency_str,
-                            "Cost": cost_str,
-                            "Trace ID": trace_id,  # Full trace ID, not truncated
-                            "Link": trace_url
+                        _table_data.append({
+                            "Time": _time_str,
+                            "Status": _status,
+                            "Latency": _latency_str,
+                            "Cost": _cost_str,
+                            "Trace ID": _trace_id,  # Full trace ID, not truncated
+                            "Link": _trace_url
                         })
                     
-                    if table_data:
+                    if _table_data:
                         # Create table with markdown links
                         traces_table_2a = mo.ui.table(
                             [
@@ -777,7 +777,7 @@ def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, sessi
                                     "Latency": row["Latency"],
                                     "Cost": row["Cost"]
                                 }
-                                for row in table_data
+                                for row in _table_data
                             ],
                             selection=None
                         )
@@ -785,7 +785,7 @@ def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, sessi
                         # No traces found yet
                         traces_error_2a = "No traces found yet. Traces may take a few seconds to appear in Weave after sending a message."
                 else:
-                    traces_error_2a = f"Failed to fetch traces: HTTP {response.status_code}"
+                    traces_error_2a = f"Failed to fetch traces: HTTP {_response.status_code}"
                     
             except Exception as e:
                 traces_error_2a = f"Error fetching traces: {str(e)}"
@@ -986,19 +986,144 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, agent_status_3):
+def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_3, session_start_time):
+    # ============================================================================
+    # STEP 3: RECENT TRACES TABLE
+    # ============================================================================
+    
+    traces_table_3 = None
+    traces_error_3 = None
+    
+    # Always fetch traces if chat widget exists (persists across chat resets)
+    # Only page refresh will reset the traces by resetting session_start_time
+    if chat_widget_3 is not None:
+        import requests as _requests_3
+        
+        # Get credentials
+        _wandb_token = os.getenv("WANDB_API_KEY", "")
+        
+        if _wandb_token:
+            try:
+                # Fetch recent traces using Weave Service API
+                _url = "https://trace.wandb.ai/calls/stream_query"
+                _headers = {"Content-Type": "application/json"}
+                
+                # Convert session start time to format without Z suffix (API requirement)
+                _session_start_no_tz = session_start_time.split('+')[0].rstrip('Z')
+                
+                _query_payload = {
+                    "project_id": f"{weave_entity}/{weave_project}",
+                    "filter": {
+                        "trace_roots_only": True,
+                        "op_names": [f"weave:///{weave_entity}/{weave_project}/op/Agent.stream:*"]
+                    },
+                    # Use API-side filtering with $gte
+                    "query": {
+                        "$expr": {
+                            "$gte": [
+                                {"$getField": "started_at"},
+                                {"$literal": _session_start_no_tz}
+                            ]
+                        }
+                    },
+                    "limit": 50,
+                    "offset": 0,
+                    "sort_by": [{"field": "started_at", "direction": "desc"}],
+                    "include_costs": True,
+                    "include_feedback": False,
+                }
+                
+                _response = _requests_3.post(
+                    _url, 
+                    headers=_headers, 
+                    json=_query_payload, 
+                    auth=("api", _wandb_token),
+                    timeout=10
+                )
+                
+                if _response.status_code == 200:
+                    # Parse newline-delimited JSON response
+                    _json_objects = _response.text.strip().split("\n")
+                    _traces = [json.loads(obj) for obj in _json_objects if obj]
+                    
+                    # Build table data with clickable links
+                    _table_data = []
+                    for _trace in _traces[:10]:  # Limit to 10 most recent
+                        _trace_id = _trace.get('id', '')
+                        # Use peekPath format for proper trace viewing
+                        _trace_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces?view=traces_default&peekPath=%2F{weave_entity}%2F{weave_project}%2Fcalls%2F{_trace_id}"
+                        
+                        # Format timestamp
+                        _started_at = _trace.get('started_at', '')
+                        if _started_at:
+                            _dt = datetime.fromisoformat(_started_at.replace('Z', '+00:00'))
+                            _time_str = _dt.strftime('%Y-%m-%d %H:%M:%S')
+                        else:
+                            _time_str = 'N/A'
+                        
+                        # Get status from summary
+                        _status = _trace.get('summary', {}).get('weave', {}).get('status', 'unknown')
+                        
+                        # Get latency (convert from ms to seconds with 3 decimal places)
+                        _latency_ms = _trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
+                        if _latency_ms:
+                            _latency_seconds = _latency_ms / 1000.0
+                            _latency_str = f"{_latency_seconds:.3f}s"
+                        else:
+                            _latency_str = 'N/A'
+                        
+                        # Get cost (from costs field if available)
+                        _costs = _trace.get('costs', {})
+                        if _costs:
+                            # Sum up all costs (could be multiple models)
+                            _total_cost = sum(_costs.values())
+                            _cost_str = f"${_total_cost:.4f}" if _total_cost > 0 else "$0.00"
+                        else:
+                            _cost_str = 'N/A'
+                        
+                        _table_data.append({
+                            "Time": _time_str,
+                            "Status": _status,
+                            "Latency": _latency_str,
+                            "Cost": _cost_str,
+                            "Trace ID": _trace_id,
+                            "Link": _trace_url
+                        })
+                    
+                    if _table_data:
+                        # Create table with markdown links
+                        traces_table_3 = mo.ui.table(
+                            [
+                                {
+                                    "Link": mo.md(f"[{row['Trace ID']}]({row['Link']})"),
+                                    "Latency": row["Latency"],
+                                    "Cost": row["Cost"]
+                                }
+                                for row in _table_data
+                            ],
+                            selection=None
+                        )
+                    else:
+                        # No traces found yet
+                        traces_error_3 = "No traces found yet. Traces may take a few seconds to appear in Weave after sending a message."
+                else:
+                    traces_error_3 = f"Failed to fetch traces: HTTP {_response.status_code}"
+                    
+            except Exception as e:
+                traces_error_3 = f"Error fetching traces: {str(e)}"
+        else:
+            traces_error_3 = "WANDB_API_KEY not set"
+    
+    return traces_table_3, traces_error_3
+
+
+@app.cell
+def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, agent_status_3, traces_table_3, traces_error_3):
     # ============================================================================
     # STEP 3: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     try:
-        # Build filtered traces URL if user has chat messages
-        if chat_widget_3 is not None and len(chat_widget_3.value) > 0:
-            from urllib.parse import quote as _quote3
-            _base_url_3 = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
-            _filter_param_3 = _quote3("op_name=Agent.run")
-            _traces_url_3 = f"{_base_url_3}?filter={_filter_param_3}"
-        else:
-            _traces_url_3 = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+        _traces_url_3 = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
         
         # Single column layout
         step3_content = mo.vstack([
@@ -1034,6 +1159,26 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
                     config_editor_3,
                 ])
             }),
+            
+            # Add traces section
+            mo.md("""
+            ## 
+                       
+            Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Traces will appear below:
+            """),
+            
+            # Show traces table or loading/error message
+            (traces_table_3 if traces_table_3 is not None 
+             else mo.callout(
+                 mo.md(f"⏳ {traces_error_3}") if traces_error_3 and "No traces found yet" in traces_error_3
+                 else mo.md(f"⚠️ {traces_error_3}") if traces_error_3
+                 else mo.md("💬 **Send a message above** to see traces appear here automatically."),
+                 kind="info" if not traces_error_3 or "No traces found yet" in traces_error_3 else "warn"
+             )),
+            
+            (mo.md(f"""
+            💡 **Tip:** Click on the trace link to view the full execution details in Weave, including inputs, outputs, and timing information, or view all traces in [your project]({_traces_url_3})
+            """) if traces_table_3 is not None else mo.md("")),
                         
             mo.md(f"""
             ##  
@@ -1220,7 +1365,139 @@ Always be friendly, clear, and helpful in your responses.
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_purpose_accordion, example_notes_accordion, name_input, purpose_input, notes_input):
+def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_4, session_start_time):
+    # ============================================================================
+    # STEP 4: RECENT TRACES TABLE
+    # ============================================================================
+    
+    traces_table_4 = None
+    traces_error_4 = None
+    
+    # Always fetch traces if chat widget exists (persists across chat resets)
+    # Only page refresh will reset the traces by resetting session_start_time
+    if chat_widget_4 is not None:
+        import requests as _requests_4
+        
+        # Get credentials
+        _wandb_token = os.getenv("WANDB_API_KEY", "")
+        
+        if _wandb_token:
+            try:
+                # Fetch recent traces using Weave Service API
+                _url = "https://trace.wandb.ai/calls/stream_query"
+                _headers = {"Content-Type": "application/json"}
+                
+                # Convert session start time to format without Z suffix (API requirement)
+                _session_start_no_tz = session_start_time.split('+')[0].rstrip('Z')
+                
+                _query_payload = {
+                    "project_id": f"{weave_entity}/{weave_project}",
+                    "filter": {
+                        "trace_roots_only": True,
+                        "op_names": [f"weave:///{weave_entity}/{weave_project}/op/Agent.stream:*"]
+                    },
+                    # Use API-side filtering with $gte
+                    "query": {
+                        "$expr": {
+                            "$gte": [
+                                {"$getField": "started_at"},
+                                {"$literal": _session_start_no_tz}
+                            ]
+                        }
+                    },
+                    "limit": 50,
+                    "offset": 0,
+                    "sort_by": [{"field": "started_at", "direction": "desc"}],
+                    "include_costs": True,
+                    "include_feedback": False,
+                }
+                
+                _response = _requests_4.post(
+                    _url, 
+                    headers=_headers, 
+                    json=_query_payload, 
+                    auth=("api", _wandb_token),
+                    timeout=10
+                )
+                
+                if _response.status_code == 200:
+                    # Parse newline-delimited JSON response
+                    _json_objects = _response.text.strip().split("\n")
+                    _traces = [json.loads(obj) for obj in _json_objects if obj]
+                    
+                    # Build table data with clickable links
+                    _table_data = []
+                    for _trace in _traces[:10]:  # Limit to 10 most recent
+                        _trace_id = _trace.get('id', '')
+                        # Use peekPath format for proper trace viewing
+                        _trace_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces?view=traces_default&peekPath=%2F{weave_entity}%2F{weave_project}%2Fcalls%2F{_trace_id}"
+                        
+                        # Format timestamp
+                        _started_at = _trace.get('started_at', '')
+                        if _started_at:
+                            _dt = datetime.fromisoformat(_started_at.replace('Z', '+00:00'))
+                            _time_str = _dt.strftime('%Y-%m-%d %H:%M:%S')
+                        else:
+                            _time_str = 'N/A'
+                        
+                        # Get status from summary
+                        _status = _trace.get('summary', {}).get('weave', {}).get('status', 'unknown')
+                        
+                        # Get latency (convert from ms to seconds with 3 decimal places)
+                        _latency_ms = _trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
+                        if _latency_ms:
+                            _latency_seconds = _latency_ms / 1000.0
+                            _latency_str = f"{_latency_seconds:.3f}s"
+                        else:
+                            _latency_str = 'N/A'
+                        
+                        # Get cost (from costs field if available)
+                        _costs = _trace.get('costs', {})
+                        if _costs:
+                            # Sum up all costs (could be multiple models)
+                            _total_cost = sum(_costs.values())
+                            _cost_str = f"${_total_cost:.4f}" if _total_cost > 0 else "$0.00"
+                        else:
+                            _cost_str = 'N/A'
+                        
+                        _table_data.append({
+                            "Time": _time_str,
+                            "Status": _status,
+                            "Latency": _latency_str,
+                            "Cost": _cost_str,
+                            "Trace ID": _trace_id,
+                            "Link": _trace_url
+                        })
+                    
+                    if _table_data:
+                        # Create table with markdown links
+                        traces_table_4 = mo.ui.table(
+                            [
+                                {
+                                    "Link": mo.md(f"[{row['Trace ID']}]({row['Link']})"),
+                                    "Latency": row["Latency"],
+                                    "Cost": row["Cost"]
+                                }
+                                for row in _table_data
+                            ],
+                            selection=None
+                        )
+                    else:
+                        # No traces found yet
+                        traces_error_4 = "No traces found yet. Traces may take a few seconds to appear in Weave after sending a message."
+                else:
+                    traces_error_4 = f"Failed to fetch traces: HTTP {_response.status_code}"
+                    
+            except Exception as e:
+                traces_error_4 = f"Error fetching traces: {str(e)}"
+        else:
+            traces_error_4 = "WANDB_API_KEY not set"
+    
+    return traces_table_4, traces_error_4
+
+
+@app.cell
+def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_purpose_accordion, example_notes_accordion, name_input, purpose_input, notes_input, traces_table_4, traces_error_4):
     # ============================================================================
     # STEP 4: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1287,6 +1564,26 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
                     config_editor_4,
                 ])
             }),
+            
+            # Add traces section
+            mo.md("""
+            ## 
+                       
+            Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Traces will appear below:
+            """),
+            
+            # Show traces table or loading/error message
+            (traces_table_4 if traces_table_4 is not None 
+             else mo.callout(
+                 mo.md(f"⏳ {traces_error_4}") if traces_error_4 and "No traces found yet" in traces_error_4
+                 else mo.md(f"⚠️ {traces_error_4}") if traces_error_4
+                 else mo.md("💬 **Send a message above** to see traces appear here automatically."),
+                 kind="info" if not traces_error_4 or "No traces found yet" in traces_error_4 else "warn"
+             )),
+            
+            (mo.md(f"""
+            💡 **Tip:** Click on the trace link to view the full execution details in Weave, including inputs, outputs, and timing information, or view all traces in [your project]({_traces_url_4})
+            """) if traces_table_4 is not None else mo.md("")),
                         
             mo.md(f"""
             ##  
