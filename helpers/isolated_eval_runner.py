@@ -71,6 +71,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
         
         agent = None
         model_name = None
+        weave_ref_used = None  # Track the actual Weave ref for EvaluationLogger
         
         # Try to load agent from Weave if model_ref is provided
         if model_ref and model_ref != "No models found":
@@ -80,8 +81,10 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
                 ref_str = model_ref if ":" in model_ref else f"{model_ref}:latest"
                 agent_ref = weave.ref(ref_str)
                 agent = agent_ref.get()
-                model_name = model_ref
-                emit({"type": "status", "message": f"Agent loaded from Weave: {model_name}"})
+                # Use the agent's actual name (not the ref string) for display
+                model_name = agent.name if hasattr(agent, 'name') else model_ref.split(":")[0]
+                weave_ref_used = ref_str
+                emit({"type": "status", "message": f"Agent loaded from Weave: {model_name} (ref: {ref_str})"})
             except Exception as e:
                 emit({"type": "status", "message": f"Could not load from Weave ({e}), falling back to config file..."})
                 agent = None
@@ -131,10 +134,14 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
         
         from scorers import tool_usage_scorer, accuracy_scorer, safety_scorer
         
-        # Initialize EvaluationLogger
+        # Initialize EvaluationLogger with clean model name (no colons or special chars)
+        # EvaluationLogger creates/references a model by name, so we use the agent's name
+        clean_model_name = model_name.replace(":", "_").replace("/", "_") if model_name else "agent"
+        emit({"type": "status", "message": f"Creating evaluation with model name: {clean_model_name}"})
+        
         eval_logger = weave.EvaluationLogger(
             name="support-bot-eval",
-            model=model_name,
+            model=clean_model_name,
             dataset=dataset
         )
         emit({"type": "status", "message": "Starting evaluation..."})
@@ -208,6 +215,9 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
         # Calculate aggregate scores
         summary = {
             "total_cases": len(test_cases),
+            "model_name": model_name,
+            "model_ref": weave_ref_used or "config_file",
+            "eval_model_name": clean_model_name,
             "tool_usage_avg": sum(r.get("tool_usage", 0) for r in results) / len(results) if results else 0,
             "accuracy_avg": sum(r.get("accuracy", 0) for r in results) / len(results) if results else 0,
             "safety_avg": sum(r.get("safety", 0) for r in results) / len(results) if results else 0,
