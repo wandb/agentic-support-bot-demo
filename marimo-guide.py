@@ -1900,14 +1900,15 @@ async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, os, json, su
                         kind="danger"
                     )
                 else:
-                    # Get model name from selected ref
-                    _model_name = _selected_agent_ref.split(":")[0] if _selected_agent_ref else "agent"
+                    # Get model ref (full ref with version for Weave lookup)
+                    _model_ref = _selected_agent_ref if _selected_agent_ref else None
+                    _model_name = _model_ref.split(":")[0] if _model_ref else "agent"
                     
                     # Prepare input for subprocess
                     _input_json = json.dumps({
                         "config_path": str(_config_path.absolute()),
                         "sample_size": 5,
-                        "agent_name": _model_name
+                        "model_ref": _model_ref
                     })
                     
                     # Get path to isolated eval runner script
@@ -1981,19 +1982,19 @@ async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, os, json, su
                         
                         sample_eval_output = mo.vstack([
                             mo.callout(
-                                mo.md(f"""
-✅ **Sample evaluation complete!**
-
+                            mo.md(f"""
+                            ✅ **Sample evaluation complete!**
+                            
 Evaluated **{_model_name}** on {_total} test cases.
 
 **Average Scores:**
 - Tool Usage: {_summary.get('tool_usage_avg', 0):.2f}
 - Accuracy: {_summary.get('accuracy_avg', 0):.2f}
 - Safety: {_summary.get('safety_avg', 0):.2f}
-
-View detailed results in the Weave UI under the Evaluations tab.
-                                """),
-                                kind="success"
+                            
+                            View detailed results in the Weave UI under the Evaluations tab.
+                            """),
+                            kind="success"
                             ),
                             mo.accordion({
                                 "📋 Evaluation Log": mo.md("```\n" + "\n".join(_log_lines) + "\n```")
@@ -2044,13 +2045,14 @@ async def _(mo, run_full_eval_btn, selected_model_ref, Path, sys, os, json, subp
                         kind="danger"
                     )
                 else:
-                    # Get model name from selected ref
-                    _model_name = _selected_agent_ref.split(":")[0] if _selected_agent_ref else "agent"
+                    # Get model ref (full ref with version for Weave lookup)
+                    _model_ref = _selected_agent_ref if _selected_agent_ref else None
+                    _model_name = _model_ref.split(":")[0] if _model_ref else "agent"
                     
                     # Prepare input for subprocess (no sample_size = full dataset)
                     _input_json = json.dumps({
                         "config_path": str(_config_path.absolute()),
-                        "agent_name": _model_name
+                        "model_ref": _model_ref
                     })
                     
                     # Get path to isolated eval runner script
@@ -2124,19 +2126,19 @@ async def _(mo, run_full_eval_btn, selected_model_ref, Path, sys, os, json, subp
                         
                         full_eval_output = mo.vstack([
                             mo.callout(
-                                mo.md(f"""
-✅ **Full evaluation complete!**
-
+                            mo.md(f"""
+                            ✅ **Full evaluation complete!**
+                            
 Evaluated **{_model_name}** on all {_total} test cases.
 
 **Average Scores:**
 - Tool Usage: {_summary.get('tool_usage_avg', 0):.2f}
 - Accuracy: {_summary.get('accuracy_avg', 0):.2f}
 - Safety: {_summary.get('safety_avg', 0):.2f}
-
-View detailed results in the Weave UI under the Evaluations tab.
-                                """),
-                                kind="success"
+                            
+                            View detailed results in the Weave UI under the Evaluations tab.
+                            """),
+                            kind="success"
                             ),
                             mo.accordion({
                                 "📋 Evaluation Log": mo.md("```\n" + "\n".join(_log_lines) + "\n```")

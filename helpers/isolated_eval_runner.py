@@ -40,14 +40,15 @@ def emit(data: dict):
     print(json.dumps(data), flush=True)
 
 
-async def run_evaluation(config_path: str, sample_size: int = None, agent_name: str = None):
+async def run_evaluation(config_path: str, sample_size: int = None, model_ref: str = None):
     """
     Run evaluation and stream results to stdout as JSON lines.
     
     Args:
-        config_path: Path to Tyler agent config YAML file
+        config_path: Path to Tyler agent config YAML file (fallback)
         sample_size: If set, evaluate only this many random cases
-        agent_name: Name for logging (defaults to agent name from config)
+        model_ref: Weave model reference (e.g., "Buzz:v3") to load from Weave.
+                   If not provided or not found, falls back to config file.
     """
     try:
         from dotenv import load_dotenv
@@ -62,27 +63,46 @@ async def run_evaluation(config_path: str, sample_size: int = None, agent_name: 
         
         emit({"type": "status", "message": f"Connected to Weave project: {project}"})
         
-        # Load agent from config
-        emit({"type": "status", "message": "Loading agent..."})
+        from tyler import Agent, Thread, Message
         
         config_path = Path(config_path).absolute()
-        if not config_path.exists():
-            emit({"type": "error", "message": f"Config file not found: {config_path}"})
-            return
-        
         config_dir = config_path.parent
         original_cwd = os.getcwd()
         
-        # Change to config directory so relative paths work
-        os.chdir(config_dir)
+        agent = None
+        model_name = None
         
-        try:
-            from tyler import Agent, Thread, Message
-            agent = Agent.from_config(str(config_path))
-            model_name = agent_name or agent.name
-            emit({"type": "status", "message": f"Agent loaded: {model_name}"})
-        finally:
-            os.chdir(original_cwd)
+        # Try to load agent from Weave if model_ref is provided
+        if model_ref and model_ref != "No models found":
+            emit({"type": "status", "message": f"Loading agent from Weave: {model_ref}..."})
+            try:
+                # Ensure model_ref has version (default to :latest)
+                ref_str = model_ref if ":" in model_ref else f"{model_ref}:latest"
+                agent_ref = weave.ref(ref_str)
+                agent = agent_ref.get()
+                model_name = model_ref
+                emit({"type": "status", "message": f"Agent loaded from Weave: {model_name}"})
+            except Exception as e:
+                emit({"type": "status", "message": f"Could not load from Weave ({e}), falling back to config file..."})
+                agent = None
+        
+        # Fall back to config file if Weave loading failed or no ref provided
+        if agent is None:
+            emit({"type": "status", "message": "Loading agent from config file..."})
+            
+            if not config_path.exists():
+                emit({"type": "error", "message": f"Config file not found: {config_path}"})
+                return
+            
+            # Change to config directory so relative paths work
+            os.chdir(config_dir)
+            
+            try:
+                agent = Agent.from_config(str(config_path))
+                model_name = agent.name
+                emit({"type": "status", "message": f"Agent loaded from config: {model_name}"})
+            finally:
+                os.chdir(original_cwd)
         
         # Load dataset
         emit({"type": "status", "message": "Loading dataset..."})
@@ -208,14 +228,14 @@ def main():
         input_data = json.loads(sys.stdin.read())
         config_path = input_data.get("config_path")
         sample_size = input_data.get("sample_size")
-        agent_name = input_data.get("agent_name")
+        model_ref = input_data.get("model_ref")
         
         if not config_path:
             emit({"type": "error", "message": "No config_path provided"})
             sys.exit(1)
         
         # Run the evaluation
-        asyncio.run(run_evaluation(config_path, sample_size, agent_name))
+        asyncio.run(run_evaluation(config_path, sample_size, model_ref))
         sys.exit(0)
     
     except json.JSONDecodeError as e:
