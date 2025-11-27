@@ -1871,10 +1871,11 @@ def _(mo):
 
 
 @app.cell  
-async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, random, os):
+async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, os, json, subprocess):
     # ============================================================================
-    # STEP 5: RUN SAMPLE EVALUATION LOGIC
+    # STEP 5: RUN SAMPLE EVALUATION LOGIC (using subprocess for clean context)
     # ============================================================================
+    import asyncio as _asyncio_sample
     
     # Always initialize the output variable
     sample_eval_output = mo.md("")
@@ -1891,103 +1892,122 @@ async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, random, os):
                     kind="warn"
                 )
             else:
-                # Import weave locally to avoid namespace conflicts
-                import weave as _weave_sample
-                
-                # Initialize Weave if not already done
-                try:
-                    _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
-                    _weave_sample.init(_project)
-                except Exception:
-                    pass
-                
-                # Import required modules (using import instead of from...import to avoid namespace conflicts)
-                _workspace_path = str(Path("workspace/step-5").absolute())
-                if _workspace_path not in sys.path:
-                    sys.path.insert(0, _workspace_path)
-                
-                import scorers as _scorers
-                import tyler as _tyler
-                
-                # Load dataset
-                _dataset_ref = _weave_sample.ref("support-bot-eval-dataset:latest")
-                _dataset = _dataset_ref.get()
-                _test_cases = [dict(row) for row in _dataset.rows]
-                
-                # Sample 5 random cases
-                _sample_cases = random.sample(_test_cases, min(5, len(_test_cases)))
-                
-                # Load agent from Weave
-                try:
-                    _agent_ref = _weave_sample.ref(_selected_agent_ref)
-                    _agent = _agent_ref.get()
-                except Exception as e:
+                # Check config exists
+                _config_path = Path("workspace/step-4/tyler-chat-config.yaml")
+                if not _config_path.exists():
                     sample_eval_output = mo.callout(
-                        mo.md(f"❌ **Error loading agent '{_selected_agent_ref}' from Weave:** {str(e)}\n\nMake sure you've run the agent in Step 4 first."),
+                        mo.md(f"❌ **Config file not found:** {_config_path}\n\nMake sure you've configured the agent in Step 4 first."),
                         kind="danger"
                     )
                 else:
-                    # Only run evaluation if agent loaded successfully
-                    # Initialize evaluation logger
-                    _eval_logger = _weave_sample.EvaluationLogger(
-                        name="support-bot-eval-sample",
-                        model=_agent.name,
-                        dataset=_dataset
+                    # Get model name from selected ref
+                    _model_name = _selected_agent_ref.split(":")[0] if _selected_agent_ref else "agent"
+                    
+                    # Prepare input for subprocess
+                    _input_json = json.dumps({
+                        "config_path": str(_config_path.absolute()),
+                        "sample_size": 5,
+                        "agent_name": _model_name
+                    })
+                    
+                    # Get path to isolated eval runner script
+                    _runner_script = Path(__file__).parent / "helpers" / "isolated_eval_runner.py"
+                    
+                    # Run evaluation in subprocess for clean Weave context
+                    _process = await _asyncio_sample.create_subprocess_exec(
+                        sys.executable,
+                        str(_runner_script.absolute()),
+                        stdin=_asyncio_sample.subprocess.PIPE,
+                        stdout=_asyncio_sample.subprocess.PIPE,
+                        stderr=_asyncio_sample.subprocess.PIPE,
+                        env=os.environ.copy()
                     )
                     
-                    # Run evaluation on sample
-                    _results = []
-                    for _i, _case in enumerate(_sample_cases, 1):
-                        # Invoke agent
-                        _thread = _tyler.Thread()
-                        _thread.add_message(_tyler.Message(role="user", content=_case["input"]))
-                        _result = await _agent.run(_thread)
+                    # Send input to subprocess
+                    _process.stdin.write(_input_json.encode())
+                    await _process.stdin.drain()
+                    _process.stdin.close()
+                    
+                    # Collect output
+                    _output_lines = []
+                    _result_data = None
+                    _error_msg = None
+                    
+                    while True:
+                        _line = await _process.stdout.readline()
+                        if not _line:
+                            break
                         
-                        _output = {
-                            "response": _result.content if _result.content else "",
-                            "tools_used": list(_result.thread.get_tool_usage().get('tools', {}).keys()) if _result.thread.get_tool_usage() else []
-                        }
-                        
-                        # Log prediction
-                        _pred_logger = _eval_logger.log_prediction(
-                            inputs={"query": _case["input"]},
-                            output=_output
+                        try:
+                            _chunk = json.loads(_line.decode().strip())
+                            _output_lines.append(_chunk)
+                            
+                            if _chunk.get("type") == "result":
+                                _result_data = _chunk
+                            elif _chunk.get("type") == "error":
+                                _error_msg = _chunk.get("message", "Unknown error")
+                        except json.JSONDecodeError:
+                            continue
+                    
+                    await _process.wait()
+                    
+                    # Check for errors
+                    if _process.returncode != 0:
+                        _stderr = await _process.stderr.read()
+                        _error_text = _stderr.decode().strip() if _stderr else _error_msg or "Unknown error"
+                        sample_eval_output = mo.callout(
+                            mo.md(f"❌ **Evaluation failed:**\n\n```\n{_error_text}\n```"),
+                            kind="danger"
                         )
+                    elif _error_msg:
+                        sample_eval_output = mo.callout(
+                            mo.md(f"❌ **Error:** {_error_msg}"),
+                            kind="danger"
+                        )
+                    elif _result_data:
+                        _summary = _result_data.get("summary", {})
+                        _total = _result_data.get("total_cases", 0)
                         
-                        # Apply scorers
-                        _tool_score = _scorers.tool_usage_scorer(_case, _output)
-                        _pred_logger.log_score(scorer="tool_usage", score=_tool_score)
+                        # Build output log from captured messages
+                        _log_lines = []
+                        for _msg in _output_lines:
+                            if _msg.get("type") == "status":
+                                _log_lines.append(f"✓ {_msg.get('message', '')}")
+                            elif _msg.get("type") == "progress":
+                                _log_lines.append(f"[{_msg.get('current')}/{_msg.get('total')}] {_msg.get('input', '')[:50]}...")
+                            elif _msg.get("type") == "score":
+                                if "error" not in _msg:
+                                    _log_lines.append(f"  → {_msg.get('scorer')}: {_msg.get('score', 0):.2f}")
                         
-                        _accuracy_score = await _scorers.accuracy_scorer(_case, _output)
-                        _pred_logger.log_score(scorer="accuracy", score=_accuracy_score)
-                        
-                        _safety_score = await _scorers.safety_scorer(_case, _output)
-                        _pred_logger.log_score(scorer="safety", score=_safety_score)
-                        
-                        _pred_logger.finish()
-                        
-                        _results.append({
-                            "input": _case["input"][:60] + "...",
-                            "tool_score": _tool_score.get("score", 0),
-                            "accuracy": _accuracy_score.get("accuracy", 0),
-                            "safety": _safety_score.get("overall_safety", 0)
-                        })
-                    
-                    _eval_logger.log_summary({"total_cases": len(_sample_cases), "sample": True})
-                    
-                    sample_eval_output = mo.callout(
-                        mo.md(f"""
-                        ✅ **Sample evaluation complete!**
-                        
-                        Evaluated **{_selected_agent_ref}** on {len(_sample_cases)} test cases.
-                        
-                        View detailed results in the Weave UI under the Evaluations tab.
-                        """),
-                        kind="success"
-                    )
+                        sample_eval_output = mo.vstack([
+                            mo.callout(
+                                mo.md(f"""
+✅ **Sample evaluation complete!**
+
+Evaluated **{_model_name}** on {_total} test cases.
+
+**Average Scores:**
+- Tool Usage: {_summary.get('tool_usage_avg', 0):.2f}
+- Accuracy: {_summary.get('accuracy_avg', 0):.2f}
+- Safety: {_summary.get('safety_avg', 0):.2f}
+
+View detailed results in the Weave UI under the Evaluations tab.
+                                """),
+                                kind="success"
+                            ),
+                            mo.accordion({
+                                "📋 Evaluation Log": mo.md("```\n" + "\n".join(_log_lines) + "\n```")
+                            })
+                        ])
+                    else:
+                        sample_eval_output = mo.callout(
+                            mo.md("⚠️ Evaluation completed but no results were returned."),
+                            kind="warn"
+                        )
         except Exception as e:
+            import traceback as _traceback_sample
             sample_eval_output = mo.callout(
-                mo.md(f"❌ **Error running evaluation:** {str(e)}"),
+                mo.md(f"❌ **Error running evaluation:** {str(e)}\n\n```\n{_traceback_sample.format_exc()}\n```"),
                 kind="danger"
             )
     
@@ -1995,10 +2015,11 @@ async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, random, os):
 
 
 @app.cell
-async def _(mo, run_full_eval_btn, selected_model_ref, Path, sys, os):
+async def _(mo, run_full_eval_btn, selected_model_ref, Path, sys, os, json, subprocess):
     # ============================================================================
-    # STEP 5: RUN FULL EVALUATION LOGIC
+    # STEP 5: RUN FULL EVALUATION LOGIC (using subprocess for clean context)
     # ============================================================================
+    import asyncio as _asyncio_full
     
     # Always initialize the output variable
     full_eval_output = mo.md("")
@@ -2015,92 +2036,121 @@ async def _(mo, run_full_eval_btn, selected_model_ref, Path, sys, os):
                     kind="warn"
                 )
             else:
-                # Import weave locally to avoid namespace conflicts
-                import weave as _weave_full
-                
-                # Initialize Weave if not already done
-                try:
-                    _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
-                    _weave_full.init(_project)
-                except Exception:
-                    pass
-                
-                # Import required modules (using import instead of from...import to avoid namespace conflicts)
-                _workspace_path = str(Path("workspace/step-5").absolute())
-                if _workspace_path not in sys.path:
-                    sys.path.insert(0, _workspace_path)
-                
-                import scorers as _scorers
-                import tyler as _tyler
-                
-                # Load dataset
-                _dataset_ref = _weave_full.ref("support-bot-eval-dataset:latest")
-                _dataset = _dataset_ref.get()
-                _test_cases = [dict(row) for row in _dataset.rows]
-                
-                # Load agent from Weave
-                try:
-                    _agent_ref = _weave_full.ref(_selected_agent_ref)
-                    _agent = _agent_ref.get()
-                except Exception as e:
+                # Check config exists
+                _config_path = Path("workspace/step-4/tyler-chat-config.yaml")
+                if not _config_path.exists():
                     full_eval_output = mo.callout(
-                        mo.md(f"❌ **Error loading agent '{_selected_agent_ref}' from Weave:** {str(e)}\n\nMake sure you've run the agent in Step 4 first."),
+                        mo.md(f"❌ **Config file not found:** {_config_path}\n\nMake sure you've configured the agent in Step 4 first."),
                         kind="danger"
                     )
                 else:
-                    # Only run evaluation if agent loaded successfully
-                    # Initialize evaluation logger
-                    _eval_logger = _weave_full.EvaluationLogger(
-                        name="support-bot-eval-full",
-                        model=_agent.name,
-                        dataset=_dataset
+                    # Get model name from selected ref
+                    _model_name = _selected_agent_ref.split(":")[0] if _selected_agent_ref else "agent"
+                    
+                    # Prepare input for subprocess (no sample_size = full dataset)
+                    _input_json = json.dumps({
+                        "config_path": str(_config_path.absolute()),
+                        "agent_name": _model_name
+                    })
+                    
+                    # Get path to isolated eval runner script
+                    _runner_script = Path(__file__).parent / "helpers" / "isolated_eval_runner.py"
+                    
+                    # Run evaluation in subprocess for clean Weave context
+                    _process = await _asyncio_full.create_subprocess_exec(
+                        sys.executable,
+                        str(_runner_script.absolute()),
+                        stdin=_asyncio_full.subprocess.PIPE,
+                        stdout=_asyncio_full.subprocess.PIPE,
+                        stderr=_asyncio_full.subprocess.PIPE,
+                        env=os.environ.copy()
                     )
                     
-                    # Run evaluation on all cases
-                    for _i, _case in enumerate(_test_cases, 1):
-                        # Invoke agent
-                        _thread = _tyler.Thread()
-                        _thread.add_message(_tyler.Message(role="user", content=_case["input"]))
-                        _result = await _agent.run(_thread)
+                    # Send input to subprocess
+                    _process.stdin.write(_input_json.encode())
+                    await _process.stdin.drain()
+                    _process.stdin.close()
+                    
+                    # Collect output
+                    _output_lines = []
+                    _result_data = None
+                    _error_msg = None
+                    
+                    while True:
+                        _line = await _process.stdout.readline()
+                        if not _line:
+                            break
                         
-                        _output = {
-                            "response": _result.content if _result.content else "",
-                            "tools_used": list(_result.thread.get_tool_usage().get('tools', {}).keys()) if _result.thread.get_tool_usage() else []
-                        }
-                        
-                        # Log prediction
-                        _pred_logger = _eval_logger.log_prediction(
-                            inputs={"query": _case["input"]},
-                            output=_output
+                        try:
+                            _chunk = json.loads(_line.decode().strip())
+                            _output_lines.append(_chunk)
+                            
+                            if _chunk.get("type") == "result":
+                                _result_data = _chunk
+                            elif _chunk.get("type") == "error":
+                                _error_msg = _chunk.get("message", "Unknown error")
+                        except json.JSONDecodeError:
+                            continue
+                    
+                    await _process.wait()
+                    
+                    # Check for errors
+                    if _process.returncode != 0:
+                        _stderr = await _process.stderr.read()
+                        _error_text = _stderr.decode().strip() if _stderr else _error_msg or "Unknown error"
+                        full_eval_output = mo.callout(
+                            mo.md(f"❌ **Evaluation failed:**\n\n```\n{_error_text}\n```"),
+                            kind="danger"
                         )
+                    elif _error_msg:
+                        full_eval_output = mo.callout(
+                            mo.md(f"❌ **Error:** {_error_msg}"),
+                            kind="danger"
+                        )
+                    elif _result_data:
+                        _summary = _result_data.get("summary", {})
+                        _total = _result_data.get("total_cases", 0)
                         
-                        # Apply scorers
-                        _tool_score = _scorers.tool_usage_scorer(_case, _output)
-                        _pred_logger.log_score(scorer="tool_usage", score=_tool_score)
+                        # Build output log from captured messages
+                        _log_lines = []
+                        for _msg in _output_lines:
+                            if _msg.get("type") == "status":
+                                _log_lines.append(f"✓ {_msg.get('message', '')}")
+                            elif _msg.get("type") == "progress":
+                                _log_lines.append(f"[{_msg.get('current')}/{_msg.get('total')}] {_msg.get('input', '')[:50]}...")
+                            elif _msg.get("type") == "score":
+                                if "error" not in _msg:
+                                    _log_lines.append(f"  → {_msg.get('scorer')}: {_msg.get('score', 0):.2f}")
                         
-                        _accuracy_score = await _scorers.accuracy_scorer(_case, _output)
-                        _pred_logger.log_score(scorer="accuracy", score=_accuracy_score)
-                        
-                        _safety_score = await _scorers.safety_scorer(_case, _output)
-                        _pred_logger.log_score(scorer="safety", score=_safety_score)
-                        
-                        _pred_logger.finish()
-                    
-                    _eval_logger.log_summary({"total_cases": len(_test_cases), "sample": False})
-                    
-                    full_eval_output = mo.callout(
-                        mo.md(f"""
-                        ✅ **Full evaluation complete!**
-                        
-                        Evaluated **{_selected_agent_ref}** on all {len(_test_cases)} test cases.
-                        
-                        View detailed results in the Weave UI under the Evaluations tab.
-                        """),
-                        kind="success"
-                    )
+                        full_eval_output = mo.vstack([
+                            mo.callout(
+                                mo.md(f"""
+✅ **Full evaluation complete!**
+
+Evaluated **{_model_name}** on all {_total} test cases.
+
+**Average Scores:**
+- Tool Usage: {_summary.get('tool_usage_avg', 0):.2f}
+- Accuracy: {_summary.get('accuracy_avg', 0):.2f}
+- Safety: {_summary.get('safety_avg', 0):.2f}
+
+View detailed results in the Weave UI under the Evaluations tab.
+                                """),
+                                kind="success"
+                            ),
+                            mo.accordion({
+                                "📋 Evaluation Log": mo.md("```\n" + "\n".join(_log_lines) + "\n```")
+                            })
+                        ])
+                    else:
+                        full_eval_output = mo.callout(
+                            mo.md("⚠️ Evaluation completed but no results were returned."),
+                            kind="warn"
+                        )
         except Exception as e:
+            import traceback as _traceback_full
             full_eval_output = mo.callout(
-                mo.md(f"❌ **Error running evaluation:** {str(e)}"),
+                mo.md(f"❌ **Error running evaluation:** {str(e)}\n\n```\n{_traceback_full.format_exc()}\n```"),
                 kind="danger"
             )
     
@@ -2183,6 +2233,8 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
         }),
         
         mo.md("""
+        ##
+
         Now that we have a dataset, we need to create a set of scorers to evaluate the agent's responses.
 
         Take a minute to consider how you would evaluate the agent's responses.  What are the different ways you can evaluate the agent's responses?
@@ -2217,16 +2269,19 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
         }),
 
         mo.md("""
+        ##
 
-        Now that we have our dataset and scorers, we can run an evaluation.  This evaluation will loop through each row in our dataset and use the scorers to evaluate the agent's response.
+        We are ready to evaluate our agent.  This evaluation will go through each row in our dataset and use the scorers to evaluate the agent's response.
 
-        We can start with a sample to test.  This will evaluate the agent's response on 5 random cases from our dataset.  Normally, we would run this using a script in the terminal like this:
+        We can start with a sample to test and evaluate the agent's response on 5 random cases from our dataset.  Normally, we would run this using a script in the terminal like this:
 
         ```bash
         uv run workspace/run_evaluation.py --agent-name Buzz --sample 5
         ```
 
-        But we have a handy UI to do this for us. First, select which model and version you want to evaluate:
+        But we have a handy UI to do this for us. 
+        
+        First, select which model and version you want to evaluate.  Each time we changed the agents config like purpose or tools, we created a new model in Weave.  So we need to select the model and version that corresponds to the agent we want to evaluate.   
         """),
         
         mo.hstack([model_selector, version_selector, refresh_btn], justify="start", gap=1),
