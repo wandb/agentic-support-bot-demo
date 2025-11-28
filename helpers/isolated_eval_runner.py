@@ -45,10 +45,9 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
     Run evaluation and stream results to stdout as JSON lines.
     
     Args:
-        config_path: Path to Tyler agent config YAML file (fallback)
+        config_path: Path to Tyler agent config YAML file (fallback if Weave load fails)
         sample_size: If set, evaluate only this many random cases
-        model_ref: Weave model reference (e.g., "Buzz:v3") to load from Weave.
-                   If not provided or not found, falls back to config file.
+        model_ref: Weave model reference (e.g., "Buzz:v4") to load and evaluate
     """
     try:
         from dotenv import load_dotenv
@@ -71,7 +70,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
         
         agent = None
         model_name = None
-        weave_ref_used = None  # Track the actual Weave ref for EvaluationLogger
+        model_ref_str = None  # String reference for EvaluationLogger (must be str, not WeaveObject)
         
         # Try to load agent from Weave if model_ref is provided
         if model_ref and model_ref != "No models found":
@@ -80,11 +79,52 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
                 # Ensure model_ref has version (default to :latest)
                 ref_str = model_ref if ":" in model_ref else f"{model_ref}:latest"
                 agent_ref = weave.ref(ref_str)
-                agent = agent_ref.get()
-                # Use the agent's actual name (not the ref string) for display
-                model_name = agent.name if hasattr(agent, 'name') else model_ref.split(":")[0]
-                weave_ref_used = ref_str
-                emit({"type": "status", "message": f"Agent loaded from Weave: {model_name} (ref: {ref_str})"})
+                weave_model = agent_ref.get()
+                
+                # Extract properties from Weave model
+                model_name = getattr(weave_model, 'name', model_ref.split(":")[0])
+                
+                # EvaluationLogger model parameter is just a label/name, not a reference
+                # Using just the model name (without version) as the identifier
+                # The version info will be tracked in evaluation metadata
+                model_ref_str = model_name  # Just "Buzz", not "Buzz:v4" or URI
+                
+                # Reconstruct Tyler Agent from Weave properties (includes tools with implementations)
+                emit({"type": "status", "message": f"Reconstructing Tyler Agent from Weave properties..."})
+                
+                # Get all properties from WeaveObject
+                purpose = getattr(weave_model, 'purpose', '')
+                notes = getattr(weave_model, 'notes', '')
+                agent_model_name = getattr(weave_model, 'model_name', 'gpt-4.1')
+                temperature = getattr(weave_model, 'temperature', 0.7)
+                max_tool_iterations = getattr(weave_model, 'max_tool_iterations', 10)
+                
+                # Get tools and MCP config (convert from WeaveList/WeaveDict to Python types)
+                tools_weave = getattr(weave_model, 'tools', [])
+                mcp_weave = getattr(weave_model, 'mcp', None)
+                
+                tools_list = [dict(t) for t in tools_weave] if tools_weave else None
+                mcp_dict = dict(mcp_weave) if mcp_weave else None
+                
+                # Create Tyler Agent with all stored properties
+                agent = Agent(
+                    name=model_name,
+                    model_name=agent_model_name,
+                    purpose=purpose,
+                    notes=notes or "",
+                    temperature=temperature,
+                    max_tool_iterations=max_tool_iterations,
+                    tools=tools_list,
+                    mcp=mcp_dict,
+                )
+                
+                # CRITICAL: Copy the ref from the original WeaveObject to prevent creating a new version
+                # This tells Weave this is the SAME model, not a new one
+                if hasattr(weave_model, 'ref') and weave_model.ref is not None:
+                    agent.ref = weave_model.ref
+                    emit({"type": "status", "message": f"Attached original ref: {weave_model.ref.name}:{weave_model.ref._digest[:8]}"})
+                
+                emit({"type": "status", "message": f"Tyler Agent reconstructed: {model_name} (tools: {len(agent.tools) if hasattr(agent, 'tools') else 0})"})
             except Exception as e:
                 emit({"type": "status", "message": f"Could not load from Weave ({e}), falling back to config file..."})
                 agent = None
@@ -103,6 +143,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
             try:
                 agent = Agent.from_config(str(config_path))
                 model_name = agent.name
+                model_ref_str = model_name  # Just use name string for config-loaded agents
                 emit({"type": "status", "message": f"Agent loaded from config: {model_name}"})
             finally:
                 os.chdir(original_cwd)
@@ -134,90 +175,101 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
         
         from scorers import tool_usage_scorer, accuracy_scorer, safety_scorer
         
-        # Initialize EvaluationLogger with clean model name (no colons or special chars)
-        # EvaluationLogger creates/references a model by name, so we use the agent's name
-        clean_model_name = model_name.replace(":", "_").replace("/", "_") if model_name else "agent"
-        emit({"type": "status", "message": f"Creating evaluation with model name: {clean_model_name}"})
-        
+        # Initialize EvaluationLogger with the reconstructed Tyler Agent (which IS a weave.Model subclass)
+        # This properly links the evaluation to the model version
+        emit({"type": "status", "message": f"Creating evaluation with model: {model_name}"})
         eval_logger = weave.EvaluationLogger(
             name="support-bot-eval",
-            model=clean_model_name,
+            model=agent,  # Pass the weave.Model instance directly for proper linking
             dataset=dataset
         )
         emit({"type": "status", "message": "Starting evaluation..."})
         
         # Track results for summary
         results = []
+        eval_error = None
         
-        # Run evaluation
-        for i, test_case in enumerate(test_cases, 1):
-            input_preview = test_case['input'][:60] + "..." if len(test_case['input']) > 60 else test_case['input']
-            emit({"type": "progress", "current": i, "total": len(test_cases), "input": input_preview})
-            
-            # Invoke agent
-            try:
-                # Change to config dir for agent execution
-                os.chdir(config_dir)
+        try:
+            # Run evaluation
+            for i, test_case in enumerate(test_cases, 1):
+                input_preview = test_case['input'][:60] + "..." if len(test_case['input']) > 60 else test_case['input']
+                emit({"type": "progress", "current": i, "total": len(test_cases), "input": input_preview})
+                
+                # Invoke agent
                 try:
-                    thread = Thread()
-                    thread.add_message(Message(role="user", content=test_case["input"]))
-                    result = await agent.run(thread)
+                    # Change to config dir for agent execution
+                    os.chdir(config_dir)
+                    try:
+                        thread = Thread()
+                        thread.add_message(Message(role="user", content=test_case["input"]))
+                        result = await agent.run(thread)
+                        
+                        output = {
+                            "response": result.content if result.content else "",
+                            "tools_used": list(result.thread.get_tool_usage().get('tools', {}).keys()) if result.thread.get_tool_usage() else []
+                        }
+                    finally:
+                        os.chdir(original_cwd)
+                except Exception as e:
+                    emit({"type": "score", "case": i, "scorer": "agent", "score": 0, "error": str(e)})
+                    continue
+                
+                # Log prediction using context manager for proper cleanup
+                with eval_logger.log_prediction(
+                    inputs={"query": test_case["input"]},
+                    output=output
+                ) as pred_logger:
+                    case_results = {"case": i, "input": input_preview}
                     
-                    output = {
-                        "response": result.content if result.content else "",
-                        "tools_used": list(result.thread.get_tool_usage().get('tools', {}).keys()) if result.thread.get_tool_usage() else []
-                    }
-                finally:
-                    os.chdir(original_cwd)
-            except Exception as e:
-                emit({"type": "score", "case": i, "scorer": "agent", "score": 0, "error": str(e)})
-                continue
-            
-            # Log prediction
-            pred_logger = eval_logger.log_prediction(
-                inputs={"query": test_case["input"]},
-                output=output
-            )
-            
-            case_results = {"case": i, "input": input_preview}
-            
-            # Apply scorers
+                    # Apply scorers
+                    try:
+                        tool_score = tool_usage_scorer(test_case, output)
+                        pred_logger.log_score(scorer="tool_usage", score=tool_score)
+                        case_results["tool_usage"] = tool_score.get("score", 0)
+                        emit({"type": "score", "case": i, "scorer": "tool_usage", "score": tool_score.get("score", 0)})
+                    except Exception as e:
+                        emit({"type": "score", "case": i, "scorer": "tool_usage", "error": str(e)})
+                    
+                    try:
+                        accuracy_score = await accuracy_scorer(test_case, output)
+                        pred_logger.log_score(scorer="accuracy", score=accuracy_score)
+                        case_results["accuracy"] = accuracy_score.get("accuracy", 0)
+                        emit({"type": "score", "case": i, "scorer": "accuracy", "score": accuracy_score.get("accuracy", 0)})
+                    except Exception as e:
+                        emit({"type": "score", "case": i, "scorer": "accuracy", "error": str(e)})
+                    
+                    try:
+                        safety_score = await safety_scorer(test_case, output)
+                        pred_logger.log_score(scorer="safety", score=safety_score)
+                        case_results["safety"] = safety_score.get("overall_safety", 0)
+                        emit({"type": "score", "case": i, "scorer": "safety", "score": safety_score.get("overall_safety", 0)})
+                    except Exception as e:
+                        emit({"type": "score", "case": i, "scorer": "safety", "error": str(e)})
+                    
+                    results.append(case_results)
+                    # pred_logger.finish() is called automatically by context manager
+        except Exception as e:
+            eval_error = e
+        finally:
+            # Always finalize the evaluation logger to prevent cleanup errors
             try:
-                tool_score = tool_usage_scorer(test_case, output)
-                pred_logger.log_score(scorer="tool_usage", score=tool_score)
-                case_results["tool_usage"] = tool_score.get("score", 0)
-                emit({"type": "score", "case": i, "scorer": "tool_usage", "score": tool_score.get("score", 0)})
-            except Exception as e:
-                emit({"type": "score", "case": i, "scorer": "tool_usage", "error": str(e)})
-            
-            try:
-                accuracy_score = await accuracy_scorer(test_case, output)
-                pred_logger.log_score(scorer="accuracy", score=accuracy_score)
-                case_results["accuracy"] = accuracy_score.get("accuracy", 0)
-                emit({"type": "score", "case": i, "scorer": "accuracy", "score": accuracy_score.get("accuracy", 0)})
-            except Exception as e:
-                emit({"type": "score", "case": i, "scorer": "accuracy", "error": str(e)})
-            
-            try:
-                safety_score = await safety_scorer(test_case, output)
-                pred_logger.log_score(scorer="safety", score=safety_score)
-                case_results["safety"] = safety_score.get("overall_safety", 0)
-                emit({"type": "score", "case": i, "scorer": "safety", "score": safety_score.get("overall_safety", 0)})
-            except Exception as e:
-                emit({"type": "score", "case": i, "scorer": "safety", "error": str(e)})
-            
-            pred_logger.finish()
-            results.append(case_results)
+                # Log summary (this also finalizes the evaluation)
+                eval_logger.log_summary({"total_cases": len(test_cases), "sample": sample_size is not None})
+            except Exception as summary_error:
+                # If log_summary fails, try explicit finish
+                emit({"type": "status", "message": f"Warning: log_summary failed ({summary_error}), calling finish()"})
+                try:
+                    eval_logger.finish()
+                except Exception:
+                    pass  # Ignore cleanup errors
         
-        # Log summary
-        eval_logger.log_summary({"total_cases": len(test_cases), "sample": sample_size is not None})
+        # Re-raise any error that occurred during evaluation after cleanup
+        if eval_error:
+            raise eval_error
         
         # Calculate aggregate scores
         summary = {
             "total_cases": len(test_cases),
-            "model_name": model_name,
-            "model_ref": weave_ref_used or "config_file",
-            "eval_model_name": clean_model_name,
             "tool_usage_avg": sum(r.get("tool_usage", 0) for r in results) / len(results) if results else 0,
             "accuracy_avg": sum(r.get("accuracy", 0) for r in results) / len(results) if results else 0,
             "safety_avg": sum(r.get("safety", 0) for r in results) / len(results) if results else 0,
