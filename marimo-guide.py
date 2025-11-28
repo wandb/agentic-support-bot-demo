@@ -1862,7 +1862,7 @@ def _(mo):
             "20 samples": "20",
             "All (full dataset)": "all"
         },
-        value="5",
+        value="5 samples",
         label="Samples to evaluate"
     )
     
