@@ -1942,24 +1942,10 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                     await _process.stdin.drain()
                     _process.stdin.close()
                     
-                    # Collect output and show real-time progress
+                    # Collect output
                     _output_lines = []
-                    _log_lines = []
                     _result_data = None
                     _error_msg = None
-                    _current_progress = 0
-                    _total_progress = _sample_size or "?"
-                    
-                    # Helper to format log display
-                    def _format_log_line(_msg):
-                        if _msg.get("type") == "status":
-                            return f"✓ {_msg.get('message', '')}"
-                        elif _msg.get("type") == "progress":
-                            return f"\n[{_msg.get('current')}/{_msg.get('total')}] {_msg.get('input', '')[:60]}..."
-                        elif _msg.get("type") == "score":
-                            if "error" not in _msg:
-                                return f"    → {_msg.get('scorer')}: {_msg.get('score', 0):.2f}"
-                        return None
                     
                     while True:
                         _line = await _process.stdout.readline()
@@ -1970,32 +1956,10 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                             _chunk = json.loads(_line.decode().strip())
                             _output_lines.append(_chunk)
                             
-                            # Format and add to log
-                            _formatted = _format_log_line(_chunk)
-                            if _formatted:
-                                _log_lines.append(_formatted)
-                            
-                            # Track progress
-                            if _chunk.get("type") == "progress":
-                                _current_progress = _chunk.get("current", 0)
-                                _total_progress = _chunk.get("total", _total_progress)
-                            
                             if _chunk.get("type") == "result":
                                 _result_data = _chunk
                             elif _chunk.get("type") == "error":
                                 _error_msg = _chunk.get("message", "Unknown error")
-                            
-                            # Update display in real-time (skip result messages)
-                            if _chunk.get("type") != "result":
-                                mo.output.replace(
-                                    mo.vstack([
-                                        mo.callout(
-                                            mo.md(f"⏳ **Evaluating {_model_name}...** ({_current_progress}/{_total_progress} cases)"),
-                                            kind="info"
-                                        ),
-                                        mo.md(f"```\n{''.join(_log_lines[-20:])}\n```")  # Show last 20 lines
-                                    ])
-                                )
                         except json.JSONDecodeError:
                             continue
                     
@@ -2018,24 +1982,34 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                         _summary = _result_data.get("summary", {})
                         _total = _result_data.get("total_cases", 0)
                         
+                        # Build output log from captured messages
+                        _log_lines = []
+                        for _msg in _output_lines:
+                            if _msg.get("type") == "status":
+                                _log_lines.append(f"✓ {_msg.get('message', '')}")
+                            elif _msg.get("type") == "progress":
+                                _log_lines.append(f"[{_msg.get('current')}/{_msg.get('total')}] {_msg.get('input', '')[:50]}...")
+                            elif _msg.get("type") == "score":
+                                if "error" not in _msg:
+                                    _log_lines.append(f"  → {_msg.get('scorer')}: {_msg.get('score', 0):.2f}")
+                        
                         eval_output = mo.vstack([
                             mo.callout(
                                 mo.md(f"""
 ✅ **Evaluation complete!**
 
-Evaluated **{_model_name}** on {_total} test cases ({_sample_label}).
+Evaluated **{_model_ref}** on {_total} test cases ({_sample_label}).
 
 **Average Scores:**
 - Tool Usage: {_summary.get('tool_usage_avg', 0):.2f}
 - Accuracy: {_summary.get('accuracy_avg', 0):.2f}
 - Safety: {_summary.get('safety_avg', 0):.2f}
-
-View detailed results in the Weave UI under the Evaluations tab.
                                 """),
                                 kind="success"
                             ),
-                            mo.md("**Evaluation Log:**"),
-                            mo.md(f"```\n{''.join(_log_lines)}\n```")
+                            mo.accordion({
+                                "📋 (Optional) Evaluation logs": mo.md("```\n" + "\n".join(_log_lines) + "\n```")
+                            })
                         ])
                     else:
                         eval_output = mo.callout(
@@ -2090,7 +2064,6 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
     # Load code files for display in accordions
     _dataset_code = Path("workspace/step-5/dataset.py").read_text() if Path("workspace/step-5/dataset.py").exists() else "# File not found"
     _scorers_code = Path("workspace/step-5/scorers.py").read_text() if Path("workspace/step-5/scorers.py").exists() else "# File not found"
-    _run_eval_code = Path("workspace/step-5/run_evaluation.py").read_text() if Path("workspace/step-5/run_evaluation.py").exists() else "# File not found"
     _accuracy_judge_config = Path("workspace/step-5/accuracy-judge-config.yaml").read_text() if Path("workspace/step-5/accuracy-judge-config.yaml").exists() else "# File not found"
     _safety_judge_config = Path("workspace/step-5/safety-judge-config.yaml").read_text() if Path("workspace/step-5/safety-judge-config.yaml").exists() else "# File not found"
     
@@ -2109,7 +2082,7 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
         _dataset_table,
         
         mo.accordion({
-            "📋 (Optional)Dataset Structure Details": mo.md("""
+            "📋 (Optional) Dataset Structure Details": mo.md("""
             Each test case includes:
             ```python
             {
@@ -2190,16 +2163,14 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
         mo.hstack([sample_size_selector, run_eval_btn], justify="start", gap=1),
         eval_output,
         
-        mo.accordion({
-            "📄 View: run_evaluation.py": mo.md(f"```python\n{_run_eval_code}\n```")
-        }),
-        
         mo.md(f"""
+        ##
+
         ---
 
-        ### Analyze Results in Weave UI
+        ## 
 
-        [📈 View Evaluation Results in Weave]({_evals_url})
+        Congrats, **you now have a baseline!** With quantitative metrics, you can iterate systematically to improve your agent. [View the full evaluation results in Weave]({_evals_url})
 
         **1. View aggregate metrics:**
         - Tool Usage: % correct
@@ -2222,11 +2193,7 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
         - See side-by-side metrics
         - Identify improvements/regressions
 
-        ---
-
-        ### From Baseline to Better
-
-        **You now have a baseline!** With quantitative metrics, you can iterate systematically to improve your agent.
+        What's next? You can now start to improve the agent's performance by adjusting the following levers:
 
         **Levers to Adjust:**
 
@@ -2244,22 +2211,10 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
         5. Repeat → Iterate on the next weakness
 
         **Example:** If tool usage is low (60%), review traces where tools weren't called → improve tool `description` → add examples → re-run eval.
-
-        ---
-
-        ### Ready for Production?
-
-        At this point, your agent works well in the playground and you have confidence from systematic evaluation. **But the real test is production.**
-
-        Continue to **Step 6** to deploy your agent where it matters - in front of real users. You'll learn how to:
-        - Deploy as a persistent production service
-        - Monitor production performance in real-time
-            - Use environment tags to separate dev and prod traffic
-            - Create saved views for production dashboards
         """),
         mo.md("---"),
         mo.callout(
-            mo.md("✅ **Ready for the next step!** Once you've run your evaluation and analyzed the results in Weave, continue to **Deploy** using the tabs above."),
+            mo.md("✅ **Ready for the next step!** Once you've run your evaluations, analyzed the results, and improved the agent's performance in Weave, continue to **Deploy** to production using the tabs above."),
             kind="success"
         )
     ])
