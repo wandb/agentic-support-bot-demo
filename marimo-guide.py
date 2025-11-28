@@ -1942,10 +1942,24 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                     await _process.stdin.drain()
                     _process.stdin.close()
                     
-                    # Collect output
+                    # Collect output and show real-time progress
                     _output_lines = []
+                    _log_lines = []
                     _result_data = None
                     _error_msg = None
+                    _current_progress = 0
+                    _total_progress = _sample_size or "?"
+                    
+                    # Helper to format log display
+                    def _format_log_line(_msg):
+                        if _msg.get("type") == "status":
+                            return f"✓ {_msg.get('message', '')}"
+                        elif _msg.get("type") == "progress":
+                            return f"\n[{_msg.get('current')}/{_msg.get('total')}] {_msg.get('input', '')[:60]}..."
+                        elif _msg.get("type") == "score":
+                            if "error" not in _msg:
+                                return f"    → {_msg.get('scorer')}: {_msg.get('score', 0):.2f}"
+                        return None
                     
                     while True:
                         _line = await _process.stdout.readline()
@@ -1956,10 +1970,32 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                             _chunk = json.loads(_line.decode().strip())
                             _output_lines.append(_chunk)
                             
+                            # Format and add to log
+                            _formatted = _format_log_line(_chunk)
+                            if _formatted:
+                                _log_lines.append(_formatted)
+                            
+                            # Track progress
+                            if _chunk.get("type") == "progress":
+                                _current_progress = _chunk.get("current", 0)
+                                _total_progress = _chunk.get("total", _total_progress)
+                            
                             if _chunk.get("type") == "result":
                                 _result_data = _chunk
                             elif _chunk.get("type") == "error":
                                 _error_msg = _chunk.get("message", "Unknown error")
+                            
+                            # Update display in real-time (skip result messages)
+                            if _chunk.get("type") != "result":
+                                mo.output.replace(
+                                    mo.vstack([
+                                        mo.callout(
+                                            mo.md(f"⏳ **Evaluating {_model_name}...** ({_current_progress}/{_total_progress} cases)"),
+                                            kind="info"
+                                        ),
+                                        mo.md(f"```\n{''.join(_log_lines[-20:])}\n```")  # Show last 20 lines
+                                    ])
+                                )
                         except json.JSONDecodeError:
                             continue
                     
@@ -1982,17 +2018,6 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                         _summary = _result_data.get("summary", {})
                         _total = _result_data.get("total_cases", 0)
                         
-                        # Build output log from captured messages
-                        _log_lines = []
-                        for _msg in _output_lines:
-                            if _msg.get("type") == "status":
-                                _log_lines.append(f"✓ {_msg.get('message', '')}")
-                            elif _msg.get("type") == "progress":
-                                _log_lines.append(f"[{_msg.get('current')}/{_msg.get('total')}] {_msg.get('input', '')[:50]}...")
-                            elif _msg.get("type") == "score":
-                                if "error" not in _msg:
-                                    _log_lines.append(f"  → {_msg.get('scorer')}: {_msg.get('score', 0):.2f}")
-                        
                         eval_output = mo.vstack([
                             mo.callout(
                                 mo.md(f"""
@@ -2009,9 +2034,8 @@ View detailed results in the Weave UI under the Evaluations tab.
                                 """),
                                 kind="success"
                             ),
-                            mo.accordion({
-                                "📋 Evaluation Log": mo.md("```\n" + "\n".join(_log_lines) + "\n```")
-                            })
+                            mo.md("**Evaluation Log:**"),
+                            mo.md(f"```\n{''.join(_log_lines)}\n```")
                         ])
                     else:
                         eval_output = mo.callout(
