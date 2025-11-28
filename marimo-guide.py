@@ -1850,44 +1850,55 @@ def _(model_selector, version_selector):
 @app.cell
 def _(mo):
     # ============================================================================
-    # STEP 5: EVAL BUTTONS
+    # STEP 5: EVAL CONTROLS (Sample Size + Run Button)
     # ============================================================================
     
-    # Button to run sample evaluation
-    run_sample_eval_btn = mo.ui.button(
-        label="🧪 Run Sample Evaluation (5 cases)",
+    # Dropdown for number of samples to evaluate
+    sample_size_selector = mo.ui.dropdown(
+        options={
+            "5 samples": "5",
+            "10 samples": "10",
+            "15 samples": "15",
+            "20 samples": "20",
+            "All (full dataset)": "all"
+        },
+        value="5",
+        label="Samples to evaluate"
+    )
+    
+    # Single button to run evaluation
+    run_eval_btn = mo.ui.button(
+        label="🚀 Run Evaluation",
         value=0,
         on_click=lambda v: v + 1
     )
     
-    # Button to run full evaluation
-    run_full_eval_btn = mo.ui.button(
-        label="🚀 Run Full Evaluation (all cases)",
-        value=0,
-        on_click=lambda v: v + 1
-    )
-    
-    return (run_sample_eval_btn, run_full_eval_btn)
+    return (sample_size_selector, run_eval_btn)
 
 
 @app.cell  
-async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, os, json, subprocess):
+async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sys, os, json, subprocess):
     # ============================================================================
-    # STEP 5: RUN SAMPLE EVALUATION LOGIC (using subprocess for clean context)
+    # STEP 5: RUN EVALUATION LOGIC (using subprocess for clean context)
     # ============================================================================
-    import asyncio as _asyncio_sample
+    import asyncio as _asyncio_eval
     
     # Always initialize the output variable
-    sample_eval_output = mo.md("")
+    eval_output = mo.md("")
     
-    if run_sample_eval_btn.value:
+    if run_eval_btn.value:
         try:
             # Get selected model ref
             _selected_agent_ref = selected_model_ref
             
+            # Get sample size from selector
+            _sample_size_val = sample_size_selector.value
+            _sample_size = None if _sample_size_val == "all" else int(_sample_size_val)
+            _sample_label = "all cases" if _sample_size is None else f"{_sample_size} samples"
+            
             # Check if valid model selected
             if not _selected_agent_ref or "No models" in str(_selected_agent_ref):
-                sample_eval_output = mo.callout(
+                eval_output = mo.callout(
                     mo.md(f"⚠️ **Please select a valid model to evaluate.**\n\nCurrent selection: {_selected_agent_ref}"),
                     kind="warn"
                 )
@@ -1895,32 +1906,34 @@ async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, os, json, su
                 # Check config exists
                 _config_path = Path("workspace/step-4/tyler-chat-config.yaml")
                 if not _config_path.exists():
-                    sample_eval_output = mo.callout(
+                    eval_output = mo.callout(
                         mo.md(f"❌ **Config file not found:** {_config_path}\n\nMake sure you've configured the agent in Step 4 first."),
                         kind="danger"
                     )
                 else:
-                    # Get model ref (full ref with version for Weave lookup)
-                    _model_ref = _selected_agent_ref if _selected_agent_ref else None
+                    # Get model ref and name
+                    _model_ref = _selected_agent_ref  # Full ref like "Buzz:v4"
                     _model_name = _model_ref.split(":")[0] if _model_ref else "agent"
                     
                     # Prepare input for subprocess
-                    _input_json = json.dumps({
+                    _input_data = {
                         "config_path": str(_config_path.absolute()),
-                        "sample_size": 5,
-                        "model_ref": _model_ref
-                    })
+                        "model_ref": _model_ref  # Pass full ref for Weave lookup
+                    }
+                    if _sample_size is not None:
+                        _input_data["sample_size"] = _sample_size
+                    _input_json = json.dumps(_input_data)
                     
                     # Get path to isolated eval runner script
                     _runner_script = Path(__file__).parent / "helpers" / "isolated_eval_runner.py"
                     
                     # Run evaluation in subprocess for clean Weave context
-                    _process = await _asyncio_sample.create_subprocess_exec(
+                    _process = await _asyncio_eval.create_subprocess_exec(
                         sys.executable,
                         str(_runner_script.absolute()),
-                        stdin=_asyncio_sample.subprocess.PIPE,
-                        stdout=_asyncio_sample.subprocess.PIPE,
-                        stderr=_asyncio_sample.subprocess.PIPE,
+                        stdin=_asyncio_eval.subprocess.PIPE,
+                        stdout=_asyncio_eval.subprocess.PIPE,
+                        stderr=_asyncio_eval.subprocess.PIPE,
                         env=os.environ.copy()
                     )
                     
@@ -1956,12 +1969,12 @@ async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, os, json, su
                     if _process.returncode != 0:
                         _stderr = await _process.stderr.read()
                         _error_text = _stderr.decode().strip() if _stderr else _error_msg or "Unknown error"
-                        sample_eval_output = mo.callout(
+                        eval_output = mo.callout(
                             mo.md(f"❌ **Evaluation failed:**\n\n```\n{_error_text}\n```"),
                             kind="danger"
                         )
                     elif _error_msg:
-                        sample_eval_output = mo.callout(
+                        eval_output = mo.callout(
                             mo.md(f"❌ **Error:** {_error_msg}"),
                             kind="danger"
                         )
@@ -1980,187 +1993,45 @@ async def _(mo, run_sample_eval_btn, selected_model_ref, Path, sys, os, json, su
                                 if "error" not in _msg:
                                     _log_lines.append(f"  → {_msg.get('scorer')}: {_msg.get('score', 0):.2f}")
                         
-                        sample_eval_output = mo.vstack([
+                        eval_output = mo.vstack([
                             mo.callout(
-                            mo.md(f"""
-                            ✅ **Sample evaluation complete!**
-                            
-Evaluated **{_model_name}** on {_total} test cases.
+                                mo.md(f"""
+✅ **Evaluation complete!**
+
+Evaluated **{_model_name}** on {_total} test cases ({_sample_label}).
 
 **Average Scores:**
 - Tool Usage: {_summary.get('tool_usage_avg', 0):.2f}
 - Accuracy: {_summary.get('accuracy_avg', 0):.2f}
 - Safety: {_summary.get('safety_avg', 0):.2f}
-                            
-                            View detailed results in the Weave UI under the Evaluations tab.
-                            """),
-                            kind="success"
+
+View detailed results in the Weave UI under the Evaluations tab.
+                                """),
+                                kind="success"
                             ),
                             mo.accordion({
                                 "📋 Evaluation Log": mo.md("```\n" + "\n".join(_log_lines) + "\n```")
                             })
                         ])
                     else:
-                        sample_eval_output = mo.callout(
+                        eval_output = mo.callout(
                             mo.md("⚠️ Evaluation completed but no results were returned."),
                             kind="warn"
                         )
         except Exception as e:
-            import traceback as _traceback_sample
-            sample_eval_output = mo.callout(
-                mo.md(f"❌ **Error running evaluation:** {str(e)}\n\n```\n{_traceback_sample.format_exc()}\n```"),
+            import traceback as _traceback_eval
+            eval_output = mo.callout(
+                mo.md(f"❌ **Error running evaluation:** {str(e)}\n\n```\n{_traceback_eval.format_exc()}\n```"),
                 kind="danger"
             )
     
-    return (sample_eval_output,)
+    return (eval_output,)
+
+
 
 
 @app.cell
-async def _(mo, run_full_eval_btn, selected_model_ref, Path, sys, os, json, subprocess):
-    # ============================================================================
-    # STEP 5: RUN FULL EVALUATION LOGIC (using subprocess for clean context)
-    # ============================================================================
-    import asyncio as _asyncio_full
-    
-    # Always initialize the output variable
-    full_eval_output = mo.md("")
-    
-    if run_full_eval_btn.value:
-        try:
-            # Get selected model ref
-            _selected_agent_ref = selected_model_ref
-            
-            # Check if valid model selected
-            if not _selected_agent_ref or "No models" in str(_selected_agent_ref):
-                full_eval_output = mo.callout(
-                    mo.md(f"⚠️ **Please select a valid model to evaluate.**\n\nCurrent selection: {_selected_agent_ref}"),
-                    kind="warn"
-                )
-            else:
-                # Check config exists
-                _config_path = Path("workspace/step-4/tyler-chat-config.yaml")
-                if not _config_path.exists():
-                    full_eval_output = mo.callout(
-                        mo.md(f"❌ **Config file not found:** {_config_path}\n\nMake sure you've configured the agent in Step 4 first."),
-                        kind="danger"
-                    )
-                else:
-                    # Get model ref (full ref with version for Weave lookup)
-                    _model_ref = _selected_agent_ref if _selected_agent_ref else None
-                    _model_name = _model_ref.split(":")[0] if _model_ref else "agent"
-                    
-                    # Prepare input for subprocess (no sample_size = full dataset)
-                    _input_json = json.dumps({
-                        "config_path": str(_config_path.absolute()),
-                        "model_ref": _model_ref
-                    })
-                    
-                    # Get path to isolated eval runner script
-                    _runner_script = Path(__file__).parent / "helpers" / "isolated_eval_runner.py"
-                    
-                    # Run evaluation in subprocess for clean Weave context
-                    _process = await _asyncio_full.create_subprocess_exec(
-                        sys.executable,
-                        str(_runner_script.absolute()),
-                        stdin=_asyncio_full.subprocess.PIPE,
-                        stdout=_asyncio_full.subprocess.PIPE,
-                        stderr=_asyncio_full.subprocess.PIPE,
-                        env=os.environ.copy()
-                    )
-                    
-                    # Send input to subprocess
-                    _process.stdin.write(_input_json.encode())
-                    await _process.stdin.drain()
-                    _process.stdin.close()
-                    
-                    # Collect output
-                    _output_lines = []
-                    _result_data = None
-                    _error_msg = None
-                    
-                    while True:
-                        _line = await _process.stdout.readline()
-                        if not _line:
-                            break
-                        
-                        try:
-                            _chunk = json.loads(_line.decode().strip())
-                            _output_lines.append(_chunk)
-                            
-                            if _chunk.get("type") == "result":
-                                _result_data = _chunk
-                            elif _chunk.get("type") == "error":
-                                _error_msg = _chunk.get("message", "Unknown error")
-                        except json.JSONDecodeError:
-                            continue
-                    
-                    await _process.wait()
-                    
-                    # Check for errors
-                    if _process.returncode != 0:
-                        _stderr = await _process.stderr.read()
-                        _error_text = _stderr.decode().strip() if _stderr else _error_msg or "Unknown error"
-                        full_eval_output = mo.callout(
-                            mo.md(f"❌ **Evaluation failed:**\n\n```\n{_error_text}\n```"),
-                            kind="danger"
-                        )
-                    elif _error_msg:
-                        full_eval_output = mo.callout(
-                            mo.md(f"❌ **Error:** {_error_msg}"),
-                            kind="danger"
-                        )
-                    elif _result_data:
-                        _summary = _result_data.get("summary", {})
-                        _total = _result_data.get("total_cases", 0)
-                        
-                        # Build output log from captured messages
-                        _log_lines = []
-                        for _msg in _output_lines:
-                            if _msg.get("type") == "status":
-                                _log_lines.append(f"✓ {_msg.get('message', '')}")
-                            elif _msg.get("type") == "progress":
-                                _log_lines.append(f"[{_msg.get('current')}/{_msg.get('total')}] {_msg.get('input', '')[:50]}...")
-                            elif _msg.get("type") == "score":
-                                if "error" not in _msg:
-                                    _log_lines.append(f"  → {_msg.get('scorer')}: {_msg.get('score', 0):.2f}")
-                        
-                        full_eval_output = mo.vstack([
-                            mo.callout(
-                            mo.md(f"""
-                            ✅ **Full evaluation complete!**
-                            
-Evaluated **{_model_name}** on all {_total} test cases.
-
-**Average Scores:**
-- Tool Usage: {_summary.get('tool_usage_avg', 0):.2f}
-- Accuracy: {_summary.get('accuracy_avg', 0):.2f}
-- Safety: {_summary.get('safety_avg', 0):.2f}
-                            
-                            View detailed results in the Weave UI under the Evaluations tab.
-                            """),
-                            kind="success"
-                            ),
-                            mo.accordion({
-                                "📋 Evaluation Log": mo.md("```\n" + "\n".join(_log_lines) + "\n```")
-                            })
-                        ])
-                    else:
-                        full_eval_output = mo.callout(
-                            mo.md("⚠️ Evaluation completed but no results were returned."),
-                            kind="warn"
-                        )
-        except Exception as e:
-            import traceback as _traceback_full
-            full_eval_output = mo.callout(
-                mo.md(f"❌ **Error running evaluation:** {str(e)}\n\n```\n{_traceback_full.format_exc()}\n```"),
-                kind="danger"
-            )
-    
-    return (full_eval_output,)
-
-
-@app.cell
-def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh_btn, run_sample_eval_btn, sample_eval_output, run_full_eval_btn, full_eval_output, step5_files_ready, Path, sys):
+def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh_btn, sample_size_selector, run_eval_btn, eval_output, step5_files_ready, Path, sys):
     # ============================================================================
     # STEP 5: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2275,7 +2146,7 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
 
         We are ready to evaluate our agent.  This evaluation will go through each row in our dataset and use the scorers to evaluate the agent's response.
 
-        We can start with a sample to test and evaluate the agent's response on 5 random cases from our dataset.  Normally, we would run this using a script in the terminal like this:
+        Normally, we would run this using a script in the terminal like this:
 
         ```bash
         uv run workspace/run_evaluation.py --agent-name Buzz --sample 5
@@ -2283,28 +2154,17 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
 
         But we have a handy UI to do this for us. 
         
-        First, select which model and version you want to evaluate.  Each time we changed the agents config like purpose or tools, we created a new model in Weave.  So we need to select the model and version that corresponds to the agent we want to evaluate.   
+        First, select which model and version you want to evaluate.  Each time we changed the agent's config (like purpose or tools), a new model version was created in Weave.  Select the model and version you want to evaluate:
         """),
         
         mo.hstack([model_selector, version_selector, refresh_btn], justify="start", gap=1),
         
         mo.md("""
-        Now click the button to run a sample evaluation on the selected model:
+        Now choose how many samples to evaluate and click run:
         """),
         
-        run_sample_eval_btn,
-        sample_eval_output,
-        
-        mo.md("""
-        ## 
-        
-        We can also run a full evaluation on all cases.  This will evaluate the agent's response on all cases in our dataset.
-
-        The full evaluation will use the same agent you selected above:
-        """),
-        
-        run_full_eval_btn,
-        full_eval_output,
+        mo.hstack([sample_size_selector, run_eval_btn], justify="start", gap=1),
+        eval_output,
         
         mo.accordion({
             "📄 View: run_evaluation.py": mo.md(f"```python\n{_run_eval_code}\n```")
