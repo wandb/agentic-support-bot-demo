@@ -30,6 +30,29 @@ def _():
     import random
     from datetime import datetime, timezone
 
+    # Import helpers for DRY code
+    from helpers.marimo_helpers import (
+        # Constants
+        DEFAULT_CHAT_PROMPTS,
+        TOOL_CHAT_PROMPTS,
+        # URL Builders
+        weave_traces_url,
+        weave_evals_url,
+        weave_playground_url,
+        # Environment Helpers
+        save_env_var,
+        # File Operations
+        auto_copy_step_files,
+        # Trace Fetching
+        fetch_traces_data,
+        build_traces_table_ui,
+        build_traces_section,
+        # Chat Widget Helpers
+        create_step_chat_widget,
+        # Model Fetching
+        fetch_weave_models,
+    )
+
     # Capture session start time for filtering traces
     session_start_time = datetime.now(timezone.utc).isoformat()
 
@@ -52,7 +75,10 @@ def _():
     
     # Load environment variables (suppress output)
     _ = load_dotenv()
-    return Path, datetime, glob, json, load_dotenv, mo, os, random, re, shutil, subprocess, sys, timezone, yaml, session_start_time
+    return (Path, datetime, glob, json, load_dotenv, mo, os, random, re, shutil, subprocess, sys, timezone, yaml, session_start_time,
+            DEFAULT_CHAT_PROMPTS, TOOL_CHAT_PROMPTS, weave_traces_url, weave_evals_url, weave_playground_url,
+            save_env_var, auto_copy_step_files, fetch_traces_data, build_traces_table_ui, build_traces_section,
+            create_step_chat_widget, fetch_weave_models)
 
 
 @app.cell
@@ -110,43 +136,10 @@ def _(mo):
 
 
 @app.cell
-def _(mo, os, Path, shutil):
+def _(mo, os, save_env_var):
     # ============================================================================
-    # STEP 1: UI ELEMENTS
+    # STEP 1: UI ELEMENTS (using save_env_var helper)
     # ============================================================================
-    
-    # Helper function to save individual env var (auto-creates .env if needed)
-    def _save_env_var(key, value):
-        """Save a single environment variable to .env file"""
-        _env_path = Path(".env")
-        
-        # Create .env from example if it doesn't exist
-        if not _env_path.exists():
-            _example_path = Path(".env.example")
-            if _example_path.exists():
-                _env_path.write_text(_example_path.read_text())
-        
-        # Read current content
-        if _env_path.exists():
-            _env_content = _env_path.read_text()
-        else:
-            _env_content = ""
-        
-        _lines = _env_content.split('\n') if _env_content else []
-        
-        # Update or add the key
-        _found = False
-        for i, line in enumerate(_lines):
-            if line.startswith(f"{key}="):
-                _lines[i] = f"{key}={value}"
-                _found = True
-                break
-        
-        if not _found:
-            _lines.append(f"{key}={value}")
-        
-        # Write back (don't reload to avoid triggering re-renders)
-        _env_path.write_text('\n'.join(_lines))
     
     # Environment variable inputs with auto-save
     _current_wandb_key = os.getenv("WANDB_API_KEY", "")
@@ -159,14 +152,14 @@ def _(mo, os, Path, shutil):
         placeholder="your_wandb_api_key_here",
         full_width=True,
         kind="password",
-        on_change=lambda value: _save_env_var("WANDB_API_KEY", value) if value else None
+        on_change=lambda value: save_env_var("WANDB_API_KEY", value) if value else None
     )
     
     wandb_project_input = mo.ui.text(
         value=_current_wandb_project,
         placeholder="your-entity/agentic-support-bot-demo-yourname",
         full_width=True,
-        on_change=lambda value: _save_env_var("WANDB_PROJECT", value) if value else None
+        on_change=lambda value: save_env_var("WANDB_PROJECT", value) if value else None
     )
     
     openai_key_input = mo.ui.text(
@@ -174,14 +167,14 @@ def _(mo, os, Path, shutil):
         placeholder="your_openai_api_key_here",
         full_width=True,
         kind="password",
-        on_change=lambda value: _save_env_var("OPENAI_API_KEY", value) if value else None
+        on_change=lambda value: save_env_var("OPENAI_API_KEY", value) if value else None
     )
     
     bot_key_input = mo.ui.text(
         value=_current_bot_key,
         placeholder="my-secret-key-123",
         full_width=True,
-        on_change=lambda value: _save_env_var("AGENTIC_SUPPORT_BOT_API_KEY", value) if value else None
+        on_change=lambda value: save_env_var("AGENTIC_SUPPORT_BOT_API_KEY", value) if value else None
     )
     
     return (
@@ -236,41 +229,15 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
 
 
 @app.cell
-def _(mo, glob, Path, shutil, json, os):
+def _(auto_copy_step_files, Path, shutil, os):
     # ============================================================================
-    # STEP 2-3: AUTO-COPY LOGIC (with step subdirectories)
+    # STEP 2-4: AUTO-COPY LOGIC (using helper)
     # ============================================================================
     
-    # Auto-copy Step 2 files to workspace/step-2/
-    _step2_dest = Path("workspace/step-2")
-    _step2_config = _step2_dest / "tyler-chat-config.yaml"
-    if not _step2_config.exists():
-        _source_files = glob("examples/step-2/*.py") + glob("examples/step-2/*.yaml")
-        _step2_dest.mkdir(parents=True, exist_ok=True)
-        for _src in _source_files:
-            _filename = Path(_src).name
-            shutil.copy2(_src, _step2_dest / _filename)
-    
-    # Auto-copy Step 3 files to workspace/step-3/
-    _step3_dest = Path("workspace/step-3")
-    _step3_config = _step3_dest / "tyler-chat-config.yaml"
-    if not _step3_config.exists():
-        _source_files = glob("examples/step-3/*.py") + glob("examples/step-3/*.yaml")
-        _step3_dest.mkdir(parents=True, exist_ok=True)
-        for _src in _source_files:
-            _filename = Path(_src).name
-            shutil.copy2(_src, _step3_dest / _filename)
-    
-    # Auto-copy Step 4 files (independent from Step 3)
-    # Users start with baseline config and iterate to improve it
-    _step4_dest = Path("workspace/step-4")
-    _step4_config = _step4_dest / "tyler-chat-config.yaml"
-    if not _step4_config.exists():
-        _source_files = glob("examples/step-4/*.py") + glob("examples/step-4/*.yaml")
-        _step4_dest.mkdir(parents=True, exist_ok=True)
-        for _src in _source_files:
-            _filename = Path(_src).name
-            shutil.copy2(_src, _step4_dest / _filename)
+    # Auto-copy step files to workspace directories (skips if config already exists)
+    auto_copy_step_files(2)
+    auto_copy_step_files(3)
+    auto_copy_step_files(4)
     
     # Set database path to shared location (not per-step)
     # This allows all steps to share the same ticket database
@@ -526,9 +493,10 @@ def _(yaml, os, Path, load_agent_from_config, config_editor_4, step4_inputs_tupl
 
 
 @app.cell
-def _(agent_2a, Path, sys, os, json, subprocess):
+def _(Path, sys, os, json, subprocess):
     # ============================================================================
-    # STEP 2A: CHAT ADAPTER (uses subprocess for isolated Weave trace context)
+    # CHAT ADAPTER FACTORY (uses subprocess for isolated Weave trace context)
+    # Shared by all steps for consistent behavior
     # ============================================================================
     import asyncio
     
@@ -620,295 +588,94 @@ def _(agent_2a, Path, sys, os, json, subprocess):
         
         return streaming_chat
     
-    # Create chat function using subprocess approach if agent is loaded
-    if agent_2a is not None:
-        _config_path_2a = Path("workspace/step-2/tyler-chat-config.yaml")
-        chat_function_2a = create_chat_adapter_subprocess(_config_path_2a)
-    else:
-        chat_function_2a = None
-    
-    return chat_function_2a, create_chat_adapter_subprocess
+    return (create_chat_adapter_subprocess,)
 
 
 @app.cell
-def _(mo, agent_2a, chat_function_2a, agent_status_2a):
+def _(mo, agent_2a, agent_status_2a, create_chat_adapter_subprocess, Path, create_step_chat_widget, DEFAULT_CHAT_PROMPTS):
     # ============================================================================
-    # STEP 2A: CHAT WIDGET
+    # STEP 2A: CHAT WIDGET (using helper factory)
     # ============================================================================
     
-    if agent_2a is not None and chat_function_2a is not None:
-        # Show agent status (success)
-        agent_status_display = mo.callout(
-            mo.md(agent_status_2a),
-            kind="success"
-        )
-        
-        # Create chat widget with suggested prompts
-        chat_widget_2a = mo.ui.chat(
-            chat_function_2a,
-            prompts=[
-                "How do I initialize Weave in Python?",
-                "I'm getting API timeout errors. Can you help?",
-                "What's the status of ticket #10234?",
-                "Can you explain how to track model performance in wandb?",
-                "I need to create a support ticket for authentication issues"
-            ],
-            show_configuration_controls=False
-        )
-    elif agent_status_2a and agent_status_2a.startswith("❌"):
-        # Show error status if agent failed to load
-        agent_status_display = mo.callout(
-            mo.md(agent_status_2a),
-            kind="danger"
-        )
-        chat_widget_2a = None
-    else:
-        # No agent, no error (files don't exist yet)
-        agent_status_display = mo.md("")
-        chat_widget_2a = None
+    _config_path_2a = Path("workspace/step-2/tyler-chat-config.yaml")
+    agent_status_display, chat_widget_2a = create_step_chat_widget(
+        mo=mo,
+        agent=agent_2a,
+        agent_status=agent_status_2a,
+        config_path=_config_path_2a,
+        chat_adapter_fn=create_chat_adapter_subprocess,
+        prompts=DEFAULT_CHAT_PROMPTS
+    )
     
     return agent_status_display, chat_widget_2a
 
 
 @app.cell
-def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_2a, session_start_time):
+def _(mo, os, weave_entity, weave_project, chat_widget_2a, session_start_time, fetch_traces_data, build_traces_table_ui):
     # ============================================================================
-    # STEP 2: RECENT TRACES TABLE
+    # STEP 2: RECENT TRACES TABLE (using helpers)
     # ============================================================================
     
     traces_table_2a = None
     traces_error_2a = None
     
-    # Always fetch traces if chat widget exists (persists across chat resets)
-    # Only page refresh will reset the traces by resetting session_start_time
+    # Fetch traces if chat widget exists
     if chat_widget_2a is not None:
-        import requests as _requests_2a
-        
-        # Get credentials
         _wandb_token = os.getenv("WANDB_API_KEY", "")
-        
-        if _wandb_token:
-            try:
-                # Fetch recent traces using Weave Service API
-                _url = "https://trace.wandb.ai/calls/stream_query"
-                _headers = {"Content-Type": "application/json"}
-                
-                # Convert session start time to format without Z suffix (API requirement)
-                # The API expects "2025-11-25T16:25:11.424651" format (no timezone suffix)
-                _session_start_no_tz = session_start_time.split('+')[0].rstrip('Z')
-                
-                _query_payload = {
-                    "project_id": f"{weave_entity}/{weave_project}",
-                    "filter": {
-                        "trace_roots_only": True,
-                        "op_names": [f"weave:///{weave_entity}/{weave_project}/op/Agent.stream:*"]
-                    },
-                    # Use API-side filtering with $gte
-                    "query": {
-                        "$expr": {
-                            "$gte": [
-                                {"$getField": "started_at"},
-                                {"$literal": _session_start_no_tz}
-                            ]
-                        }
-                    },
-                    "limit": 50,
-                    "offset": 0,
-                    "sort_by": [{"field": "started_at", "direction": "desc"}],
-                    "include_costs": True,
-                    "include_feedback": False,
-                }
-                
-                _response = _requests_2a.post(
-                    _url, 
-                    headers=_headers, 
-                    json=_query_payload, 
-                    auth=("api", _wandb_token),
-                    timeout=10
-                )
-                
-                if _response.status_code == 200:
-                    # Parse newline-delimited JSON response
-                    _json_objects = _response.text.strip().split("\n")
-                    _traces = [json.loads(obj) for obj in _json_objects if obj]
-                    
-                    # If no traces with Agent.stream, try without filter to see if ANY traces exist
-                    if len(_traces) == 0:
-                        # Try getting any traces
-                        _query_payload_all = {
-                            "project_id": f"{weave_entity}/{weave_project}",
-                            "filter": {"trace_roots_only": True},
-                            "limit": 5,
-                            "offset": 0,
-                            "sort_by": [{"field": "started_at", "direction": "desc"}],
-                            "include_feedback": False,
-                        }
-                        _response_all = _requests_2a.post(_url, headers=_headers, json=_query_payload_all, auth=("api", _wandb_token), timeout=10)
-                        if _response_all.status_code == 200:
-                            _all_traces = [json.loads(obj) for obj in _response_all.text.strip().split("\n") if obj]
-                            if _all_traces:
-                                # Show available op_names
-                                _op_names = [t.get('op_name', 'unknown') for t in _all_traces[:5]]
-                
-                if _response.status_code == 200:
-                    # Parse newline-delimited JSON response
-                    _json_objects = _response.text.strip().split("\n")
-                    _traces = [json.loads(obj) for obj in _json_objects if obj]
-                    
-                    # Build table data with clickable links
-                    _table_data = []
-                    for _trace in _traces[:10]:  # Limit to 10 most recent
-                        _trace_id = _trace.get('id', '')
-                        # Use peekPath format for proper trace viewing
-                        _trace_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces?view=traces_default&peekPath=%2F{weave_entity}%2F{weave_project}%2Fcalls%2F{_trace_id}"
-                        
-                        # Format timestamp
-                        _started_at = _trace.get('started_at', '')
-                        if _started_at:
-                            _dt = datetime.fromisoformat(_started_at.replace('Z', '+00:00'))
-                            _time_str = _dt.strftime('%Y-%m-%d %H:%M:%S')
-                        else:
-                            _time_str = 'N/A'
-                        
-                        # Get status from summary
-                        _status = _trace.get('summary', {}).get('weave', {}).get('status', 'unknown')
-                        
-                        # Get latency (convert from ms to seconds with 3 decimal places)
-                        _latency_ms = _trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
-                        if _latency_ms:
-                            _latency_seconds = _latency_ms / 1000.0
-                            _latency_str = f"{_latency_seconds:.3f}s"
-                        else:
-                            _latency_str = 'N/A'
-                        
-                        # Get cost (from costs field if available)
-                        _costs = _trace.get('costs', {})
-                        if _costs:
-                            # Sum up all costs (could be multiple models)
-                            _total_cost = sum(_costs.values())
-                            _cost_str = f"${_total_cost:.4f}" if _total_cost > 0 else "$0.00"
-                        else:
-                            _cost_str = 'N/A'
-                        
-                        _table_data.append({
-                            "Time": _time_str,
-                            "Status": _status,
-                            "Latency": _latency_str,
-                            "Cost": _cost_str,
-                            "Trace ID": _trace_id,  # Full trace ID, not truncated
-                            "Link": _trace_url
-                        })
-                    
-                    if _table_data:
-                        # Create table with markdown links
-                        traces_table_2a = mo.ui.table(
-                            [
-                                {
-                                    "Link": mo.md(f"[{row['Trace ID']}]({row['Link']})"),
-                                    "Latency": row["Latency"],
-                                    "Cost": row["Cost"]
-                                }
-                                for row in _table_data
-                            ],
-                            selection=None
-                        )
-                    else:
-                        # No traces found yet
-                        traces_error_2a = "No traces found yet. Traces may take a few seconds to appear in Weave after sending a message."
-                else:
-                    traces_error_2a = f"Failed to fetch traces: HTTP {_response.status_code}"
-                    
-            except Exception as e:
-                traces_error_2a = f"Error fetching traces: {str(e)}"
-        else:
-            traces_error_2a = "WANDB_API_KEY not set"
+        _table_data, traces_error_2a = fetch_traces_data(
+            weave_entity, weave_project, session_start_time, _wandb_token
+        )
+        if _table_data:
+            traces_table_2a = build_traces_table_ui(mo, _table_data)
     
     return traces_table_2a, traces_error_2a
 
 
 @app.cell
-def _(mo, agent_3, chat_function_2a, agent_status_3, create_chat_adapter_subprocess, Path):
+def _(mo, agent_3, agent_status_3, create_chat_adapter_subprocess, Path, create_step_chat_widget, TOOL_CHAT_PROMPTS):
     # ============================================================================
-    # STEP 3: CHAT WIDGET (with tools and MCP)
+    # STEP 3: CHAT WIDGET (using helper factory)
     # ============================================================================
     
-    if agent_3 is not None:
-        # Create chat function for Step 3 agent using subprocess for fresh trace context
-        _config_path_3 = Path("workspace/step-3/tyler-chat-config.yaml")
-        chat_function_3 = create_chat_adapter_subprocess(_config_path_3)
-        
-        # Show agent status (success)
-        agent_status_display_3 = mo.callout(
-            mo.md(agent_status_3),
-            kind="success"
-        )
-        
-        # Create chat widget with prompts that will use tools
-        chat_widget_3 = mo.ui.chat(
-            chat_function_3,
-            prompts=[
-                "How do I initialize Weave in Python?",
-                "I'm getting API timeout errors. Can you help?",
-                "What's the status of ticket #10234?",
-                "Can you create a ticket for my authentication issue?",
-            ],
-            show_configuration_controls=False
-        )
-    elif agent_status_3 and agent_status_3.startswith("❌"):
-        # Show error status if agent failed to load
-        agent_status_display_3 = mo.callout(
-            mo.md(agent_status_3),
-            kind="danger"
-        )
-        chat_widget_3 = None
-    else:
-        # No agent, no error (files don't exist yet)
-        agent_status_display_3 = mo.md("")
-        chat_widget_3 = None
+    _config_path_3 = Path("workspace/step-3/tyler-chat-config.yaml")
+    agent_status_display_3, chat_widget_3 = create_step_chat_widget(
+        mo=mo,
+        agent=agent_3,
+        agent_status=agent_status_3,
+        config_path=_config_path_3,
+        chat_adapter_fn=create_chat_adapter_subprocess,
+        prompts=TOOL_CHAT_PROMPTS
+    )
     
-    return agent_status_display_3, chat_widget_3, chat_function_3
+    return agent_status_display_3, chat_widget_3
 
 
 @app.cell
-def _(mo, agent_4, agent_status_4, create_chat_adapter_subprocess, Path):
+def _(mo, agent_4, agent_status_4, create_chat_adapter_subprocess, Path, create_step_chat_widget, DEFAULT_CHAT_PROMPTS):
     # ============================================================================
-    # STEP 4: CHAT WIDGET (iterate)
+    # STEP 4: CHAT WIDGET (using helper factory)
     # ============================================================================
     
-    if agent_4 is not None:
-        # Create chat function for Step 4 agent using subprocess for fresh trace context
-        _config_path_4 = Path("workspace/step-4/tyler-chat-config.yaml")
-        chat_function_4 = create_chat_adapter_subprocess(_config_path_4)
-        
-        # Create chat widget with prompts
-        chat_widget_4 = mo.ui.chat(
-            chat_function_4,
-            prompts=[
-                "How do I initialize Weave in Python?",
-                "I'm getting API timeout errors. Can you help?",
-                "What's the status of ticket #10234?",
-                "Can you explain how to track model performance in wandb?",
-                "I need to create a support ticket for authentication issues"
-            ],
-            show_configuration_controls=False
-        )
-    elif agent_status_4 and agent_status_4.startswith("❌"):
-        # Show error status if agent failed to load
-        chat_widget_4 = None
-    else:
-        # No agent, no error (files don't exist yet)
-        chat_widget_4 = None
+    _config_path_4 = Path("workspace/step-4/tyler-chat-config.yaml")
+    _agent_status_display_4, chat_widget_4 = create_step_chat_widget(
+        mo=mo,
+        agent=agent_4,
+        agent_status=agent_status_4,
+        config_path=_config_path_4,
+        chat_adapter_fn=create_chat_adapter_subprocess,
+        prompts=DEFAULT_CHAT_PROMPTS
+    )
     
-    return chat_widget_4, chat_function_4
+    return (chat_widget_4,)
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_table_2a, traces_error_2a):
+def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_table_2a, traces_error_2a, weave_traces_url):
     # ============================================================================
     # STEP 2: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     try:
-        _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+        _traces_url = weave_traces_url(weave_entity, weave_project)
         
         # Build traces section components - ALWAYS show this section
         _traces_section = [
@@ -1019,144 +786,33 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
 
 
 @app.cell
-def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_3, session_start_time):
+def _(mo, os, weave_entity, weave_project, chat_widget_3, session_start_time, fetch_traces_data, build_traces_table_ui):
     # ============================================================================
-    # STEP 3: RECENT TRACES TABLE
+    # STEP 3: RECENT TRACES TABLE (using helpers)
     # ============================================================================
     
     traces_table_3 = None
     traces_error_3 = None
     
-    # Always fetch traces if chat widget exists (persists across chat resets)
-    # Only page refresh will reset the traces by resetting session_start_time
+    # Fetch traces if chat widget exists
     if chat_widget_3 is not None:
-        import requests as _requests_3
-        
-        # Get credentials
         _wandb_token = os.getenv("WANDB_API_KEY", "")
-        
-        if _wandb_token:
-            try:
-                # Fetch recent traces using Weave Service API
-                _url = "https://trace.wandb.ai/calls/stream_query"
-                _headers = {"Content-Type": "application/json"}
-                
-                # Convert session start time to format without Z suffix (API requirement)
-                _session_start_no_tz = session_start_time.split('+')[0].rstrip('Z')
-                
-                _query_payload = {
-                    "project_id": f"{weave_entity}/{weave_project}",
-                    "filter": {
-                        "trace_roots_only": True,
-                        "op_names": [f"weave:///{weave_entity}/{weave_project}/op/Agent.stream:*"]
-                    },
-                    # Use API-side filtering with $gte
-                    "query": {
-                        "$expr": {
-                            "$gte": [
-                                {"$getField": "started_at"},
-                                {"$literal": _session_start_no_tz}
-                            ]
-                        }
-                    },
-                    "limit": 50,
-                    "offset": 0,
-                    "sort_by": [{"field": "started_at", "direction": "desc"}],
-                    "include_costs": True,
-                    "include_feedback": False,
-                }
-                
-                _response = _requests_3.post(
-                    _url, 
-                    headers=_headers, 
-                    json=_query_payload, 
-                    auth=("api", _wandb_token),
-                    timeout=10
-                )
-                
-                if _response.status_code == 200:
-                    # Parse newline-delimited JSON response
-                    _json_objects = _response.text.strip().split("\n")
-                    _traces = [json.loads(obj) for obj in _json_objects if obj]
-                    
-                    # Build table data with clickable links
-                    _table_data = []
-                    for _trace in _traces[:10]:  # Limit to 10 most recent
-                        _trace_id = _trace.get('id', '')
-                        # Use peekPath format for proper trace viewing
-                        _trace_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces?view=traces_default&peekPath=%2F{weave_entity}%2F{weave_project}%2Fcalls%2F{_trace_id}"
-                        
-                        # Format timestamp
-                        _started_at = _trace.get('started_at', '')
-                        if _started_at:
-                            _dt = datetime.fromisoformat(_started_at.replace('Z', '+00:00'))
-                            _time_str = _dt.strftime('%Y-%m-%d %H:%M:%S')
-                        else:
-                            _time_str = 'N/A'
-                        
-                        # Get status from summary
-                        _status = _trace.get('summary', {}).get('weave', {}).get('status', 'unknown')
-                        
-                        # Get latency (convert from ms to seconds with 3 decimal places)
-                        _latency_ms = _trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
-                        if _latency_ms:
-                            _latency_seconds = _latency_ms / 1000.0
-                            _latency_str = f"{_latency_seconds:.3f}s"
-                        else:
-                            _latency_str = 'N/A'
-                        
-                        # Get cost (from costs field if available)
-                        _costs = _trace.get('costs', {})
-                        if _costs:
-                            # Sum up all costs (could be multiple models)
-                            _total_cost = sum(_costs.values())
-                            _cost_str = f"${_total_cost:.4f}" if _total_cost > 0 else "$0.00"
-                        else:
-                            _cost_str = 'N/A'
-                        
-                        _table_data.append({
-                            "Time": _time_str,
-                            "Status": _status,
-                            "Latency": _latency_str,
-                            "Cost": _cost_str,
-                            "Trace ID": _trace_id,
-                            "Link": _trace_url
-                        })
-                    
-                    if _table_data:
-                        # Create table with markdown links
-                        traces_table_3 = mo.ui.table(
-                            [
-                                {
-                                    "Link": mo.md(f"[{row['Trace ID']}]({row['Link']})"),
-                                    "Latency": row["Latency"],
-                                    "Cost": row["Cost"]
-                                }
-                                for row in _table_data
-                            ],
-                            selection=None
-                        )
-                    else:
-                        # No traces found yet
-                        traces_error_3 = "No traces found yet. Traces may take a few seconds to appear in Weave after sending a message."
-                else:
-                    traces_error_3 = f"Failed to fetch traces: HTTP {_response.status_code}"
-                    
-            except Exception as e:
-                traces_error_3 = f"Error fetching traces: {str(e)}"
-        else:
-            traces_error_3 = "WANDB_API_KEY not set"
+        _table_data, traces_error_3 = fetch_traces_data(
+            weave_entity, weave_project, session_start_time, _wandb_token
+        )
+        if _table_data:
+            traces_table_3 = build_traces_table_ui(mo, _table_data)
     
     return traces_table_3, traces_error_3
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, agent_status_3, traces_table_3, traces_error_3):
+def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, agent_status_3, traces_table_3, traces_error_3, weave_traces_url):
     # ============================================================================
     # STEP 3: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     try:
-        _traces_url_3 = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+        _traces_url_3 = weave_traces_url(weave_entity, weave_project)
         
         # Single column layout
         step3_content = mo.vstack([
@@ -1398,145 +1054,34 @@ Always be friendly, clear, and helpful in your responses.
 
 
 @app.cell
-def _(mo, os, json, datetime, weave_entity, weave_project, chat_widget_4, session_start_time):
+def _(mo, os, weave_entity, weave_project, chat_widget_4, session_start_time, fetch_traces_data, build_traces_table_ui):
     # ============================================================================
-    # STEP 4: RECENT TRACES TABLE
+    # STEP 4: RECENT TRACES TABLE (using helpers)
     # ============================================================================
     
     traces_table_4 = None
     traces_error_4 = None
     
-    # Always fetch traces if chat widget exists (persists across chat resets)
-    # Only page refresh will reset the traces by resetting session_start_time
+    # Fetch traces if chat widget exists
     if chat_widget_4 is not None:
-        import requests as _requests_4
-        
-        # Get credentials
         _wandb_token = os.getenv("WANDB_API_KEY", "")
-        
-        if _wandb_token:
-            try:
-                # Fetch recent traces using Weave Service API
-                _url = "https://trace.wandb.ai/calls/stream_query"
-                _headers = {"Content-Type": "application/json"}
-                
-                # Convert session start time to format without Z suffix (API requirement)
-                _session_start_no_tz = session_start_time.split('+')[0].rstrip('Z')
-                
-                _query_payload = {
-                    "project_id": f"{weave_entity}/{weave_project}",
-                    "filter": {
-                        "trace_roots_only": True,
-                        "op_names": [f"weave:///{weave_entity}/{weave_project}/op/Agent.stream:*"]
-                    },
-                    # Use API-side filtering with $gte
-                    "query": {
-                        "$expr": {
-                            "$gte": [
-                                {"$getField": "started_at"},
-                                {"$literal": _session_start_no_tz}
-                            ]
-                        }
-                    },
-                    "limit": 50,
-                    "offset": 0,
-                    "sort_by": [{"field": "started_at", "direction": "desc"}],
-                    "include_costs": True,
-                    "include_feedback": False,
-                }
-                
-                _response = _requests_4.post(
-                    _url, 
-                    headers=_headers, 
-                    json=_query_payload, 
-                    auth=("api", _wandb_token),
-                    timeout=10
-                )
-                
-                if _response.status_code == 200:
-                    # Parse newline-delimited JSON response
-                    _json_objects = _response.text.strip().split("\n")
-                    _traces = [json.loads(obj) for obj in _json_objects if obj]
-                    
-                    # Build table data with clickable links
-                    _table_data = []
-                    for _trace in _traces[:10]:  # Limit to 10 most recent
-                        _trace_id = _trace.get('id', '')
-                        # Use peekPath format for proper trace viewing
-                        _trace_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces?view=traces_default&peekPath=%2F{weave_entity}%2F{weave_project}%2Fcalls%2F{_trace_id}"
-                        
-                        # Format timestamp
-                        _started_at = _trace.get('started_at', '')
-                        if _started_at:
-                            _dt = datetime.fromisoformat(_started_at.replace('Z', '+00:00'))
-                            _time_str = _dt.strftime('%Y-%m-%d %H:%M:%S')
-                        else:
-                            _time_str = 'N/A'
-                        
-                        # Get status from summary
-                        _status = _trace.get('summary', {}).get('weave', {}).get('status', 'unknown')
-                        
-                        # Get latency (convert from ms to seconds with 3 decimal places)
-                        _latency_ms = _trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
-                        if _latency_ms:
-                            _latency_seconds = _latency_ms / 1000.0
-                            _latency_str = f"{_latency_seconds:.3f}s"
-                        else:
-                            _latency_str = 'N/A'
-                        
-                        # Get cost (from costs field if available)
-                        _costs = _trace.get('costs', {})
-                        if _costs:
-                            # Sum up all costs (could be multiple models)
-                            _total_cost = sum(_costs.values())
-                            _cost_str = f"${_total_cost:.4f}" if _total_cost > 0 else "$0.00"
-                        else:
-                            _cost_str = 'N/A'
-                        
-                        _table_data.append({
-                            "Time": _time_str,
-                            "Status": _status,
-                            "Latency": _latency_str,
-                            "Cost": _cost_str,
-                            "Trace ID": _trace_id,
-                            "Link": _trace_url
-                        })
-                    
-                    if _table_data:
-                        # Create table with markdown links
-                        traces_table_4 = mo.ui.table(
-                            [
-                                {
-                                    "Link": mo.md(f"[{row['Trace ID']}]({row['Link']})"),
-                                    "Latency": row["Latency"],
-                                    "Cost": row["Cost"]
-                                }
-                                for row in _table_data
-                            ],
-                            selection=None
-                        )
-                    else:
-                        # No traces found yet
-                        traces_error_4 = "No traces found yet. Traces may take a few seconds to appear in Weave after sending a message."
-                else:
-                    traces_error_4 = f"Failed to fetch traces: HTTP {_response.status_code}"
-                    
-            except Exception as e:
-                traces_error_4 = f"Error fetching traces: {str(e)}"
-        else:
-            traces_error_4 = "WANDB_API_KEY not set"
+        _table_data, traces_error_4 = fetch_traces_data(
+            weave_entity, weave_project, session_start_time, _wandb_token
+        )
+        if _table_data:
+            traces_table_4 = build_traces_table_ui(mo, _table_data)
     
     return traces_table_4, traces_error_4
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_purpose_accordion, example_notes_accordion, name_input, purpose_input, notes_input, traces_table_4, traces_error_4):
+def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_purpose_accordion, example_notes_accordion, name_input, purpose_input, notes_input, traces_table_4, traces_error_4, weave_traces_url):
     # ============================================================================
     # STEP 4: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     try:
         # Build Weave traces URL
-        _traces_url_4 = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+        _traces_url_4 = weave_traces_url(weave_entity, weave_project)
         
         # Single column layout matching Steps 2-3
         step4_content = mo.vstack([
@@ -1718,81 +1263,17 @@ def _(mo):
 
 
 @app.cell
-def _(mo, os, weave_entity, weave_project, refresh_btn):
+def _(os, weave_entity, weave_project, refresh_btn, fetch_weave_models):
     # ============================================================================
-    # STEP 5: QUERY MODELS (re-runs when refresh_btn is clicked)
+    # STEP 5: QUERY MODELS (re-runs when refresh_btn is clicked, using helper)
     # ============================================================================
     
     # This cell depends on refresh_btn.value, so it re-runs when clicked
     _refresh_count = refresh_btn.value
     
-    def fetch_models():
-        """Fetch all Model versions from Weave using the objs/query API."""
-        try:
-            import requests
-            
-            api_key = os.getenv("WANDB_API_KEY")
-            if not api_key:
-                return {}
-            
-            project_id = f"{weave_entity}/{weave_project}"
-            
-            # Query for Model objects
-            url = "https://trace.wandb.ai/objs/query"
-            headers = {
-                "Content-Type": "application/json",
-            }
-            
-            payload = {
-                "project_id": project_id,
-                "filter": {
-                    "base_object_classes": ["Model"],
-                    "latest_only": False
-                },
-                "sort_by": [{"field": "created_at", "direction": "desc"}],
-                "limit": 100
-            }
-            
-            response = requests.post(
-                url,
-                headers=headers,
-                json=payload,
-                auth=("api", api_key),
-                timeout=10
-            )
-            
-            if response.status_code != 200:
-                return {}
-            
-            data = response.json()
-            
-            # Models to exclude (scoring judges)
-            excluded_models = {"safety-judge", "accuracy-judge"}
-            
-            # Group by model name, collect versions
-            models_dict = {}
-            
-            for obj in data.get("objs", []):
-                object_id = obj.get("object_id", "")
-                version_index = obj.get("version_index", 0)
-                
-                if object_id in excluded_models:
-                    continue
-                
-                if object_id not in models_dict:
-                    models_dict[object_id] = []
-                models_dict[object_id].append(f"v{version_index}")
-            
-            for model_name in models_dict:
-                models_dict[model_name].sort(key=lambda v: int(v[1:]), reverse=True)
-            
-            return models_dict
-            
-        except Exception as e:
-            return {}
-    
-    # Fetch models (re-runs when refresh button is clicked)
-    available_models_dict = fetch_models()
+    # Fetch models using helper (re-runs when refresh button is clicked)
+    _wandb_token = os.getenv("WANDB_API_KEY", "")
+    available_models_dict = fetch_weave_models(weave_entity, weave_project, _wandb_token)
     model_names = list(available_models_dict.keys()) if available_models_dict else ["No models found"]
     
     return (available_models_dict, model_names)
@@ -2030,11 +1511,11 @@ Evaluated **{_model_ref}** on {_total} test cases ({_sample_label}).
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh_btn, sample_size_selector, run_eval_btn, eval_output, step5_files_ready, Path, sys):
+def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh_btn, sample_size_selector, run_eval_btn, eval_output, step5_files_ready, Path, sys, weave_evals_url):
     # ============================================================================
     # STEP 5: CONTENT (Pre-computed as value, not function)
     # ============================================================================
-    _evals_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/evaluations"
+    _evals_url = weave_evals_url(weave_entity, weave_project)
     
     # Load dataset for display (only if files are ready)
     _evaluation_dataset_display = None
@@ -2269,12 +1750,12 @@ def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
 
 
 @app.cell
-def _(mo, prod_url_input, weave_entity, weave_project):
+def _(mo, prod_url_input, weave_entity, weave_project, weave_playground_url, weave_traces_url):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
-    _playground_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/playground"
-    _traces_url = f"https://wandb.ai/{weave_entity}/{weave_project}/weave/traces"
+    _playground_url = weave_playground_url(weave_entity, weave_project)
+    _traces_url = weave_traces_url(weave_entity, weave_project)
     
     # Generate API URL instruction based on whether production URL is provided
     if prod_url_input.value:
