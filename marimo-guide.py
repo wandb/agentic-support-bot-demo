@@ -92,7 +92,7 @@ def _(mo):
 
     This guide shows you how Weave works in a real AI development workflow by building and deploying a production-ready support bot.
 
-    ## Your Task
+    ## Your task
 
     Build a support bot for Weights & Biases that can:
     - Answer questions about our product (from our docs)
@@ -210,7 +210,7 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
         Configure API keys to connect your agent to Weave, LLMs, and other services.
 
         """),
-        mo.md("### W&B Project Name"),
+        mo.md("### W&B project name"),
         mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb-designers/agentic-support-bot-yourname`)"),
         wandb_project_input,
         mo.md("---"),
@@ -227,7 +227,7 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
         mo.md("*Used to authenticate requests to your Modal deployment and in W&B Team Secrets*"),
         bot_key_input,
         mo.callout(
-            mo.md("✅ **Ready for the next step!** Once you've configured your environment variables, continue to **Basic Agent** using the tabs above."),
+            mo.md("✅ **Ready for the next step!** Once you've configured your environment variables, continue to **Basic agent** using the tabs above."),
             kind="success"
         )
     ])
@@ -993,7 +993,7 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
                         
             mo.md("""
             ##  
-            🤔 **What Did You Notice?** After chatting with the agent, reflect on these questions:
+            🤔 **What did you notice?** After chatting with the agent, reflect on these questions:
             
             1. **Did the agent answer your questions accurately?**  
                The agent doesn't have access to W&B documentation yet - it's only using its training data.
@@ -1007,7 +1007,7 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
             """),
             
             mo.callout(
-                mo.md("✅ **Ready for the next step!** The agent can chat, but it can't take actions yet. Continue to **Add Tools** to give your agent real capabilities."),
+                mo.md("✅ **Ready for the next step!** The agent can chat, but it can't take actions yet. Continue to **Add tools** to give your agent real capabilities."),
                 kind="success"
             )
         ])
@@ -1215,7 +1215,7 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
                         
             mo.md(f"""
             ##  
-            🤔 **What Did You Notice?** After chatting with the agent, reflect on these questions:
+            🤔 **What did you notice?** After chatting with the agent, reflect on these questions:
             
             1. **Did the agent call tools?**  
                Check the Weave traces - you should see tool calls like `create_issue`, `get_issue`, or `search_docs`.
@@ -1242,7 +1242,7 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
             ),
             
             mo.callout(
-                mo.md("✅ **Ready for the next step!** The agent has tools but needs guidance on when to use them. Continue to **Iterate** to give your agent a clear purpose and improve its behavior."),
+                mo.md("✅ **Ready for the next step!** The agent has tools but needs guidance on when to use them. Continue to the **Iterate** step to give your agent a clear purpose and improve its behavior."),
                 kind="success"
             )
         ])
@@ -1620,7 +1620,7 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
                         
             mo.md(f"""
             ##  
-            🤔 **What Did You Notice?** After editing purpose/notes and testing, reflect:
+            🤔 **What did you notice?** After editing purpose/notes and testing, reflect:
             
             1. **Does the agent feel more focused?**  
                With a clear purpose, it should understand its role as a W&B support bot.
@@ -1635,7 +1635,7 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
             """),
             
             mo.callout(
-                mo.md("✅ **Ready for the next step!** Your agent now has purpose and knows when to use tools. Continue to **Evaluate** to measure its performance systematically."),
+                mo.md("✅ **Ready for the next step!** Your agent now has purpose and knows when to use tools. Continue to the **Evaluate** step to measure its performance systematically."),
                 kind="success"
             )
         ])
@@ -1703,14 +1703,15 @@ def _(step5_files_ready, Path, sys):
 @app.cell
 def _(mo):
     # ============================================================================
-    # STEP 5: REFRESH BUTTON
+    # STEP 5: REFRESH LINK
     # ============================================================================
     
-    # Refresh button - clicking increments the value
+    # Refresh link - clicking increments the value
     refresh_btn = mo.ui.button(
-        label="🔄",
+        label="🔄 Refresh dropdowns",
         value=0,
-        on_click=lambda v: v + 1
+        on_click=lambda v: v + 1,
+        kind="neutral"
     )
     
     return (refresh_btn,)
@@ -1856,14 +1857,14 @@ def _(mo):
     # Dropdown for number of samples to evaluate
     sample_size_selector = mo.ui.dropdown(
         options={
-            "5 samples": "5",
-            "10 samples": "10",
-            "15 samples": "15",
-            "20 samples": "20",
+            "5": "5",
+            "10": "10",
+            "15": "15",
+            "20": "20",
             "All (full dataset)": "all"
         },
-        value="5 samples",
-        label="Samples to evaluate"
+        value="5",
+        label="Number of samples"
     )
     
     # Single button to run evaluation
@@ -2000,7 +2001,7 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
 
 Evaluated **{_model_ref}** on {_total} test cases ({_sample_label}).
 
-**Average Scores:**
+**Average scores:**
 - Tool Usage: {_summary.get('tool_usage_avg', 0):.2f}
 - Accuracy: {_summary.get('accuracy_avg', 0):.2f}
 - Safety: {_summary.get('safety_avg', 0):.2f}
@@ -2093,7 +2094,7 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
             }
             ```
             
-            **Dataset Coverage:**
+            **Dataset coverage:**
             - **13 W&B/Weave questions**: Initialization, debugging, troubleshooting, features
             - **8 Tool usage scenarios**: Support ticket creation and retrieval
             - **9 Refusal scenarios**: Off-topic questions, inappropriate requests, adversarial attempts
@@ -2154,10 +2155,16 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
         First, select which model and version you want to evaluate.  Each time we changed the agent's config (like purpose or tools), a new model version was created in Weave.  Select the model and version you want to evaluate:
         """),
         
-        mo.hstack([model_selector, version_selector, refresh_btn], justify="start", gap=1),
+        mo.hstack([model_selector, version_selector], justify="start", gap=1),
+        
+        mo.md(f"""
+        *Don't see your model? {refresh_btn} to get the latest.*
+        """),
         
         mo.md("""
-        Now choose how many samples to evaluate and click run:
+        ##
+
+        Now choose how many samples (the number of test cases from the dataset) to evaluate and run the evaluation:
         """),
         
         mo.hstack([sample_size_selector, run_eval_btn], justify="start", gap=1),
@@ -2168,41 +2175,33 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
 
         ---
 
-        ## 
-
         Congrats, **you now have a baseline!** With quantitative metrics, you can iterate systematically to improve your agent. [View the full evaluation results in Weave]({_evals_url})
 
-        **1. View aggregate metrics:**
-        - Tool Usage: % correct
-        - Accuracy: Average score
-        - Safety: Average score
+        **1. Review metrics:**
+        - Aggregate scores (tool usage %, accuracy, safety)
+        - Test case results and agent responses
+        - Full agent traces for each prediction
 
-        **2. Drill into predictions:**
-        - Which test cases passed/failed?
-        - What did the agent say?
-        - View full agent trace
+        **2. Identify patterns:**
+        - Group failures by with annotations (possibly add then to your dataset)
+        - Check refusal and tool cases
+        - Pinpoint accuracy gaps by topic
 
-        **3. Identify patterns:**
-        - Group failures by tag
-        - Are refusal cases passing?
-        - Are tool cases failing? (refine descriptions)
-        - Is accuracy low on specific topics? (improve docs search)
-
-        **4. Compare eval runs:**
+        **3. Compare evaluation runs:**
         - Select 2+ evaluations → **Compare**
-        - See side-by-side metrics
-        - Identify improvements/regressions
+        - View side-by-side metrics
+        - Track improvements/regressions
 
         What's next? You can now start to improve the agent's performance by adjusting the following levers:
 
-        **Levers to Adjust:**
+        **Levers to adjust:**
 
         1. **Purpose and Notes** (`tyler-chat-config.yaml`) - Add examples, refine tone guidance
         2. **Tool Descriptions** (`tools.py`) - Clarify when to use each tool, add examples
         3. **Model Selection** (`tyler-chat-config.yaml`) - Try `gpt-4.1` or other models available in W&B Inference, adjust `temperature`, experiment with `reasoning` levels
         4. **MCP Search Strategy** - Review traces where docs search failed
 
-        **Iteration Workflow:**
+        **Iteration workflow:**
 
         1. Run baseline evaluation → Identify lowest-scoring categories
         2. Pick ONE thing to improve → Make targeted changes
@@ -2212,9 +2211,8 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
 
         **Example:** If tool usage is low (60%), review traces where tools weren't called → improve tool `description` → add examples → re-run eval.
         """),
-        mo.md("---"),
         mo.callout(
-            mo.md("✅ **Ready for the next step!** Once you've run your evaluations, analyzed the results, and improved the agent's performance in Weave, continue to **Deploy** to production using the tabs above."),
+            mo.md("✅ **Ready for the next step!** Once you've run your evaluations, analyzed the results, and improved the agent's performance in Weave, continue to the **Deploy** step using the tabs above."),
             kind="success"
         )
     ])
@@ -2288,14 +2286,13 @@ def _(mo, prod_url_input, weave_entity, weave_project):
     
     step6_content = mo.vstack([
         mo.md("""
-        ##  
-        ## Production Deployment 🚀
+        ## Production deployment 🚀
 
         **Goal:** Deploy your agent as a persistent production service.
 
         After iterating in the playground and building confidence through systematic evaluation, it's time to deploy your agent to production! The same code you've been developing with `modal serve` can be deployed to a persistent production environment with one command.
 
-        ### Deploy to Production
+        ### Deploy to production
 
         In Step 3, you used `modal serve --env dev` for development. This creates an ephemeral deployment in the `dev` environment that auto-reloads when you change code. For production, deploy to the `main` environment:
 
@@ -2322,7 +2319,7 @@ def _(mo, prod_url_input, weave_entity, weave_project):
         """),
         prod_url_input,
         mo.md(f"""
-    ### Update Weave Playground for Production
+    ### Update Weave Playground for production
 
     Now you can create a separate AI provider in Weave Playground for your production deployment:
 
@@ -2339,7 +2336,7 @@ def _(mo, prod_url_input, weave_entity, weave_project):
     - `agentic-support-bot-dev/buzz` → Development (modal serve)
     - `agentic-support-bot-main/buzz` → Production (modal deploy)
 
-    ### Test Your Production Deployment
+    ### Test your production deployment
 
     Select `agentic-support-bot-main/buzz` in the Playground and try the same test prompts from Step 3.
 
@@ -2353,7 +2350,7 @@ def _(mo, prod_url_input, weave_entity, weave_project):
     - You can filter by environment in Weave UI: `env=dev` vs `env=main`
     - Same observability in both environments!
 
-    ### Create a Saved View for Production Traces
+    ### Create a saved view for production traces
 
     Now that you have both dev and prod traces, create a [Saved View](https://docs.wandb.ai/weave/guides/tools/saved-views) in Weave to quickly access your production traffic:
 
@@ -2365,7 +2362,7 @@ def _(mo, prod_url_input, weave_entity, weave_project):
         """),
         mo.md("---"),
         mo.callout(
-            mo.md("✅ **Ready for the next step!** Once you've deployed to production and created your saved views, continue to **Monitor** to add guardrails and monitoring."),
+            mo.md("✅ **Ready for the next step!** Once you've deployed to production and created your saved views, continue to the **Monitor** step to add guardrails and monitoring."),
             kind="success"
         )
     ])
@@ -2437,7 +2434,7 @@ def _(mo, copy_step7_btn, copy_step7_output):
     step7_content = mo.vstack([
         mo.md("""
         ##  
-        ## Online Monitoring & Guardrails 🛡️
+        ## Online monitoring & guardrails 🛡️
 
         **Goal:** Add production safety controls and quality monitoring to your deployed agent.
 
@@ -2457,7 +2454,7 @@ def _(mo, copy_step7_btn, copy_step7_output):
         mo.md("""
     ---
 
-    ### Part A: Add Guardrails
+    ### Part A: Add guardrails
 
     **Goal:** Block toxic or harmful content before generation using production-quality input guardrails.
 
@@ -2539,7 +2536,7 @@ def _(mo, copy_step7_btn, copy_step7_output):
 
     ---
 
-    ### Part B: Set Up Monitors
+    ### Part B: Set up monitors
 
     **Goal:** Track production quality over time with automated scoring.
 
@@ -2561,7 +2558,7 @@ def _(mo, copy_step7_btn, copy_step7_output):
     1. Navigate to your Weave project → **Monitors** tab
     2. Click **"New Monitor"**
 
-    **Configure Accuracy Monitor:**
+    **Configure accuracy monitor:**
 
     Fill in the form fields:
 
@@ -2579,7 +2576,7 @@ def _(mo, copy_step7_btn, copy_step7_output):
 
     Click **Create Monitor** to activate.
 
-    **Configure Safety Monitor:**
+    **Configure safety monitor:**
 
             Repeat the process with similar values for safety monitoring.
 
@@ -2604,7 +2601,7 @@ def _(mo, copy_step7_btn, copy_step7_output):
 
     ---
 
-    ### Guardrails vs Monitors: When to Use Each
+    ### Guardrails vs monitors: when to use each
 
     | Aspect | Guardrails | Monitors |
     |--------|-----------|----------|
@@ -2637,7 +2634,7 @@ def _(mo, copy_step7_btn, copy_step7_output):
     - Questions? [GitHub Discussions](https://github.com/wandb/agentic-support-bot-demo/discussions)
     - Found a bug? [Open an Issue](https://github.com/wandb/agentic-support-bot-demo/issues/new)
 
-    **What's Next?**
+    **What's next?**
         - Experiment with different models
         - Add more tools for your use case
         - Iterate based on monitor data
@@ -2716,9 +2713,9 @@ def _(
     mo.vstack([
         mo.ui.tabs({
             f"{mo.icon('lucide:home')} Introduction": intro_content,
-            f"{mo.icon('lucide:settings')} 1. Project Setup": step1_content,
-            f"{mo.icon('lucide:bot')} 2. Basic Agent": step2_content,
-            f"{mo.icon('lucide:wrench')} 3. Add Tools": step3_content,
+            f"{mo.icon('lucide:settings')} 1. Project setup": step1_content,
+            f"{mo.icon('lucide:bot')} 2. Basic agent": step2_content,
+            f"{mo.icon('lucide:wrench')} 3. Add tools": step3_content,
             f"{mo.icon('lucide:refresh-cw')} 4. Iterate": step4_content,
             f"{mo.icon('lucide:database')} 5. Evaluate": step5_content,
             f"{mo.icon('lucide:rocket')} 6. Deploy": step6_content,
