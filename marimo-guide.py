@@ -741,7 +741,7 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
             ## 
             **Goal:** Understand how a minimal agent will respond to user messages.
 
-            Let's start by asking the agent a couple questions we will want to our agent to be able to answer:
+            Let's start by asking the agent a couple questions you'll want the agent to be able to answer:
             
             ```
             How do I initialize Weave in my Python code?
@@ -1584,9 +1584,9 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
   
         **Goal:** Move from "it feels right" to "it's provably ready for production" by building an evaluation with a comprehensive test dataset.
 
-        In order to build an evaluation, we need to create a dataset of test cases and a set of scorers to evaluate the agent's responses.
+        In order to build an evaluation, you need a dataset of test cases and a set of scorers to evaluate the agent's responses.
 
-        This repository contains a dataset of test cases.  Take a look at the test cases to get a sense of the type of questions we will want to evaluate the agent on:
+        This repository contains a dataset of test cases.  Take a look at the test cases to get a sense of the type of questions you'll want to evaluate the agent on:
 
         """),
         
@@ -1616,17 +1616,17 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
         mo.md("""
         ##
 
-        Now that we have a dataset, we need to create a set of scorers to evaluate the agent's responses.
+        Now that you have a dataset, you need to create a set of scorers to evaluate the agent's responses.
 
         Take a minute to consider how you would evaluate the agent's responses.  What are the different ways you can evaluate the agent's responses?
 
-        For this tutorial, we are focusing on answering the following questions:
+        For this tutorial, focus on answering the following questions:
         - Is the answer correct and helpful?
         - Are the right tools called?
         - Is the tone appropriate?
         - Does it refuse to answer when it should?
 
-        To answer these questions, we will use a combination of **rule-based scorers** (fast, deterministic) and **LLM-as-judge scorers** (flexible, nuanced).
+        To answer these questions, you'll use a combination of **rule-based scorers** (fast, deterministic) and **LLM-as-judge scorers** (flexible, nuanced).
         """),
         
         mo.ui.table(
@@ -1652,17 +1652,17 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
         mo.md("""
         ##
 
-        We are ready to evaluate our agent.  This evaluation will go through each row in our dataset and use the scorers to evaluate the agent's response.
+        You're ready to evaluate your agent.  This evaluation will go through each row in the dataset and use the scorers to evaluate the agent's response.
 
-        Normally, we would run this using a script in the terminal like this:
+        Normally, you would run this using a script in the terminal like this:
 
         ```bash
         uv run workspace/run_evaluation.py --agent-name Buzz --sample 5
         ```
 
-        But we have a handy UI to do this for us. 
+        But this notebook has a handy UI to do this for you. 
         
-        First, select which model and version you want to evaluate.  Each time we changed the agent's config (like purpose or tools), a new model version was created in Weave.  Select the model and version you want to evaluate:
+        First, select which model and version you want to evaluate.  Each time you changed the agent's config (like purpose or tools), a new model version was created in Weave.  Select the model and version you want to evaluate:
         """),
         
         mo.hstack([model_selector, version_selector], justify="start", gap=1),
@@ -1754,18 +1754,12 @@ def _(mo, Path, json):
         full_width=True
     )
     
-    # Deploy button
-    deploy_btn = mo.ui.button(
-        label="🚀 Deploy to Modal",
-        value=0,
-        on_click=lambda v: v + 1
-    )
-    
     # Run buttons for Modal commands (terminal-like play buttons)
     modal_setup_run = mo.ui.run_button(label="▶ Run")
     modal_secrets_run = mo.ui.run_button(label="▶ Run")
+    modal_deploy_run = mo.ui.run_button(label="▶ Run")
     
-    return (prod_url_input, deploy_btn, modal_setup_run, modal_secrets_run)
+    return (prod_url_input, modal_setup_run, modal_secrets_run, modal_deploy_run)
 
 
 @app.cell
@@ -1916,32 +1910,34 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, openai_key_input, bot_ke
 
 
 @app.cell
-async def _(mo, deploy_btn, Path, sys, os, re):
+async def _(mo, modal_deploy_run, Path, os):
     # ============================================================================
-    # STEP 6: DEPLOY LOGIC (runs modal deploy and captures output)
+    # STEP 6: DEPLOY TERMINAL (terminal-like command cell)
     # ============================================================================
     import asyncio as _asyncio_deploy
     
-    # Always initialize the output variable
-    deploy_output = mo.md("")
+    # Command to display
+    _command = "uv run modal deploy workspace/step-6/server.py"
     
-    if deploy_btn.value:
-        try:
-            # Check if server.py exists
-            _server_path = Path("workspace/step-6/server.py")
-            if not _server_path.exists():
-                deploy_output = mo.callout(
-                    mo.md("❌ **Server file not found:** `workspace/step-6/server.py`\n\nMake sure you've completed the previous steps."),
-                    kind="danger"
-                )
-            else:
-                # Show deploying status
-                deploy_output = mo.callout(
-                    mo.md("⏳ **Deploying to Modal...** This may take a minute."),
-                    kind="info"
-                )
-                
-                # Run modal deploy command
+    # Terminal-like display: command + run button
+    _command_display = mo.hstack([
+        mo.md(f"```bash\n{_command}\n```"),
+        modal_deploy_run
+    ], justify="start", align="center", gap=1)
+    
+    # Default: just show the command with run button
+    modal_deploy_terminal = _command_display
+    
+    # If button was clicked, execute command
+    if modal_deploy_run.value:
+        _server_path = Path("workspace/step-6/server.py")
+        if not _server_path.exists():
+            modal_deploy_terminal = mo.vstack([
+                _command_display,
+                mo.md("```\nError: Server file not found: workspace/step-6/server.py\nMake sure you've completed the previous steps.\n```")
+            ])
+        else:
+            try:
                 _process = await _asyncio_deploy.create_subprocess_exec(
                     "uv", "run", "modal", "deploy", str(_server_path),
                     stdout=_asyncio_deploy.subprocess.PIPE,
@@ -1949,49 +1945,30 @@ async def _(mo, deploy_btn, Path, sys, os, re):
                     env=os.environ.copy()
                 )
                 
-                # Capture all output
                 _stdout, _ = await _process.communicate()
                 _output = _stdout.decode() if _stdout else ""
                 
-                # Check for success and extract URL
-                if _process.returncode == 0:
-                    # Try to extract URL from output
-                    _url_match = re.search(r'https://[^\s]+\.modal\.run', _output)
-                    _extracted_url = _url_match.group(0) if _url_match else None
-                    
-                    deploy_output = mo.vstack([
-                        mo.callout(
-                            mo.md(f"✅ **Deploy successful!**" + (f"\n\n**Your URL:** `{_extracted_url}`" if _extracted_url else "")),
-                            kind="success"
-                        ),
-                        mo.accordion({
-                            "📋 Full deploy output": mo.md(f"```\n{_output}\n```")
-                        })
-                    ])
-                else:
-                    deploy_output = mo.vstack([
-                        mo.callout(
-                            mo.md("❌ **Deploy failed.** Check the output below for details."),
-                            kind="danger"
-                        ),
-                        mo.md(f"```\n{_output}\n```")
-                    ])
-        except FileNotFoundError:
-            deploy_output = mo.callout(
-                mo.md("❌ **Modal CLI not found.** Make sure you've run `uv run modal setup` first.\n\nSee the accordion above for setup instructions."),
-                kind="danger"
-            )
-        except Exception as e:
-            deploy_output = mo.callout(
-                mo.md(f"❌ **Error:** {str(e)}"),
-                kind="danger"
-            )
+                # Show command + output below
+                modal_deploy_terminal = mo.vstack([
+                    _command_display,
+                    mo.md(f"```\n{_output}\n```") if _output else mo.md("")
+                ])
+            except FileNotFoundError:
+                modal_deploy_terminal = mo.vstack([
+                    _command_display,
+                    mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
+                ])
+            except Exception as e:
+                modal_deploy_terminal = mo.vstack([
+                    _command_display,
+                    mo.md(f"```\nError: {str(e)}\n```")
+                ])
     
-    return (deploy_output,)
+    return (modal_deploy_terminal,)
 
 
 @app.cell
-def _(mo, prod_url_input, deploy_btn, deploy_output, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
+def _(mo, prod_url_input, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2012,9 +1989,9 @@ def _(mo, prod_url_input, deploy_btn, deploy_output, modal_setup_terminal, modal
             
         **Goal:** Deploy your agent as an API service and test it using Weave Playground.
 
-        After building confidence through our evaluations, it's time to deploy the agent to production! So far you've been testing your agent directly in this notebook, but now you'll deploy it as a real API service that can be accessed from anywhere - including Weave's built-in Playground for interactive testing.
+        After building confidence through your evaluations, it's time to deploy the agent to production! So far you've been testing your agent directly in this notebook, but now you'll deploy it as a real API service that can be accessed from anywhere - including Weave's built-in Playground for interactive testing.
 
-        We'll use [Modal](https://modal.com) to deploy your agent. Modal makes it easy to deploy Python apps as serverless APIs with just a few commands.
+        You'll use [Modal](https://modal.com) to deploy your agent. Modal makes it easy to deploy Python apps as serverless APIs with just a few commands.
         """),
         
         mo.accordion({
@@ -2046,14 +2023,13 @@ Your agent needs API keys to run. Run the command below to add them to Modal's s
         mo.md("""
         ##
 
-        Click the button below to deploy your agent to Modal. This will:
+        Once you have your Modal account set up, you can deploy your agent.  Running the command below will:
         - Build a production container image
         - Deploy to persistent infrastructure
         - Provide a stable HTTPS URL that stays active 24/7
         """),
         
-        deploy_btn,
-        deploy_output,
+        modal_deploy_terminal,
         
         mo.md("""
         ##
