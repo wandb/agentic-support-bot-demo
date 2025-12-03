@@ -229,15 +229,25 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
 
 
 @app.cell
-def _(auto_copy_step_files, Path, shutil, os):
+def _(auto_copy_step_files, Path, shutil, os, glob):
     # ============================================================================
-    # STEP 2-4: AUTO-COPY LOGIC (using helper)
+    # STEP 2-4, 6: AUTO-COPY LOGIC (using helper)
     # ============================================================================
     
     # Auto-copy step files to workspace directories (skips if config already exists)
     auto_copy_step_files(2)
     auto_copy_step_files(3)
     auto_copy_step_files(4)
+    
+    # Step 6: Copy server.py to workspace/step-6/ (for Modal deploy)
+    # Only copy if server.py doesn't already exist
+    _step6_dest = Path("workspace/step-6")
+    _server_dest = _step6_dest / "server.py"
+    if not _server_dest.exists():
+        _step6_source = Path("examples/step-6/server.py")
+        if _step6_source.exists():
+            _step6_dest.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(_step6_source, _server_dest)
     
     # Set database path to shared location (not per-step)
     # This allows all steps to share the same ticket database
@@ -1361,7 +1371,7 @@ def _(mo):
 @app.cell  
 async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sys, os, json, subprocess):
     # ============================================================================
-    # STEP 5: RUN EVALUATION LOGIC (using subprocess for clean context)
+    # STEP 5: RUN EVALUATION LOGIC (with inline progress bar at top of page)
     # ============================================================================
     import asyncio as _asyncio_eval
     
@@ -1394,13 +1404,13 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                     )
                 else:
                     # Get model ref and name
-                    _model_ref = _selected_agent_ref  # Full ref like "Buzz:v4"
+                    _model_ref = _selected_agent_ref
                     _model_name = _model_ref.split(":")[0] if _model_ref else "agent"
                     
                     # Prepare input for subprocess
                     _input_data = {
                         "config_path": str(_config_path.absolute()),
-                        "model_ref": _model_ref  # Pass full ref for Weave lookup
+                        "model_ref": _model_ref
                     }
                     if _sample_size is not None:
                         _input_data["sample_size"] = _sample_size
@@ -1409,7 +1419,7 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                     # Get path to isolated eval runner script
                     _runner_script = Path(__file__).parent / "helpers" / "isolated_eval_runner.py"
                     
-                    # Run evaluation in subprocess for clean Weave context
+                    # Run evaluation in subprocess
                     _process = await _asyncio_eval.create_subprocess_exec(
                         sys.executable,
                         str(_runner_script.absolute()),
@@ -1424,30 +1434,60 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                     await _process.stdin.drain()
                     _process.stdin.close()
                     
-                    # Collect output
+                    # Track results
                     _output_lines = []
+                    _streaming_log = []
                     _result_data = None
                     _error_msg = None
+                    _total_cases = _sample_size or 30  # Estimate
                     
-                    while True:
-                        _line = await _process.stdout.readline()
-                        if not _line:
-                            break
-                        
-                        try:
-                            _chunk = json.loads(_line.decode().strip())
-                            _output_lines.append(_chunk)
+                    # Use progress_bar for LIVE updates (shows at top of page during execution)
+                    # Note: Progress bar appears at top due to marimo's tabbed layout - this is expected
+                    with mo.status.progress_bar(
+                        total=_total_cases,
+                        title=f"⏳ Evaluating {_model_ref}",
+                        subtitle="Starting...",
+                        show_rate=True,
+                        show_eta=True,
+                        remove_on_exit=True
+                    ) as _bar:
+                        while True:
+                            _line = await _process.stdout.readline()
+                            if not _line:
+                                break
                             
-                            if _chunk.get("type") == "result":
-                                _result_data = _chunk
-                            elif _chunk.get("type") == "error":
-                                _error_msg = _chunk.get("message", "Unknown error")
-                        except json.JSONDecodeError:
-                            continue
+                            try:
+                                _chunk = json.loads(_line.decode().strip())
+                                _output_lines.append(_chunk)
+                                
+                                # Update progress bar based on message type
+                                if _chunk.get("type") == "status":
+                                    _log_line = f"✓ {_chunk.get('message', '')}"
+                                    _streaming_log.append(_log_line)
+                                    _bar.update(increment=0, subtitle=_chunk.get('message', '')[:50])
+                                elif _chunk.get("type") == "progress":
+                                    _current = _chunk.get('current', 0)
+                                    _total_cases = _chunk.get('total', _total_cases)
+                                    _input_preview = _chunk.get('input', '')[:40] + "..."
+                                    _log_line = f"[{_current}/{_total_cases}] {_input_preview}"
+                                    _streaming_log.append(_log_line)
+                                    # Update progress (increment by 1 for each new case)
+                                    _bar.update(increment=1, subtitle=_input_preview)
+                                elif _chunk.get("type") == "score":
+                                    if "error" not in _chunk:
+                                        _log_line = f"  → {_chunk.get('scorer')}: {_chunk.get('score', 0):.2f}"
+                                        _streaming_log.append(_log_line)
+                                elif _chunk.get("type") == "result":
+                                    _result_data = _chunk
+                                elif _chunk.get("type") == "error":
+                                    _error_msg = _chunk.get("message", "Unknown error")
+                                
+                            except json.JSONDecodeError:
+                                continue
                     
                     await _process.wait()
                     
-                    # Check for errors
+                    # Final output (shown inline after progress bar completes)
                     if _process.returncode != 0:
                         _stderr = await _process.stderr.read()
                         _error_text = _stderr.decode().strip() if _stderr else _error_msg or "Unknown error"
@@ -1464,17 +1504,6 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                         _summary = _result_data.get("summary", {})
                         _total = _result_data.get("total_cases", 0)
                         
-                        # Build output log from captured messages
-                        _log_lines = []
-                        for _msg in _output_lines:
-                            if _msg.get("type") == "status":
-                                _log_lines.append(f"✓ {_msg.get('message', '')}")
-                            elif _msg.get("type") == "progress":
-                                _log_lines.append(f"[{_msg.get('current')}/{_msg.get('total')}] {_msg.get('input', '')[:50]}...")
-                            elif _msg.get("type") == "score":
-                                if "error" not in _msg:
-                                    _log_lines.append(f"  → {_msg.get('scorer')}: {_msg.get('score', 0):.2f}")
-                        
                         eval_output = mo.vstack([
                             mo.callout(
                                 mo.md(f"""
@@ -1490,7 +1519,7 @@ Evaluated **{_model_ref}** on {_total} test cases ({_sample_label}).
                                 kind="success"
                             ),
                             mo.accordion({
-                                "📋 (Optional) Evaluation logs": mo.md("```\n" + "\n".join(_log_lines) + "\n```")
+                                "📋 (Optional) Evaluation logs": mo.md("```\n" + "\n".join(_streaming_log) + "\n```")
                             })
                         ])
                     else:
@@ -1649,6 +1678,7 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
         """),
         
         mo.hstack([sample_size_selector, run_eval_btn], justify="start", gap=1),
+        mo.md("*⏳ When running, look for the progress bar at the **top of the page** (above the tabs)*"),
         eval_output,
         
         mo.md(f"""
@@ -1724,13 +1754,24 @@ def _(mo, Path, json):
         full_width=True
     )
     
-    return (prod_url_input,)
+    # Deploy button
+    deploy_btn = mo.ui.button(
+        label="🚀 Deploy to Modal",
+        value=0,
+        on_click=lambda v: v + 1
+    )
+    
+    # Run buttons for Modal commands (terminal-like play buttons)
+    modal_setup_run = mo.ui.run_button(label="▶ Run")
+    modal_secrets_run = mo.ui.run_button(label="▶ Run")
+    
+    return (prod_url_input, deploy_btn, modal_setup_run, modal_secrets_run)
 
 
 @app.cell
 def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
     # ============================================================================
-    # STEP 6: BUTTON LOGIC
+    # STEP 6: URL PERSISTENCE
     # ============================================================================
     
     # Save the production URL to state file for persistence if provided
@@ -1745,12 +1786,212 @@ def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
         except:
             pass
     
-    # Step 6 doesn't have button logic, just URL persistence
     return
 
 
 @app.cell
-def _(mo, prod_url_input, weave_entity, weave_project, weave_playground_url, weave_traces_url):
+async def _(mo, modal_setup_run, os):
+    # ============================================================================
+    # STEP 6: MODAL SETUP TERMINAL (terminal-like command cell)
+    # ============================================================================
+    import asyncio as _asyncio_setup
+    
+    # Command to display
+    _command = "uv run modal setup"
+    
+    # Terminal-like display: command + run button
+    _command_display = mo.hstack([
+        mo.md(f"```bash\n{_command}\n```"),
+        modal_setup_run
+    ], justify="start", align="center", gap=1)
+    
+    # Default: just show the command with run button
+    modal_setup_terminal = _command_display
+    
+    # If button was clicked, execute command
+    if modal_setup_run.value:
+        try:
+            _process = await _asyncio_setup.create_subprocess_exec(
+                "uv", "run", "modal", "setup",
+                stdout=_asyncio_setup.subprocess.PIPE,
+                stderr=_asyncio_setup.subprocess.STDOUT,
+                env=os.environ.copy()
+            )
+            
+            _stdout, _ = await _process.communicate()
+            _output = _stdout.decode() if _stdout else ""
+            
+            # Show command + output below
+            modal_setup_terminal = mo.vstack([
+                _command_display,
+                mo.md(f"```\n{_output}\n```") if _output else mo.md("")
+            ])
+        except FileNotFoundError:
+            modal_setup_terminal = mo.vstack([
+                _command_display,
+                mo.md("```\nError: Modal CLI not found. Make sure `modal` is installed.\n```")
+            ])
+        except Exception as e:
+            modal_setup_terminal = mo.vstack([
+                _command_display,
+                mo.md(f"```\nError: {str(e)}\n```")
+            ])
+    
+    return (modal_setup_terminal,)
+
+
+@app.cell
+async def _(mo, modal_secrets_run, os, wandb_key_input, openai_key_input, bot_key_input):
+    # ============================================================================
+    # STEP 6: MODAL SECRETS TERMINAL (terminal-like command cell)
+    # ============================================================================
+    import asyncio as _asyncio_secrets
+    
+    # Get keys from Step 1 inputs (or env vars)
+    _wandb = wandb_key_input.value or os.getenv("WANDB_API_KEY", "")
+    _openai = openai_key_input.value or os.getenv("OPENAI_API_KEY", "")
+    _bot = bot_key_input.value or os.getenv("AGENTIC_SUPPORT_BOT_API_KEY", "")
+    
+    # Command display (with placeholders for security - don't show actual keys)
+    _cmd_display = """uv run modal secret create agentic-support-bot-secrets \\
+    WANDB_API_KEY=<from-step-1> \\
+    OPENAI_API_KEY=<from-step-1> \\
+    AGENTIC_SUPPORT_BOT_API_KEY=<from-step-1>"""
+    
+    # Terminal-like display: command + run button
+    _command_display = mo.hstack([
+        mo.md(f"```bash\n{_cmd_display}\n```"),
+        modal_secrets_run
+    ], justify="start", align="center", gap=1)
+    
+    # Default: just show the command with run button
+    modal_secrets_terminal = _command_display
+    
+    # If button was clicked, execute command
+    if modal_secrets_run.value:
+        # Validate keys first
+        _missing = []
+        if not _wandb: _missing.append("WANDB_API_KEY")
+        if not _openai: _missing.append("OPENAI_API_KEY")
+        if not _bot: _missing.append("AGENTIC_SUPPORT_BOT_API_KEY")
+        
+        if _missing:
+            modal_secrets_terminal = mo.vstack([
+                _command_display,
+                mo.md(f"```\nError: Missing API keys: {', '.join(_missing)}\nConfigure these in Step 1 first.\n```")
+            ])
+        else:
+            # Execute command with actual keys
+            try:
+                _process = await _asyncio_secrets.create_subprocess_exec(
+                    "uv", "run", "modal", "secret", "create", "agentic-support-bot-secrets",
+                    f"WANDB_API_KEY={_wandb}",
+                    f"OPENAI_API_KEY={_openai}",
+                    f"AGENTIC_SUPPORT_BOT_API_KEY={_bot}",
+                    stdout=_asyncio_secrets.subprocess.PIPE,
+                    stderr=_asyncio_secrets.subprocess.STDOUT,
+                    env=os.environ.copy()
+                )
+                
+                _stdout, _ = await _process.communicate()
+                _output = _stdout.decode() if _stdout else ""
+                
+                # Show command + output below
+                modal_secrets_terminal = mo.vstack([
+                    _command_display,
+                    mo.md(f"```\n{_output}\n```") if _output else mo.md("")
+                ])
+            except FileNotFoundError:
+                modal_secrets_terminal = mo.vstack([
+                    _command_display,
+                    mo.md("```\nError: Modal CLI not found. Run the setup command above first.\n```")
+                ])
+            except Exception as e:
+                modal_secrets_terminal = mo.vstack([
+                    _command_display,
+                    mo.md(f"```\nError: {str(e)}\n```")
+                ])
+    
+    return (modal_secrets_terminal,)
+
+
+@app.cell
+async def _(mo, deploy_btn, Path, sys, os, re):
+    # ============================================================================
+    # STEP 6: DEPLOY LOGIC (runs modal deploy and captures output)
+    # ============================================================================
+    import asyncio as _asyncio_deploy
+    
+    # Always initialize the output variable
+    deploy_output = mo.md("")
+    
+    if deploy_btn.value:
+        try:
+            # Check if server.py exists
+            _server_path = Path("workspace/step-6/server.py")
+            if not _server_path.exists():
+                deploy_output = mo.callout(
+                    mo.md("❌ **Server file not found:** `workspace/step-6/server.py`\n\nMake sure you've completed the previous steps."),
+                    kind="danger"
+                )
+            else:
+                # Show deploying status
+                deploy_output = mo.callout(
+                    mo.md("⏳ **Deploying to Modal...** This may take a minute."),
+                    kind="info"
+                )
+                
+                # Run modal deploy command
+                _process = await _asyncio_deploy.create_subprocess_exec(
+                    "uv", "run", "modal", "deploy", str(_server_path),
+                    stdout=_asyncio_deploy.subprocess.PIPE,
+                    stderr=_asyncio_deploy.subprocess.STDOUT,
+                    env=os.environ.copy()
+                )
+                
+                # Capture all output
+                _stdout, _ = await _process.communicate()
+                _output = _stdout.decode() if _stdout else ""
+                
+                # Check for success and extract URL
+                if _process.returncode == 0:
+                    # Try to extract URL from output
+                    _url_match = re.search(r'https://[^\s]+\.modal\.run', _output)
+                    _extracted_url = _url_match.group(0) if _url_match else None
+                    
+                    deploy_output = mo.vstack([
+                        mo.callout(
+                            mo.md(f"✅ **Deploy successful!**" + (f"\n\n**Your URL:** `{_extracted_url}`" if _extracted_url else "")),
+                            kind="success"
+                        ),
+                        mo.accordion({
+                            "📋 Full deploy output": mo.md(f"```\n{_output}\n```")
+                        })
+                    ])
+                else:
+                    deploy_output = mo.vstack([
+                        mo.callout(
+                            mo.md("❌ **Deploy failed.** Check the output below for details."),
+                            kind="danger"
+                        ),
+                        mo.md(f"```\n{_output}\n```")
+                    ])
+        except FileNotFoundError:
+            deploy_output = mo.callout(
+                mo.md("❌ **Modal CLI not found.** Make sure you've run `uv run modal setup` first.\n\nSee the accordion above for setup instructions."),
+                kind="danger"
+            )
+        except Exception as e:
+            deploy_output = mo.callout(
+                mo.md(f"❌ **Error:** {str(e)}"),
+                kind="danger"
+            )
+    
+    return (deploy_output,)
+
+
+@app.cell
+def _(mo, prod_url_input, deploy_btn, deploy_output, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1767,83 +2008,100 @@ def _(mo, prod_url_input, weave_entity, weave_project, weave_playground_url, wea
     
     step6_content = mo.vstack([
         mo.md("""
-        ## Production deployment 🚀
+        ##
+            
+        **Goal:** Deploy your agent as an API service and test it using Weave Playground.
 
-        **Goal:** Deploy your agent as a persistent production service.
+        After building confidence through our evaluations, it's time to deploy the agent to production! So far you've been testing your agent directly in this notebook, but now you'll deploy it as a real API service that can be accessed from anywhere - including Weave's built-in Playground for interactive testing.
 
-        After iterating in the playground and building confidence through systematic evaluation, it's time to deploy your agent to production! The same code you've been developing with `modal serve` can be deployed to a persistent production environment with one command.
+        We'll use [Modal](https://modal.com) to deploy your agent. Modal makes it easy to deploy Python apps as serverless APIs with just a few commands.
+        """),
+        
+        mo.accordion({
+            "🔧 (First time?) Set up Modal account": mo.vstack([
+                mo.md("""
+**1. Create a Modal account**
 
-        ### Deploy to production
+Go to [modal.com](https://modal.com) and sign up for a free account. Modal offers a generous free tier that's perfect for this tutorial.
 
-        In Step 3, you used `modal serve --env dev` for development. This creates an ephemeral deployment in the `dev` environment that auto-reloads when you change code. For production, deploy to the `main` environment:
+**2. Authenticate the CLI**
 
-        ```bash
-        uv run modal deploy workspace/server.py
-        ```
+After creating your account, run the command below to authenticate the Modal CLI (click ▶ Run):
+                """),
+                modal_setup_terminal,
+                mo.md("""
+This will open a browser window to authenticate. Once complete, you're ready to deploy!
 
-        Modal will:
+**3. Add your secrets to Modal**
+
+Your agent needs API keys to run. Run the command below to add them to Modal's secrets manager (uses values from Step 1):
+                """),
+                modal_secrets_terminal,
+                mo.md("""
+*The command above uses your API keys from Step 1. Make sure they're configured before running.*
+                """)
+            ])
+        }),
+        
+        mo.md("""
+        ##
+
+        Click the button below to deploy your agent to Modal. This will:
         - Build a production container image
         - Deploy to persistent infrastructure
         - Provide a stable HTTPS URL that stays active 24/7
-
-        You'll see output like:
-        ```
-        ✓ Created objects.
-        ├── 🔨 Created function modal_app.
-        └── 🔨 Created web function modal_app => https://yourname--agentic-support-bot.modal.run
-        ✓ App deployed in 5.12s
-
-        View app at https://modal.com/apps/yourname/agentic-support-bot
-        ```
-
-        Copy the production URL (e.g., `https://yourname--agentic-support-bot.modal.run`) and paste it below:
+        """),
+        
+        deploy_btn,
+        deploy_output,
+        
+        mo.md("""
+        ##
+        
+        Copy your production URL from the deploy output above and paste it here for easy reference:
         """),
         prod_url_input,
         mo.md(f"""
-    ### Update Weave Playground for production
+        ##
 
-    Now you can create a separate AI provider in Weave Playground for your production deployment:
+        The **Weave Playground** is a built-in chat interface in your W&B project that lets you test any OpenAI-compatible API. Since your Modal server exposes an OpenAI-compatible endpoint, you can connect it directly!
 
-    1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
-    2. In model dropdown: **+ Add AI provider** → **Custom provider**
-    3. Fill in:
-       - **Provider name**: `agentic-support-bot-main`
-       - **API key**: `AGENTIC_SUPPORT_BOT_API_KEY` (the value you set in Modal secrets)
-       - **Base URL**: {_url_instruction}
-       - **Models**: `buzz`
-    4. Click **Add provider**
+        1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
+        2. In the model dropdown: **+ Add AI provider** → **Custom provider**
+        3. Fill in:
+           - **Provider name**: `agentic-support-bot`
+           - **API key**: The value of `AGENTIC_SUPPORT_BOT_API_KEY` you set in Step 1
+           - **Base URL**: {_url_instruction}
+           - **Models**: `buzz`
+        4. Click **Add provider**
 
-    Now you have two providers:
-    - `agentic-support-bot-dev/buzz` → Development (modal serve)
-    - `agentic-support-bot-main/buzz` → Production (modal deploy)
+        Now select `agentic-support-bot/buzz` from the model dropdown and try the same prompts from earlier steps:
 
-    ### Test your production deployment
+        ```
+        How do I initialize Weave in Python?
+        ```
+        ```
+        I'm getting API timeout errors. Can you help?
+        ```
 
-    Select `agentic-support-bot-main/buzz` in the Playground and try the same test prompts from Step 3.
+        **🔍 Check traces in Weave:**
 
-    **🔍 Check traces in Weave:**
-
-    Navigate to [Traces]({_traces_url}) → filter for `Agent.stream` operations.
-
-    **What to notice:**
-    - Traces from production (main environment) are tagged with `env=main`
-    - Traces from development (dev environment) are tagged with `env=dev`
-    - You can filter by environment in Weave UI: `env=dev` vs `env=main`
-    - Same observability in both environments!
-
-    ### Create a saved view for production traces
-
-    Now that you have both dev and prod traces, create a [Saved View](https://docs.wandb.ai/weave/guides/tools/saved-views) in Weave to quickly access your production traffic:
-
-    1. Go to your W&B project → **Traces** tab
-    2. Add filters for production: `attributes.env` = `main` and operation = `Agent.stream`
-    3. Save the view as "Production Dashboard"
-
-        This gives you a dedicated view of production agent calls, separate from development experiments. You can create similar views for development (`env=dev`), errors, slow requests, or any other criteria that help you monitor your agent's performance.
+        Navigate to [Traces]({_traces_url}) → look for `Agent.stream` operations. You should see traces from your Playground conversations!
         """),
-        mo.md("---"),
+        
+        mo.md(f"""
+        ##
+
+        With your agent deployed, create a [Saved View](https://docs.wandb.ai/weave/guides/tools/saved-views) in Weave to monitor production traffic:
+
+        1. Go to your W&B project → **Traces** tab
+        2. Add filters: operation = `Agent.stream`
+        3. Save the view as "Production Dashboard"
+
+        This gives you a dedicated view of production agent calls. You can create similar views for errors, slow requests, or any other criteria that help you monitor your agent's performance.
+        """),
         mo.callout(
-            mo.md("✅ **Ready for the next step!** Once you've deployed to production and created your saved views, continue to the **Monitor** step to add guardrails and monitoring."),
+            mo.md("✅ **Ready for the next step!** Once you've deployed to production and tested via Playground, continue to the **Monitor** step to add guardrails and monitoring."),
             kind="success"
         )
     ])
@@ -1876,7 +2134,8 @@ def _(mo, copy_step7_btn, Path, glob, shutil):
     if copy_step7_btn.value:
         try:
             _source_files = glob("examples/step-7/part-a/*.py") + glob("examples/step-7/part-a/*.yaml")
-            _dest = Path("workspace")
+            _dest = Path("workspace/step-7")
+            _dest.mkdir(parents=True, exist_ok=True)
 
             _copied = []
             for _src in _source_files:
@@ -1895,7 +2154,7 @@ def _(mo, copy_step7_btn, Path, glob, shutil):
         except Exception as e:
             copy_step7_output = mo.callout(mo.md(f"❌ **Error:** {str(e)}"), kind="danger")
     else:
-        _guardrails_exists = Path("workspace/guardrails.py").exists()
+        _guardrails_exists = Path("workspace/step-7/guardrails.py").exists()
         if _guardrails_exists:
             copy_step7_output = mo.callout(
                 mo.md("✅ **Step 7 files already exist** - you can skip this or re-copy to update"),
@@ -1941,7 +2200,7 @@ def _(mo, copy_step7_btn, copy_step7_output):
 
     **Review the input guardrail:**
 
-    Open `workspace/guardrails.py` to see how it works:
+    Open `workspace/step-7/guardrails.py` to see how it works:
 
     **`InputToxicityGuardrail`** - Uses **OpenAI Moderation API** on USER INPUT (BEFORE generation)
     - Blocks toxic user requests immediately (saves cost and time!)
@@ -1967,7 +2226,7 @@ def _(mo, copy_step7_btn, copy_step7_output):
     Deploy to dev environment:
 
     ```bash
-    uv run modal serve --env dev workspace/server.py
+    uv run modal serve --env dev workspace/step-7/server.py
     ```
 
     Test with adversarial prompts in Weave Playground:
@@ -1999,7 +2258,7 @@ def _(mo, copy_step7_btn, copy_step7_output):
     Once you've tested guardrails in dev, deploy to production:
 
     ```bash
-    uv run modal deploy workspace/server.py
+    uv run modal deploy workspace/step-7/server.py
     ```
 
     Your production agent now has real-time safety controls with streaming!
