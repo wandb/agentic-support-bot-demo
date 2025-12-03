@@ -1968,7 +1968,7 @@ async def _(mo, modal_deploy_run, Path, os):
 
 
 @app.cell
-def _(mo, prod_url_input, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
+def _(mo, prod_url_input, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1979,9 +1979,13 @@ def _(mo, prod_url_input, modal_deploy_terminal, modal_setup_terminal, modal_sec
     if prod_url_input.value:
         _base_url = prod_url_input.value.rstrip('/').replace('/v1', '')
         _api_url = f"{_base_url}/v1"
-        _url_instruction = f"`{_api_url}` (append `/v1` to the Modal URL)"
+        _url_instruction = f"`{_api_url}`"
     else:
-        _url_instruction = "`<your-production-modal-url>/v1` (append `/v1` to the Modal URL)"
+        _url_instruction = "`<your-production-modal-url>/v1`"
+    
+    # Get bot API key for Playground instructions
+    _bot_key = bot_key_input.value or os.getenv("AGENTIC_SUPPORT_BOT_API_KEY", "")
+    _api_key_instruction = f"`{_bot_key}`" if _bot_key else "`<your-bot-api-key>` (set in Step 1)"
     
     step6_content = mo.vstack([
         mo.md("""
@@ -2034,19 +2038,21 @@ Your agent needs API keys to run. Run the command below to add them to Modal's s
         mo.md("""
         ##
         
-        Copy your production URL from the deploy output above and paste it here for easy reference:
+        Copy your production URL (web function modal_endpoint) from the deploy output above and paste it here for easy reference:
         """),
         prod_url_input,
         mo.md(f"""
         ##
 
-        The **Weave Playground** is a built-in chat interface in your W&B project that lets you test any OpenAI-compatible API. Since your Modal server exposes an OpenAI-compatible endpoint, you can connect it directly!
+        Now you can use the agent by sending requests to this API endpoint. 
+        
+        Not only can we connect to this API endpoint directly, but we can also use it in **Weave Playground**. The Playground is a built-in chat interface in your W&B project that lets you test any OpenAI-compatible API. Since your Modal server exposes an OpenAI-compatible endpoint, you can connect it directly!
 
         1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
         2. In the model dropdown: **+ Add AI provider** → **Custom provider**
         3. Fill in:
            - **Provider name**: `agentic-support-bot`
-           - **API key**: The value of `AGENTIC_SUPPORT_BOT_API_KEY` you set in Step 1
+           - **API key**: {_api_key_instruction}
            - **Base URL**: {_url_instruction}
            - **Models**: `buzz`
         4. Click **Add provider**
