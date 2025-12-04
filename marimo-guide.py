@@ -352,15 +352,23 @@ def _(mo, Path):
 
 
 @app.cell
-def _(config_editor_2, Path):
+def _(config_editor_2, Path, yaml, publish_agent_config):
     # ============================================================================
-    # STEP 2: SAVE CONFIG ON CHANGE
+    # STEP 2: SAVE CONFIG ON CHANGE + PUBLISH TO WEAVE
     # ============================================================================
-    # Save config when edited
+    # Save config when edited and publish to Weave
     if config_editor_2.value:
         _config_path_2_save = Path("workspace/step-2/tyler-chat-config.yaml")
         _config_path_2_save.parent.mkdir(parents=True, exist_ok=True)
         _config_path_2_save.write_text(config_editor_2.value)
+        
+        # Publish config to Weave (silent - don't interrupt user)
+        try:
+            _config_data = yaml.safe_load(config_editor_2.value)
+            _agent_name = _config_data.get("name", "agent") if _config_data else "agent"
+            publish_agent_config(_agent_name, config_editor_2.value)
+        except Exception:
+            pass  # Silently fail
     
     return
 
@@ -386,15 +394,23 @@ def _(mo, Path):
 
 
 @app.cell
-def _(config_editor_3, Path):
+def _(config_editor_3, Path, yaml, publish_agent_config):
     # ============================================================================
-    # STEP 3: SAVE CONFIG ON CHANGE
+    # STEP 3: SAVE CONFIG ON CHANGE + PUBLISH TO WEAVE
     # ============================================================================
-    # Save config when edited
+    # Save config when edited and publish to Weave
     if config_editor_3.value:
         _config_path_3_save = Path("workspace/step-3/tyler-chat-config.yaml")
         _config_path_3_save.parent.mkdir(parents=True, exist_ok=True)
         _config_path_3_save.write_text(config_editor_3.value)
+        
+        # Publish config to Weave (silent - don't interrupt user)
+        try:
+            _config_data = yaml.safe_load(config_editor_3.value)
+            _agent_name = _config_data.get("name", "agent") if _config_data else "agent"
+            publish_agent_config(_agent_name, config_editor_3.value)
+        except Exception:
+            pass  # Silently fail
     
     return
 

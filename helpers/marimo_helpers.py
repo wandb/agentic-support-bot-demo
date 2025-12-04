@@ -454,13 +454,19 @@ def publish_agent_config(name: str, yaml_content: str) -> Optional[str]:
     """
     Publish agent config to Weave.
     
+    Always publishes under the object name "AgentConfig" so all versions
+    are tracked together in Weave (AgentConfig:v0, AgentConfig:v1, etc.).
+    
     Args:
-        name: Agent name (used as the Weave object name)
+        name: Agent name (stored in the config, but not used as object name)
         yaml_content: Full YAML configuration content
         
     Returns:
         Version string (e.g., "v3") on success, None on failure
     """
+    # Consistent object name for all agent configs
+    WEAVE_OBJECT_NAME = "AgentConfig"
+    
     try:
         # Check for valid credentials (skip if placeholders)
         project = os.getenv("WANDB_PROJECT", "")
@@ -479,9 +485,9 @@ def publish_agent_config(name: str, yaml_content: str) -> Optional[str]:
         # Initialize Weave and publish
         weave.init(project)
         
-        # Create and publish config object
+        # Create and publish config object (always use consistent name)
         config = AgentConfig(name=name, yaml=yaml_content)
-        ref = weave.publish(config, name=name)
+        ref = weave.publish(config, name=WEAVE_OBJECT_NAME)
         
         # Extract version from ref
         if hasattr(ref, 'version'):
