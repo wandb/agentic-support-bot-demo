@@ -67,7 +67,8 @@ app = modal.App("agentic-support-bot")
 # Create Modal image with dependencies and workspace files
 image = (
     modal.Image.debian_slim(python_version="3.12")
-    .pip_install_from_pyproject(Path(__file__).parent.parent / "pyproject.toml")
+    # Note: Path goes up from workspace/step-7/ to repo root for pyproject.toml
+    .pip_install_from_pyproject(Path(__file__).parent.parent.parent / "pyproject.toml")
     .add_local_dir(Path(__file__).parent, remote_path="/workspace")
 )
 
@@ -108,11 +109,37 @@ class HealthResponse(BaseModel):
 
 
 # ============================================================================
-# Agent Initialization
+# Agent Loading from Weave Config
 # ============================================================================
 
-def load_agent(config_path: str = "/workspace/tyler-chat-config.yaml") -> tuple[Agent, dict]:
-    """Load Tyler agent from configuration file using Agent.from_config()."""
+def load_config_ref(config_path: str = "/workspace/config.json") -> str:
+    """Load config reference from JSON file."""
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(
+            f"\n{'='*70}\n"
+            f"❌ Config file not found at: {config_path}\n\n"
+            f"Please create config.json with your config reference:\n"
+            f'{{"config_ref": "YourAgentName:latest"}}\n\n'
+            f"{'='*70}\n"
+        )
+    
+    with open(config_path) as f:
+        config = json.load(f)
+    
+    if "config_ref" not in config:
+        raise ValueError("config.json must contain 'config_ref' field")
+    
+    return config["config_ref"]
+
+
+def load_agent(config_json_path: str = "/workspace/config.json") -> tuple[Agent, dict]:
+    """
+    Load Tyler agent by fetching config YAML from Weave.
+    
+    The config YAML is stored in Weave as an AgentConfig object.
+    This function fetches the YAML, writes it to disk, and creates
+    the Tyler Agent using Agent.from_config().
+    """
     # Validate required secrets
     required_secrets = ["WANDB_API_KEY", "AGENTIC_SUPPORT_BOT_API_KEY", "OPENAI_API_KEY"]
     missing_secrets = [s for s in required_secrets if not os.getenv(s)]
@@ -143,24 +170,47 @@ def load_agent(config_path: str = "/workspace/tyler-chat-config.yaml") -> tuple[
     except Exception as e:
         logger.warning(f"Weave initialization failed: {e} (observability degraded)")
     
-    # Load agent from config
+    # Load config ref from JSON
+    config_ref = load_config_ref(config_json_path)
+    
+    # Ensure ref has version (append :latest if not)
+    if ':' not in config_ref:
+        config_ref = f"{config_ref}:latest"
+    
+    # Load config YAML from Weave
     try:
+        logger.info(f"Loading config from Weave: {config_ref}")
+        config_obj = weave.ref(config_ref).get()
+        
+        # Extract YAML content from AgentConfig object
+        yaml_content = config_obj.yaml
+        config_name = config_obj.name
+        
+        logger.info(f"📄 Config loaded: {config_name} ({config_ref})")
+        
+        # Write YAML to workspace where tools.py exists
+        config_path = Path("/workspace/tyler-chat-config.yaml")
+        config_path.write_text(yaml_content)
+        logger.info(f"📝 Config written to {config_path}")
+        
+        # Change to workspace directory so relative paths (./tools.py) work
         os.chdir("/workspace")
-        agent = Agent.from_config(config_path)
-        logger.info(f"Agent loaded from {config_path}")
         
-        with open(config_path) as f:
-            config = yaml.safe_load(f)
+        # Create Tyler Agent from config
+        agent = Agent.from_config(str(config_path))
         
-        logger.info(f"🤖 Agent initialized: {config.get('name')} ({config.get('model_name')})")
+        # Parse config for returning
+        config = yaml.safe_load(yaml_content)
+        
+        logger.info(f"🤖 Agent created: {agent.name} (tools: {len(agent.tools) if hasattr(agent, 'tools') and agent.tools else 0})")
         return agent, config
         
-    except FileNotFoundError:
-        logger.error(f"Config file not found: {config_path}")
-        raise
     except Exception as e:
-        logger.error(f"Failed to load agent: {e}")
-        raise ValueError(f"Failed to initialize agent from config: {e}")
+        logger.error(f"Failed to load config from Weave: {e}")
+        raise ValueError(
+            f"Could not load config '{config_ref}' from Weave. "
+            f"Make sure the config exists and you have access. Error: {e}"
+        )
 
 
 # Global variables (initialized in lifespan)

@@ -11,9 +11,9 @@ Usage:
 
 Input (stdin JSON):
     {
-        "config_path": "/path/to/tyler-chat-config.yaml",
+        "config_path": "/path/to/tyler-chat-config.yaml",  # Used to find tools.py directory
         "sample_size": 5,  # optional, runs full dataset if not specified
-        "agent_name": "Buzz"  # optional, for logging
+        "config_ref": "Buzz:v3"  # Weave config reference (REQUIRED)
     }
 
 Output (stdout, newline-delimited JSON):
@@ -32,6 +32,7 @@ import json
 import os
 import asyncio
 import random
+import tempfile
 from pathlib import Path
 
 
@@ -40,18 +41,23 @@ def emit(data: dict):
     print(json.dumps(data), flush=True)
 
 
-async def run_evaluation(config_path: str, sample_size: int = None, model_ref: str = None):
+async def run_evaluation(config_path: str, sample_size: int = None, config_ref: str = None):
     """
     Run evaluation and stream results to stdout as JSON lines.
     
     Args:
-        config_path: Path to Tyler agent config YAML file (fallback if Weave load fails)
+        config_path: Path to workspace directory (used to find tools.py)
         sample_size: If set, evaluate only this many random cases
-        model_ref: Weave model reference (e.g., "Buzz:v4") to load and evaluate
+        config_ref: Weave config reference (e.g., "Buzz:v3") - REQUIRED
     """
     try:
         from dotenv import load_dotenv
         load_dotenv()
+        
+        # Validate config_ref is provided
+        if not config_ref or config_ref == "No configs found":
+            emit({"type": "error", "message": "No config_ref provided. Select a config version to evaluate."})
+            return
         
         emit({"type": "status", "message": "Initializing Weave..."})
         
@@ -64,89 +70,42 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
         
         from tyler import Agent, Thread, Message
         
+        # Determine workspace directory for tools.py
         config_path = Path(config_path).absolute()
-        config_dir = config_path.parent
+        workspace_dir = config_path.parent  # e.g., workspace/step-4/
         original_cwd = os.getcwd()
         
-        agent = None
-        model_name = None
-        model_ref_str = None  # String reference for EvaluationLogger (must be str, not WeaveObject)
+        # Load config YAML from Weave (the source of truth)
+        emit({"type": "status", "message": f"Loading config from Weave: {config_ref}..."})
         
-        # Try to load agent from Weave if model_ref is provided
-        if model_ref and model_ref != "No models found":
-            emit({"type": "status", "message": f"Loading agent from Weave: {model_ref}..."})
-            try:
-                # Ensure model_ref has version (default to :latest)
-                ref_str = model_ref if ":" in model_ref else f"{model_ref}:latest"
-                agent_ref = weave.ref(ref_str)
-                weave_model = agent_ref.get()
-                
-                # Extract properties from Weave model
-                model_name = getattr(weave_model, 'name', model_ref.split(":")[0])
-                
-                # EvaluationLogger model parameter is just a label/name, not a reference
-                # Using just the model name (without version) as the identifier
-                # The version info will be tracked in evaluation metadata
-                model_ref_str = model_name  # Just "Buzz", not "Buzz:v4" or URI
-                
-                # Reconstruct Tyler Agent from Weave properties (includes tools with implementations)
-                emit({"type": "status", "message": f"Reconstructing Tyler Agent from Weave properties..."})
-                
-                # Get all properties from WeaveObject
-                purpose = getattr(weave_model, 'purpose', '')
-                notes = getattr(weave_model, 'notes', '')
-                agent_model_name = getattr(weave_model, 'model_name', 'gpt-4.1')
-                temperature = getattr(weave_model, 'temperature', 0.7)
-                max_tool_iterations = getattr(weave_model, 'max_tool_iterations', 10)
-                
-                # Get tools and MCP config (convert from WeaveList/WeaveDict to Python types)
-                tools_weave = getattr(weave_model, 'tools', [])
-                mcp_weave = getattr(weave_model, 'mcp', None)
-                
-                tools_list = [dict(t) for t in tools_weave] if tools_weave else None
-                mcp_dict = dict(mcp_weave) if mcp_weave else None
-                
-                # Create Tyler Agent with all stored properties
-                agent = Agent(
-                    name=model_name,
-                    model_name=agent_model_name,
-                    purpose=purpose,
-                    notes=notes or "",
-                    temperature=temperature,
-                    max_tool_iterations=max_tool_iterations,
-                    tools=tools_list,
-                    mcp=mcp_dict,
-                )
-                
-                # CRITICAL: Copy the ref from the original WeaveObject to prevent creating a new version
-                # This tells Weave this is the SAME model, not a new one
-                if hasattr(weave_model, 'ref') and weave_model.ref is not None:
-                    agent.ref = weave_model.ref
-                    emit({"type": "status", "message": f"Attached original ref: {weave_model.ref.name}:{weave_model.ref._digest[:8]}"})
-                
-                emit({"type": "status", "message": f"Tyler Agent reconstructed: {model_name} (tools: {len(agent.tools) if hasattr(agent, 'tools') else 0})"})
-            except Exception as e:
-                emit({"type": "status", "message": f"Could not load from Weave ({e}), falling back to config file..."})
-                agent = None
+        # Ensure config_ref has version (default to :latest)
+        ref_str = config_ref if ":" in config_ref else f"{config_ref}:latest"
+        config_obj = weave.ref(ref_str).get()
         
-        # Fall back to config file if Weave loading failed or no ref provided
-        if agent is None:
-            emit({"type": "status", "message": "Loading agent from config file..."})
-            
-            if not config_path.exists():
-                emit({"type": "error", "message": f"Config file not found: {config_path}"})
-                return
-            
-            # Change to config directory so relative paths work
-            os.chdir(config_dir)
-            
-            try:
-                agent = Agent.from_config(str(config_path))
-                model_name = agent.name
-                model_ref_str = model_name  # Just use name string for config-loaded agents
-                emit({"type": "status", "message": f"Agent loaded from config: {model_name}"})
-            finally:
-                os.chdir(original_cwd)
+        # Extract YAML content and name from AgentConfig
+        yaml_content = config_obj.yaml
+        config_name = config_obj.name
+        
+        emit({"type": "status", "message": f"Loaded config '{config_name}' from Weave ({ref_str})"})
+        
+        # Write YAML to workspace directory where tools.py lives
+        # This ensures ./tools.py relative path resolves correctly
+        temp_config_path = workspace_dir / "tyler-chat-config.yaml"
+        temp_config_path.write_text(yaml_content)
+        
+        emit({"type": "status", "message": f"Config written to {temp_config_path}"})
+        
+        # Change to workspace directory and load agent
+        os.chdir(workspace_dir)
+        
+        try:
+            agent = Agent.from_config(str(temp_config_path))
+            model_name = agent.name
+            emit({"type": "status", "message": f"Agent created: {model_name} (tools: {len(agent.tools) if hasattr(agent, 'tools') and agent.tools else 0})"})
+        except Exception as e:
+            emit({"type": "error", "message": f"Failed to create agent from config: {e}"})
+            os.chdir(original_cwd)
+            return
         
         # Load dataset
         emit({"type": "status", "message": "Loading dataset..."})
@@ -158,6 +117,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
             emit({"type": "status", "message": f"Loaded {len(test_cases)} test cases"})
         except Exception as e:
             emit({"type": "error", "message": f"Failed to load dataset: {e}. Make sure you've published it first."})
+            os.chdir(original_cwd)
             return
         
         # Sample if requested
@@ -169,18 +129,18 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
         emit({"type": "status", "message": "Loading scorers..."})
         
         # Add step-5 workspace to path for scorers
-        workspace_path = str(Path("workspace/step-5").absolute())
-        if workspace_path not in sys.path:
-            sys.path.insert(0, workspace_path)
+        scorers_path = str(Path("workspace/step-5").absolute())
+        if scorers_path not in sys.path:
+            sys.path.insert(0, scorers_path)
         
         from scorers import tool_usage_scorer, accuracy_scorer, safety_scorer
         
-        # Initialize EvaluationLogger with the reconstructed Tyler Agent (which IS a weave.Model subclass)
-        # This properly links the evaluation to the model version
+        # Initialize EvaluationLogger
+        # The agent is a weave.Model subclass, so Weave will track it properly
         emit({"type": "status", "message": f"Creating evaluation with model: {model_name}"})
         eval_logger = weave.EvaluationLogger(
             name="support-bot-eval",
-            model=agent,  # Pass the weave.Model instance directly for proper linking
+            model=agent,  # Tyler Agent is a weave.Model subclass
             dataset=dataset
         )
         emit({"type": "status", "message": "Starting evaluation..."})
@@ -197,8 +157,8 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
                 
                 # Invoke agent
                 try:
-                    # Change to config dir for agent execution
-                    os.chdir(config_dir)
+                    # Ensure we're in workspace dir for tool resolution
+                    os.chdir(workspace_dir)
                     try:
                         thread = Thread()
                         thread.add_message(Message(role="user", content=test_case["input"]))
@@ -209,7 +169,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
                             "tools_used": list(result.thread.get_tool_usage().get('tools', {}).keys()) if result.thread.get_tool_usage() else []
                         }
                     finally:
-                        os.chdir(original_cwd)
+                        pass  # Stay in workspace dir
                 except Exception as e:
                     emit({"type": "score", "case": i, "scorer": "agent", "score": 0, "error": str(e)})
                     continue
@@ -262,6 +222,9 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
                     eval_logger.finish()
                 except Exception:
                     pass  # Ignore cleanup errors
+            
+            # Restore original working directory
+            os.chdir(original_cwd)
         
         # Re-raise any error that occurred during evaluation after cleanup
         if eval_error:
@@ -275,7 +238,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, model_ref: s
             "safety_avg": sum(r.get("safety", 0) for r in results) / len(results) if results else 0,
         }
         
-        emit({"type": "result", "total_cases": len(test_cases), "model": model_name, "summary": summary})
+        emit({"type": "result", "total_cases": len(test_cases), "model": model_name, "config_ref": config_ref, "summary": summary})
         
     except Exception as e:
         import traceback
@@ -290,14 +253,18 @@ def main():
         input_data = json.loads(sys.stdin.read())
         config_path = input_data.get("config_path")
         sample_size = input_data.get("sample_size")
-        model_ref = input_data.get("model_ref")
+        config_ref = input_data.get("config_ref")
+        
+        # Support legacy "model_ref" parameter for backward compatibility
+        if not config_ref:
+            config_ref = input_data.get("model_ref")
         
         if not config_path:
             emit({"type": "error", "message": "No config_path provided"})
             sys.exit(1)
         
         # Run the evaluation
-        asyncio.run(run_evaluation(config_path, sample_size, model_ref))
+        asyncio.run(run_evaluation(config_path, sample_size, config_ref))
         sys.exit(0)
     
     except json.JSONDecodeError as e:
@@ -310,4 +277,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

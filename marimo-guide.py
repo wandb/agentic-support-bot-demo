@@ -49,8 +49,9 @@ def _():
         build_traces_section,
         # Chat Widget Helpers
         create_step_chat_widget,
-        # Model Fetching
-        fetch_weave_models,
+        # Agent Config Storage (Weave Objects)
+        publish_agent_config,
+        fetch_weave_configs,
     )
 
     # Capture session start time for filtering traces
@@ -78,7 +79,7 @@ def _():
     return (Path, datetime, glob, json, load_dotenv, mo, os, random, re, shutil, subprocess, sys, timezone, yaml, session_start_time,
             DEFAULT_CHAT_PROMPTS, TOOL_CHAT_PROMPTS, weave_traces_url, weave_evals_url, weave_playground_url,
             save_env_var, auto_copy_step_files, fetch_traces_data, build_traces_table_ui, build_traces_section,
-            create_step_chat_widget, fetch_weave_models)
+            create_step_chat_widget, publish_agent_config, fetch_weave_configs)
 
 
 @app.cell
@@ -105,6 +106,47 @@ def _(mo, os, wandb_project_input):
         weave_project = _project
     
     return weave_entity, weave_project
+
+
+@app.cell
+def _(mo, wandb_project_input, wandb_key_input, os):
+    # ============================================================================
+    # WEAVE INITIALIZATION
+    # ============================================================================
+    # Initialize Weave only when valid credentials are provided.
+    # Skip init if using placeholder values to avoid noisy error logs.
+    import weave as _weave_init
+    
+    _current_project = wandb_project_input.value if wandb_project_input.value else ""
+    _api_key = wandb_key_input.value if wandb_key_input.value else os.getenv("WANDB_API_KEY", "")
+    _init_error = None
+    
+    # Check if project looks like a placeholder (skip init to avoid error spam)
+    _is_placeholder = (
+        not _current_project or
+        "your-entity" in _current_project.lower() or
+        "yourname" in _current_project.lower() or
+        _current_project == "wandb/agentic-support-bot-demo"  # Default placeholder
+    )
+    
+    # Only init Weave if we have real credentials (not placeholders)
+    if _current_project and _api_key and not _is_placeholder:
+        try:
+            _weave_init.init(_current_project)
+        except Exception as e:
+            _init_error = str(e)
+    
+    # Build status display
+    if _is_placeholder or not _current_project:
+        weave_init_status = mo.md("⏳ Enter your W&B project name above to enable Weave tracing")
+    elif not _api_key:
+        weave_init_status = mo.md("⏳ Enter your W&B API key above to enable Weave tracing")
+    elif _init_error:
+        weave_init_status = mo.md(f"❌ Weave init failed: {_init_error}")
+    else:
+        weave_init_status = mo.md(f"✅ Weave initialized: `{_current_project}`")
+    
+    return (weave_init_status,)
 
 
 @app.cell
@@ -141,15 +183,28 @@ def _(mo, os, save_env_var):
     # STEP 1: UI ELEMENTS (using save_env_var helper)
     # ============================================================================
     
-    # Environment variable inputs with auto-save
-    _current_wandb_key = os.getenv("WANDB_API_KEY", "")
-    _current_wandb_project = os.getenv("WANDB_PROJECT", "")
-    _current_openai_key = os.getenv("OPENAI_API_KEY", "")
-    _current_bot_key = os.getenv("AGENTIC_SUPPORT_BOT_API_KEY", "")
+    # Helper to check if a value is a placeholder (not a real credential)
+    def _is_placeholder(value: str, patterns: list) -> bool:
+        if not value:
+            return True
+        value_lower = value.lower()
+        return any(p.lower() in value_lower for p in patterns)
+    
+    # Environment variable values (may be placeholders from .env.example)
+    _raw_wandb_key = os.getenv("WANDB_API_KEY", "")
+    _raw_wandb_project = os.getenv("WANDB_PROJECT", "")
+    _raw_openai_key = os.getenv("OPENAI_API_KEY", "")
+    _raw_bot_key = os.getenv("AGENTIC_SUPPORT_BOT_API_KEY", "")
+    
+    # Only use as value if NOT a placeholder, otherwise show as placeholder text
+    _current_wandb_key = "" if _is_placeholder(_raw_wandb_key, ["your_wandb", "your-wandb", "placeholder"]) else _raw_wandb_key
+    _current_wandb_project = "" if _is_placeholder(_raw_wandb_project, ["your-entity", "yourname", "your_entity"]) else _raw_wandb_project
+    _current_openai_key = "" if _is_placeholder(_raw_openai_key, ["your_openai", "your-openai", "placeholder", "sk-placeholder"]) else _raw_openai_key
+    _current_bot_key = "" if _is_placeholder(_raw_bot_key, ["placeholder", "your_", "your-"]) else _raw_bot_key
     
     wandb_key_input = mo.ui.text(
         value=_current_wandb_key,
-        placeholder="your_wandb_api_key_here",
+        placeholder="Paste your W&B API key here",
         full_width=True,
         kind="password",
         on_change=lambda value: save_env_var("WANDB_API_KEY", value) if value else None
@@ -164,7 +219,7 @@ def _(mo, os, save_env_var):
     
     openai_key_input = mo.ui.text(
         value=_current_openai_key,
-        placeholder="your_openai_api_key_here",
+        placeholder="Paste your OpenAI API key here (sk-...)",
         full_width=True,
         kind="password",
         on_change=lambda value: save_env_var("OPENAI_API_KEY", value) if value else None
@@ -172,7 +227,7 @@ def _(mo, os, save_env_var):
     
     bot_key_input = mo.ui.text(
         value=_current_bot_key,
-        placeholder="my-secret-key-123",
+        placeholder="Choose any secret string (e.g., my-secret-key-123)",
         full_width=True,
         on_change=lambda value: save_env_var("AGENTIC_SUPPORT_BOT_API_KEY", value) if value else None
     )
@@ -192,7 +247,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input):
+def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input, weave_init_status):
     # ============================================================================
     # STEP 1: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -203,22 +258,32 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input)
         Configure API keys to connect your agent to Weave, LLMs, and other services.
 
         """),
-        mo.md("### W&B project name"),
-        mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb-designers/agentic-support-bot-yourname`)"),
-        wandb_project_input,
-        mo.md("---"),
         mo.md("### W&B API key"),
         mo.md("Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
         wandb_key_input,
-        mo.md("---"),
+        mo.md("""
+        ## 
+        ---
+        ## """),
         mo.md("### OpenAI API key"),
         mo.md("Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys). *Required for guardrails (uses OpenAI's Moderation API)*"),
         openai_key_input,
-        mo.md("---"),
+        mo.md("""
+        ## 
+        ---
+        ## """),
         mo.md("### Support bot API key"),
         mo.md("Choose any random string (e.g., `my-secret-key-123`)"),
         mo.md("*Used to authenticate requests to your Modal deployment and in W&B Team Secrets*"),
         bot_key_input,
+        mo.md("""
+        ## 
+        ---
+        ## """),
+        mo.md("### W&B project name"),
+        mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb/agentic-support-bot-yourname`)"),
+        wandb_project_input,
+        weave_init_status,
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've configured your environment variables, continue to **Basic agent** using the tabs above."),
             kind="success"
@@ -401,13 +466,20 @@ def _(yaml, os, Path, config_editor_2):
             with open(_config_path) as f:
                 config = yaml.safe_load(f)
             
-            # Initialize Weave if not already done
-            try:
-                project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
-                weave.init(project)
-            except Exception:
-                # If Weave init fails, continue anyway (agent can still work)
-                pass
+            # Initialize Weave if valid project is configured (skip placeholders)
+            project = os.getenv("WANDB_PROJECT", "")
+            api_key = os.getenv("WANDB_API_KEY", "")
+            _is_placeholder = (
+                not project or
+                "your-entity" in project.lower() or
+                "yourname" in project.lower()
+            )
+            if project and api_key and not _is_placeholder:
+                try:
+                    weave.init(project)
+                except Exception:
+                    # If Weave init fails, continue anyway (agent can still work)
+                    pass
             
             # Import Tyler Agent
             from tyler import Agent
@@ -969,9 +1041,10 @@ def _(mo, Path, yaml):
 
 
 @app.cell
-def _(Path, name_input, purpose_input, notes_input):
+def _(Path, name_input, purpose_input, notes_input, publish_agent_config):
     # ============================================================================
     # STEP 4: SAVE INPUTS TO CONFIG (reactive - runs when inputs change)
+    # + AUTO-PUBLISH TO WEAVE
     # ============================================================================
     # This cell runs whenever the input VALUES change, and writes to the file
     # BEFORE any dependent cells (config_editor_4, agent_4) read the file.
@@ -1005,6 +1078,11 @@ def _(Path, name_input, purpose_input, notes_input):
             # Write back with comments preserved
             with open(_config_path_save, 'w') as f:
                 _yaml.dump(_config, f)
+            
+            # Auto-publish config to Weave (silent - don't interrupt user)
+            _agent_name = name_input.value if name_input.value else "agent"
+            _yaml_content = _config_path_save.read_text()
+            publish_agent_config(_agent_name, _yaml_content)
                 
         except ImportError:
             # Fallback to basic yaml if ruamel.yaml not available
@@ -1014,6 +1092,11 @@ def _(Path, name_input, purpose_input, notes_input):
             _config_data["purpose"] = purpose_input.value if purpose_input.value else ""
             _config_data["notes"] = notes_input.value if notes_input.value else ""
             _config_path_save.write_text(_pyyaml.dump(_config_data, default_flow_style=False, sort_keys=False))
+            
+            # Auto-publish config to Weave (silent - don't interrupt user)
+            _agent_name = name_input.value if name_input.value else "agent"
+            _yaml_content = _config_path_save.read_text()
+            publish_agent_config(_agent_name, _yaml_content)
         except Exception as e:
             pass  # Silently fail to avoid interrupting user experience
     
@@ -1273,47 +1356,47 @@ def _(mo):
 
 
 @app.cell
-def _(os, weave_entity, weave_project, refresh_btn, fetch_weave_models):
+def _(os, weave_entity, weave_project, refresh_btn, fetch_weave_configs):
     # ============================================================================
-    # STEP 5: QUERY MODELS (re-runs when refresh_btn is clicked, using helper)
+    # STEP 5: QUERY CONFIGS (re-runs when refresh_btn is clicked, using helper)
     # ============================================================================
     
     # This cell depends on refresh_btn.value, so it re-runs when clicked
     _refresh_count = refresh_btn.value
     
-    # Fetch models using helper (re-runs when refresh button is clicked)
+    # Fetch configs using helper (re-runs when refresh button is clicked)
     _wandb_token = os.getenv("WANDB_API_KEY", "")
-    available_models_dict = fetch_weave_models(weave_entity, weave_project, _wandb_token)
-    model_names = list(available_models_dict.keys()) if available_models_dict else ["No models found"]
+    available_configs_dict = fetch_weave_configs(weave_entity, weave_project, _wandb_token)
+    config_names = list(available_configs_dict.keys()) if available_configs_dict else ["No configs found"]
     
-    return (available_models_dict, model_names)
+    return (available_configs_dict, config_names)
 
 
 @app.cell
-def _(mo, available_models_dict, model_names):
+def _(mo, available_configs_dict, config_names):
     # ============================================================================
-    # STEP 5: UI ELEMENTS - MODEL DROPDOWN
+    # STEP 5: UI ELEMENTS - CONFIG DROPDOWN
     # ============================================================================
     
-    # First dropdown: Select model name
-    model_selector = mo.ui.dropdown(
-        options=model_names,
-        value=model_names[0] if model_names else None,
-        label="Model:"
+    # First dropdown: Select config name
+    config_selector = mo.ui.dropdown(
+        options=config_names,
+        value=config_names[0] if config_names else None,
+        label="Config:"
     )
     
-    return (model_selector,)
+    return (config_selector,)
 
 
 @app.cell
-def _(mo, model_selector, available_models_dict):
+def _(mo, config_selector, available_configs_dict):
     # ============================================================================
-    # STEP 5: VERSION DROPDOWN (depends on model selection)
+    # STEP 5: VERSION DROPDOWN (depends on config selection)
     # ============================================================================
     
-    # Get versions for selected model
-    selected_model = model_selector.value
-    versions = available_models_dict.get(selected_model, ["v0"]) if selected_model else ["v0"]
+    # Get versions for selected config
+    selected_config = config_selector.value
+    versions = available_configs_dict.get(selected_config, ["v0"]) if selected_config else ["v0"]
     
     # Second dropdown: Select version
     version_selector = mo.ui.dropdown(
@@ -1326,17 +1409,17 @@ def _(mo, model_selector, available_models_dict):
 
 
 @app.cell
-def _(model_selector, version_selector):
+def _(config_selector, version_selector):
     # ============================================================================
-    # STEP 5: COMBINE MODEL + VERSION INTO REF
+    # STEP 5: COMBINE CONFIG + VERSION INTO REF
     # ============================================================================
     
     # Combine into full ref for evaluation
-    _model = model_selector.value
+    _config = config_selector.value
     _version = version_selector.value
-    selected_model_ref = f"{_model}:{_version}" if _model and _version else None
+    selected_config_ref = f"{_config}:{_version}" if _config and _version else None
     
-    return (selected_model_ref,)
+    return (selected_config_ref,)
 
 
 @app.cell
@@ -1369,7 +1452,7 @@ def _(mo):
 
 
 @app.cell  
-async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sys, os, json, subprocess):
+async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, sys, os, json, subprocess):
     # ============================================================================
     # STEP 5: RUN EVALUATION LOGIC (with inline progress bar at top of page)
     # ============================================================================
@@ -1380,37 +1463,37 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
     
     if run_eval_btn.value:
         try:
-            # Get selected model ref
-            _selected_agent_ref = selected_model_ref
+            # Get selected config ref
+            _selected_config_ref = selected_config_ref
             
             # Get sample size from selector
             _sample_size_val = sample_size_selector.value
             _sample_size = None if _sample_size_val == "all" else int(_sample_size_val)
             _sample_label = "all cases" if _sample_size is None else f"{_sample_size} samples"
             
-            # Check if valid model selected
-            if not _selected_agent_ref or "No models" in str(_selected_agent_ref):
+            # Check if valid config selected
+            if not _selected_config_ref or "No configs" in str(_selected_config_ref):
                 eval_output = mo.callout(
-                    mo.md(f"⚠️ **Please select a valid model to evaluate.**\n\nCurrent selection: {_selected_agent_ref}"),
+                    mo.md(f"⚠️ **Please select a valid config to evaluate.**\n\nCurrent selection: {_selected_config_ref}"),
                     kind="warn"
                 )
             else:
-                # Check config exists
+                # Check workspace exists (for tools.py)
                 _config_path = Path("workspace/step-4/tyler-chat-config.yaml")
-                if not _config_path.exists():
+                if not _config_path.parent.exists():
                     eval_output = mo.callout(
-                        mo.md(f"❌ **Config file not found:** {_config_path}\n\nMake sure you've configured the agent in Step 4 first."),
+                        mo.md(f"❌ **Workspace not found:** {_config_path.parent}\n\nMake sure you've configured the agent in Step 4 first."),
                         kind="danger"
                     )
                 else:
-                    # Get model ref and name
-                    _model_ref = _selected_agent_ref
-                    _model_name = _model_ref.split(":")[0] if _model_ref else "agent"
+                    # Get config ref and name
+                    _config_ref = _selected_config_ref
+                    _config_name = _config_ref.split(":")[0] if _config_ref else "agent"
                     
                     # Prepare input for subprocess
                     _input_data = {
                         "config_path": str(_config_path.absolute()),
-                        "model_ref": _model_ref
+                        "config_ref": _config_ref
                     }
                     if _sample_size is not None:
                         _input_data["sample_size"] = _sample_size
@@ -1445,7 +1528,7 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                     # Note: Progress bar appears at top due to marimo's tabbed layout - this is expected
                     with mo.status.progress_bar(
                         total=_total_cases,
-                        title=f"⏳ Evaluating {_model_ref}",
+                        title=f"⏳ Evaluating {_config_ref}",
                         subtitle="Starting...",
                         show_rate=True,
                         show_eta=True,
@@ -1509,7 +1592,7 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_model_ref, Path, sy
                                 mo.md(f"""
 ✅ **Evaluation complete!**
 
-Evaluated **{_model_ref}** on {_total} test cases ({_sample_label}).
+Evaluated **{_config_ref}** on {_total} test cases ({_sample_label}).
 
 **Average scores:**
 - Tool Usage: {_summary.get('tool_usage_avg', 0):.2f}
@@ -1540,7 +1623,7 @@ Evaluated **{_model_ref}** on {_total} test cases ({_sample_label}).
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh_btn, sample_size_selector, run_eval_btn, eval_output, step5_files_ready, Path, sys, weave_evals_url):
+def _(mo, weave_entity, weave_project, config_selector, version_selector, refresh_btn, sample_size_selector, run_eval_btn, eval_output, step5_files_ready, Path, sys, weave_evals_url):
     # ============================================================================
     # STEP 5: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1662,13 +1745,13 @@ def _(mo, weave_entity, weave_project, model_selector, version_selector, refresh
 
         But this notebook has a handy UI to do this for you. 
         
-        First, select which model and version you want to evaluate.  Each time you changed the agent's config (like purpose or tools), a new model version was created in Weave.  Select the model and version you want to evaluate:
+        First, select which config and version you want to evaluate.  Each time you changed the agent's config (like purpose or notes), a new config version was saved to Weave.  Select the config and version you want to evaluate:
         """),
         
-        mo.hstack([model_selector, version_selector], justify="start", gap=1),
+        mo.hstack([config_selector, version_selector], justify="start", gap=1),
         
         mo.md(f"""
-        *Don't see your model? {refresh_btn} to get the latest.*
+        *Don't see your config? {refresh_btn} to get the latest.*
         """),
         
         mo.md("""

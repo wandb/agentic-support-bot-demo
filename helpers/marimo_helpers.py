@@ -74,10 +74,11 @@ def trace_peek_url(entity: str, project: str, trace_id: str) -> str:
 
 def save_env_var(key: str, value: str) -> None:
     """
-    Save a single environment variable to .env file.
+    Save a single environment variable to .env file AND os.environ.
     
     Creates .env from .env.example if it doesn't exist.
     Updates existing key or appends new one.
+    Also updates os.environ so changes are immediately available.
     
     Args:
         key: Environment variable name
@@ -106,8 +107,12 @@ def save_env_var(key: str, value: str) -> None:
     if not found:
         lines.append(f"{key}={value}")
     
-    # Write back (don't reload to avoid triggering re-renders)
+    # Write back to .env file
     env_path.write_text('\n'.join(lines))
+    
+    # ALSO update os.environ so changes are immediately available
+    # This ensures weave.init() and other code sees the new value
+    os.environ[key] = value
 
 
 # =============================================================================
@@ -423,7 +428,154 @@ def create_step_chat_widget(
 
 
 # =============================================================================
-# MODEL FETCHING (for evaluations)
+# AGENT CONFIG STORAGE (Weave Objects)
+# =============================================================================
+
+# Import weave at module level for the weave.Object base class
+import weave
+
+
+class AgentConfig(weave.Object):
+    """
+    Agent configuration stored as a Weave Object.
+    
+    This allows versioning and tracking of agent configs in Weave without
+    the serialization issues that come with storing the full Agent object.
+    
+    Attributes:
+        name: Agent name (from config YAML)
+        yaml: Full YAML configuration content
+    """
+    name: str
+    yaml: str
+
+
+def publish_agent_config(name: str, yaml_content: str) -> Optional[str]:
+    """
+    Publish agent config to Weave.
+    
+    Args:
+        name: Agent name (used as the Weave object name)
+        yaml_content: Full YAML configuration content
+        
+    Returns:
+        Version string (e.g., "v3") on success, None on failure
+    """
+    try:
+        # Check for valid credentials (skip if placeholders)
+        project = os.getenv("WANDB_PROJECT", "")
+        api_key = os.getenv("WANDB_API_KEY", "")
+        
+        # Skip if using placeholder values to avoid error spam
+        is_placeholder = (
+            not project or
+            not api_key or
+            "your-entity" in project.lower() or
+            "yourname" in project.lower()
+        )
+        if is_placeholder:
+            return None
+        
+        # Initialize Weave and publish
+        weave.init(project)
+        
+        # Create and publish config object
+        config = AgentConfig(name=name, yaml=yaml_content)
+        ref = weave.publish(config, name=name)
+        
+        # Extract version from ref
+        if hasattr(ref, 'version'):
+            return f"v{ref.version}"
+        elif hasattr(ref, '_digest'):
+            # Fallback: use first 8 chars of digest
+            return ref._digest[:8]
+        return "latest"
+        
+    except Exception as e:
+        # Log error but don't crash - auto-publish should be silent
+        import sys
+        print(f"Warning: Failed to publish config to Weave: {e}", file=sys.stderr)
+        return None
+
+
+def fetch_weave_configs(
+    weave_entity: str,
+    weave_project: str,
+    wandb_token: str,
+    excluded_configs: Optional[set] = None
+) -> Dict[str, List[str]]:
+    """
+    Fetch all AgentConfig versions from Weave.
+    
+    Args:
+        weave_entity: Weave entity name
+        weave_project: Weave project name
+        wandb_token: W&B API token
+        excluded_configs: Set of config names to exclude (default: scoring judges)
+        
+    Returns:
+        Dict mapping config name to list of versions (e.g., {"Buzz": ["v4", "v3", "v2"]})
+    """
+    import requests
+    
+    if excluded_configs is None:
+        excluded_configs = {"safety-judge", "accuracy-judge"}
+    
+    if not wandb_token:
+        return {}
+    
+    try:
+        project_id = f"{weave_entity}/{weave_project}"
+        headers = {"Content-Type": "application/json"}
+        
+        payload = {
+            "project_id": project_id,
+            "filter": {
+                "base_object_classes": ["AgentConfig"],
+                "latest_only": False
+            },
+            "sort_by": [{"field": "created_at", "direction": "desc"}],
+            "limit": 100
+        }
+        
+        response = requests.post(
+            WEAVE_OBJS_API,
+            headers=headers,
+            json=payload,
+            auth=("api", wandb_token),
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            return {}
+        
+        data = response.json()
+        
+        # Group by config name, collect versions
+        configs_dict = {}
+        for obj in data.get("objs", []):
+            object_id = obj.get("object_id", "")
+            version_index = obj.get("version_index", 0)
+            
+            if object_id in excluded_configs:
+                continue
+            
+            if object_id not in configs_dict:
+                configs_dict[object_id] = []
+            configs_dict[object_id].append(f"v{version_index}")
+        
+        # Sort versions descending (v4, v3, v2, ...)
+        for config_name in configs_dict:
+            configs_dict[config_name].sort(key=lambda v: int(v[1:]), reverse=True)
+        
+        return configs_dict
+        
+    except Exception:
+        return {}
+
+
+# =============================================================================
+# MODEL FETCHING (for evaluations) - DEPRECATED, use fetch_weave_configs
 # =============================================================================
 
 def fetch_weave_models(
@@ -433,6 +585,8 @@ def fetch_weave_models(
     excluded_models: Optional[set] = None
 ) -> Dict[str, List[str]]:
     """
+    DEPRECATED: Use fetch_weave_configs() instead.
+    
     Fetch all Model versions from Weave.
     
     Args:

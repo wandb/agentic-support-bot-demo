@@ -24,7 +24,11 @@ from .marimo_helpers import (
     build_traces_section,
     # Chat Widget Helpers
     create_step_chat_widget,
-    # Model Fetching
+    # Agent Config Storage (Weave Objects)
+    AgentConfig,
+    publish_agent_config,
+    fetch_weave_configs,
+    # Model Fetching (deprecated - use fetch_weave_configs)
     fetch_weave_models,
 )
 
@@ -50,6 +54,10 @@ __all__ = [
     "build_traces_section",
     # Chat Widget Helpers
     "create_step_chat_widget",
-    # Model Fetching
+    # Agent Config Storage (Weave Objects)
+    "AgentConfig",
+    "publish_agent_config",
+    "fetch_weave_configs",
+    # Model Fetching (deprecated - use fetch_weave_configs)
     "fetch_weave_models",
 ]
