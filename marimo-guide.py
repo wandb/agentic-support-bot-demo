@@ -482,20 +482,8 @@ def _(yaml, os, Path, config_editor_2):
             with open(_config_path) as f:
                 config = yaml.safe_load(f)
             
-            # Initialize Weave if valid project is configured (skip placeholders)
-            project = os.getenv("WANDB_PROJECT", "")
-            api_key = os.getenv("WANDB_API_KEY", "")
-            _is_placeholder = (
-                not project or
-                "your-entity" in project.lower() or
-                "yourname" in project.lower()
-            )
-            if project and api_key and not _is_placeholder:
-                try:
-                    weave.init(project)
-                except Exception:
-                    # If Weave init fails, continue anyway (agent can still work)
-                    pass
+            # Note: Weave is already initialized at notebook level (line 111-149)
+            # No need to re-initialize here - Tyler Agent will use existing connection
             
             # Import Tyler Agent
             from tyler import Agent

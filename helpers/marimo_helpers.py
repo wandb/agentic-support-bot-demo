@@ -482,8 +482,8 @@ def publish_agent_config(name: str, yaml_content: str) -> Optional[str]:
         if is_placeholder:
             return None
         
-        # Initialize Weave and publish
-        weave.init(project)
+        # Note: Weave should already be initialized at notebook level
+        # No need to call weave.init() here - just publish directly
         
         # Create and publish config object (always use consistent name)
         config = AgentConfig(name=name, yaml=yaml_content)
