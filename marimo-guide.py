@@ -972,11 +972,6 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
             """),
             
             mo.callout(
-                mo.md(f"🔍 **Explore your traces:** [Open Weave Traces]({_traces_url_3}) and look for `Agent.run` operations. Click on a trace to see the full execution flow."),
-                kind="neutral"
-            ),
-            
-            mo.callout(
                 mo.md("✅ **Ready for the next step!** The agent has tools but needs guidance on when to use them. Continue to the **Iterate** step to give your agent a clear purpose and improve its behavior."),
                 kind="success"
             )
