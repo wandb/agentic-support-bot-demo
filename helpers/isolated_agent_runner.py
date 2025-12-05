@@ -130,9 +130,8 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
             os.chdir(original_cwd)
     
     except Exception as e:
-        # Output error as JSON line
+        # Output error as JSON line (don't re-raise - main() would print it again)
         print(json.dumps({"error": str(e)}), flush=True)
-        raise
 
 
 def main():
