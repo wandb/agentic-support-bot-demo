@@ -67,6 +67,13 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
             # This creates a version only when config is actually used
             config_ref = None
             try:
+                # Ensure helpers directory is in path for import
+                # The subprocess might run from a different directory
+                import sys
+                helpers_path = Path(__file__).parent.absolute()
+                if str(helpers_path.parent) not in sys.path:
+                    sys.path.insert(0, str(helpers_path.parent))
+                
                 from helpers.marimo_helpers import publish_agent_config
                 
                 # Read config file
