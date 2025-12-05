@@ -66,6 +66,7 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
             # Load and publish config to Weave before running agent
             # This creates a version only when config is actually used
             config_ref = None
+            config_ref_uri = None
             try:
                 # Ensure helpers directory is in path for import
                 # The subprocess might run from a different directory
@@ -84,6 +85,11 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
                 # Publish to Weave with specified object name
                 agent_name = config_data.get("name", "agent")
                 config_ref = publish_agent_config(agent_name, yaml_content, object_name)
+                
+                # Extract URI from ref for use in weave.attributes()
+                # This creates a clickable link in Weave UI
+                if config_ref and hasattr(config_ref, 'uri'):
+                    config_ref_uri = config_ref.uri()
             except Exception as e:
                 # Don't fail the whole request if publish fails
                 print(json.dumps({"warning": f"Failed to publish config: {e}"}), flush=True)
@@ -99,8 +105,8 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
             
             # Stream response with config_ref as trace attribute
             # This links the trace to the specific config version used
-            if config_ref:
-                with weave.attributes({'config_ref': config_ref}):
+            if config_ref_uri:
+                with weave.attributes({'config_ref': config_ref_uri}):
                     async for chunk in agent.stream(thread, mode="raw"):
                         if hasattr(chunk, 'choices') and chunk.choices:
                             for choice in chunk.choices:

@@ -452,7 +452,7 @@ class AgentConfig(weave.Object):
     yaml: str
 
 
-def publish_agent_config(name: str, yaml_content: str, object_name: str = "AgentConfig") -> Optional[str]:
+def publish_agent_config(name: str, yaml_content: str, object_name: str = "AgentConfig") -> Optional[Any]:
     """
     Publish agent config to Weave.
     
@@ -465,8 +465,9 @@ def publish_agent_config(name: str, yaml_content: str, object_name: str = "Agent
         object_name: Weave object name (e.g., "BasicAgentConfig", "SupportBotConfig")
         
     Returns:
-        Weave ref URI string (e.g., "weave://entity/project/object/BasicAgentConfig:v3") on success, None on failure.
-        The URI string creates a clickable link when passed to weave.attributes().
+        Weave ref object on success, None on failure.
+        Use ref.uri() to get URI string for weave.attributes()
+        Use ref.get() to retrieve the object
     """
     
     try:
@@ -491,10 +492,8 @@ def publish_agent_config(name: str, yaml_content: str, object_name: str = "Agent
         config = AgentConfig(name=name, yaml=yaml_content)
         ref = weave.publish(config, name=object_name)
         
-        # Return the ref URI string (for use in weave.attributes())
-        # Format: weave://<entity>/<project>/object/<object_name>:<version>
-        # This creates a clickable link in Weave UI
-        return ref.uri() if ref and hasattr(ref, 'uri') else None
+        # Return the ref object (caller can use ref.uri(), ref.get(), etc.)
+        return ref
         
     except Exception as e:
         # Log error but don't crash - auto-publish should be silent
