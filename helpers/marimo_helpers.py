@@ -452,7 +452,7 @@ class AgentConfig(weave.Object):
     yaml: str
 
 
-def publish_agent_config(name: str, yaml_content: str, object_name: str = "AgentConfig") -> Optional[str]:
+def publish_agent_config(name: str, yaml_content: str, object_name: str = "AgentConfig") -> Optional[Any]:
     """
     Publish agent config to Weave.
     
@@ -465,7 +465,8 @@ def publish_agent_config(name: str, yaml_content: str, object_name: str = "Agent
         object_name: Weave object name (e.g., "BasicAgentConfig", "SupportBotConfig")
         
     Returns:
-        Full config reference (e.g., "BasicAgentConfig:v3") on success, None on failure
+        Weave ref object (e.g., weave.ObjectRef) on success, None on failure.
+        The ref can be used in weave.attributes() to create clickable links in UI.
     """
     
     try:
@@ -490,18 +491,8 @@ def publish_agent_config(name: str, yaml_content: str, object_name: str = "Agent
         config = AgentConfig(name=name, yaml=yaml_content)
         ref = weave.publish(config, name=object_name)
         
-        # Extract version from ref and return full reference
-        version = None
-        if hasattr(ref, 'version'):
-            version = f"v{ref.version}"
-        elif hasattr(ref, '_digest'):
-            # Fallback: use first 8 chars of digest
-            version = ref._digest[:8]
-        else:
-            version = "latest"
-        
-        # Return full reference like "BasicAgentConfig:v3"
-        return f"{object_name}:{version}"
+        # Return the ref object itself (creates clickable link in Weave UI)
+        return ref
         
     except Exception as e:
         # Log error but don't crash - auto-publish should be silent
