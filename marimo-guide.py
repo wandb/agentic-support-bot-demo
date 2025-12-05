@@ -387,23 +387,16 @@ def _(mo, Path):
 
 
 @app.cell
-def _(config_editor_3, Path, yaml, publish_agent_config):
+def _(config_editor_3, Path):
     # ============================================================================
-    # STEP 3: SAVE CONFIG ON CHANGE + PUBLISH TO WEAVE
+    # STEP 3: SAVE CONFIG ON CHANGE (file only, publish happens on chat)
     # ============================================================================
-    # Save config when edited and publish to Weave
+    # Save config to file when edited (immediate sync)
+    # Publishing to Weave happens when user sends a chat message (version on use)
     if config_editor_3.value:
         _config_path_3_save = Path("workspace/step-3/tyler-chat-config.yaml")
         _config_path_3_save.parent.mkdir(parents=True, exist_ok=True)
         _config_path_3_save.write_text(config_editor_3.value)
-        
-        # Publish config to Weave (silent - don't interrupt user)
-        try:
-            _config_data = yaml.safe_load(config_editor_3.value)
-            _agent_name = _config_data.get("name", "agent") if _config_data else "agent"
-            publish_agent_config(_agent_name, config_editor_3.value)
-        except Exception:
-            pass  # Silently fail
     
     return
 
@@ -728,7 +721,8 @@ def _(mo, agent_3, agent_status_3, create_chat_adapter_subprocess, Path, create_
         agent_status=agent_status_3,
         config_path=_config_path_3,
         chat_adapter_fn=create_chat_adapter_subprocess,
-        prompts=TOOL_CHAT_PROMPTS
+        prompts=TOOL_CHAT_PROMPTS,
+        object_name="ToolsAgentConfig"  # Step 3 uses ToolsAgentConfig
     )
     
     return agent_status_display_3, chat_widget_3
