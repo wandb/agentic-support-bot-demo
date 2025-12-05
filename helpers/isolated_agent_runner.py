@@ -16,7 +16,8 @@ Input (stdin JSON):
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": "Hi there!"}
         ],
-        "config_path": "/path/to/tyler-chat-config.yaml"
+        "config_path": "/path/to/tyler-chat-config.yaml",
+        "object_name": "BasicAgentConfig"  # Optional, defaults to "AgentConfig"
     }
 
 Output (stdout, newline-delimited JSON):
@@ -36,13 +37,14 @@ import asyncio
 from pathlib import Path
 
 
-async def run_agent_stream(messages: list[dict], config_path: str):
+async def run_agent_stream(messages: list[dict], config_path: str, object_name: str = "AgentConfig"):
     """
     Load agent and stream response to stdout as JSON lines.
     
     Args:
         messages: List of message dicts with 'role' and 'content'
         config_path: Path to Tyler agent config YAML file
+        object_name: Weave object name for config versioning (e.g., "BasicAgentConfig")
         
     Yields:
         Content chunks as they're generated
@@ -50,6 +52,7 @@ async def run_agent_stream(messages: list[dict], config_path: str):
     try:
         # Initialize Weave in this fresh process (creates new root trace context)
         import weave
+        import yaml
         project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
         weave.init(project)
         
@@ -60,6 +63,24 @@ async def run_agent_stream(messages: list[dict], config_path: str):
         os.chdir(config_dir)
         
         try:
+            # Load and publish config to Weave before running agent
+            # This creates a version only when config is actually used
+            config_ref = None
+            try:
+                from helpers.marimo_helpers import publish_agent_config
+                
+                # Read config file
+                with open(config_path) as f:
+                    yaml_content = f.read()
+                    config_data = yaml.safe_load(yaml_content)
+                
+                # Publish to Weave with specified object name
+                agent_name = config_data.get("name", "agent")
+                config_ref = publish_agent_config(agent_name, yaml_content, object_name)
+            except Exception as e:
+                # Don't fail the whole request if publish fails
+                print(json.dumps({"warning": f"Failed to publish config: {e}"}), flush=True)
+            
             # Load Tyler agent from config
             from tyler import Agent, Thread, Message
             agent = Agent.from_config(str(config_path))
@@ -69,15 +90,27 @@ async def run_agent_stream(messages: list[dict], config_path: str):
             for msg in messages:
                 thread.add_message(Message(role=msg["role"], content=msg["content"]))
             
-            # Stream response - output each chunk as JSON line
-            async for chunk in agent.stream(thread, mode="raw"):
-                if hasattr(chunk, 'choices') and chunk.choices:
-                    for choice in chunk.choices:
-                        if hasattr(choice, 'delta'):
-                            delta = choice.delta
-                            if hasattr(delta, 'content') and delta.content is not None:
-                                # Output as JSON line for parsing by parent process
-                                print(json.dumps({"content": delta.content}), flush=True)
+            # Stream response with config_ref as trace attribute
+            # This links the trace to the specific config version used
+            if config_ref:
+                with weave.attributes({'config_ref': config_ref}):
+                    async for chunk in agent.stream(thread, mode="raw"):
+                        if hasattr(chunk, 'choices') and chunk.choices:
+                            for choice in chunk.choices:
+                                if hasattr(choice, 'delta'):
+                                    delta = choice.delta
+                                    if hasattr(delta, 'content') and delta.content is not None:
+                                        # Output as JSON line for parsing by parent process
+                                        print(json.dumps({"content": delta.content}), flush=True)
+            else:
+                # Fallback without config_ref if publish failed
+                async for chunk in agent.stream(thread, mode="raw"):
+                    if hasattr(chunk, 'choices') and chunk.choices:
+                        for choice in chunk.choices:
+                            if hasattr(choice, 'delta'):
+                                delta = choice.delta
+                                if hasattr(delta, 'content') and delta.content is not None:
+                                    print(json.dumps({"content": delta.content}), flush=True)
         
         finally:
             # Restore original working directory
@@ -96,6 +129,7 @@ def main():
         input_data = json.loads(sys.stdin.read())
         messages = input_data.get("messages", [])
         config_path = input_data.get("config_path")
+        object_name = input_data.get("object_name", "AgentConfig")
         
         if not messages:
             print(json.dumps({"error": "No messages provided"}), flush=True)
@@ -106,7 +140,7 @@ def main():
             sys.exit(1)
         
         # Run the agent streaming
-        asyncio.run(run_agent_stream(messages, config_path))
+        asyncio.run(run_agent_stream(messages, config_path, object_name))
         sys.exit(0)
     
     except json.JSONDecodeError as e:

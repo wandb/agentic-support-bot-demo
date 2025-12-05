@@ -352,23 +352,16 @@ def _(mo, Path):
 
 
 @app.cell
-def _(config_editor_2, Path, yaml, publish_agent_config):
+def _(config_editor_2, Path):
     # ============================================================================
-    # STEP 2: SAVE CONFIG ON CHANGE + PUBLISH TO WEAVE
+    # STEP 2: SAVE CONFIG ON CHANGE (file only, publish happens on chat)
     # ============================================================================
-    # Save config when edited and publish to Weave
+    # Save config to file when edited (immediate sync)
+    # Publishing to Weave happens when user sends a chat message (version on use)
     if config_editor_2.value:
         _config_path_2_save = Path("workspace/step-2/tyler-chat-config.yaml")
         _config_path_2_save.parent.mkdir(parents=True, exist_ok=True)
         _config_path_2_save.write_text(config_editor_2.value)
-        
-        # Publish config to Weave (silent - don't interrupt user)
-        try:
-            _config_data = yaml.safe_load(config_editor_2.value)
-            _agent_name = _config_data.get("name", "agent") if _config_data else "agent"
-            publish_agent_config(_agent_name, config_editor_2.value)
-        except Exception:
-            pass  # Silently fail
     
     return
 
@@ -586,7 +579,7 @@ def _(Path, sys, os, json, subprocess):
     # ============================================================================
     import asyncio
     
-    def create_chat_adapter_subprocess(config_path):
+    def create_chat_adapter_subprocess(config_path, object_name="AgentConfig"):
         """
         Create chat function that runs agent in subprocess for fresh Weave trace context.
         
@@ -596,6 +589,7 @@ def _(Path, sys, os, json, subprocess):
         
         Args:
             config_path: Path to Tyler agent config YAML file
+            object_name: Weave object name for config versioning (e.g., "BasicAgentConfig")
             
         Returns:
             Async callable compatible with mo.ui.chat() signature (streaming enabled)
@@ -603,6 +597,8 @@ def _(Path, sys, os, json, subprocess):
         async def streaming_chat(messages, config):
             """
             Run agent in isolated subprocess to ensure fresh Weave trace context.
+            
+            Publishes config to Weave before running (creates version on use, not edit).
             
             Args:
                 messages: List of ChatMessage objects (or dicts with role/content)
@@ -623,7 +619,8 @@ def _(Path, sys, os, json, subprocess):
                 # Prepare input for subprocess
                 input_json = json.dumps({
                     "messages": messages_data,
-                    "config_path": str(Path(config_path).absolute())
+                    "config_path": str(Path(config_path).absolute()),
+                    "object_name": object_name
                 })
                 
                 # Get path to isolated agent runner script
@@ -690,7 +687,8 @@ def _(mo, agent_2a, agent_status_2a, create_chat_adapter_subprocess, Path, creat
         agent_status=agent_status_2a,
         config_path=_config_path_2a,
         chat_adapter_fn=create_chat_adapter_subprocess,
-        prompts=DEFAULT_CHAT_PROMPTS
+        prompts=DEFAULT_CHAT_PROMPTS,
+        object_name="BasicAgentConfig"  # Step 2 uses BasicAgentConfig
     )
     
     return agent_status_display, chat_widget_2a

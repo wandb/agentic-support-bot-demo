@@ -377,7 +377,8 @@ def create_step_chat_widget(
     agent_status: str,
     config_path: Path,
     chat_adapter_fn: Callable,
-    prompts: Optional[List[str]] = None
+    prompts: Optional[List[str]] = None,
+    object_name: str = "AgentConfig"
 ) -> Tuple[Any, Any]:
     """
     Create chat widget and status display for a step.
@@ -389,6 +390,7 @@ def create_step_chat_widget(
         config_path: Path to agent config file
         chat_adapter_fn: Function to create chat adapter (e.g., create_chat_adapter_subprocess)
         prompts: Optional list of suggested prompts (default: DEFAULT_CHAT_PROMPTS)
+        object_name: Weave object name for config versioning (e.g., "BasicAgentConfig")
         
     Returns:
         Tuple of (status_display, chat_widget) - chat_widget may be None on error
@@ -396,8 +398,8 @@ def create_step_chat_widget(
     prompts = prompts or DEFAULT_CHAT_PROMPTS
     
     if agent is not None:
-        # Create chat function using provided adapter
-        chat_function = chat_adapter_fn(config_path)
+        # Create chat function using provided adapter (with object_name)
+        chat_function = chat_adapter_fn(config_path, object_name)
         
         # Show agent status (success)
         status_display = mo.callout(
@@ -450,22 +452,21 @@ class AgentConfig(weave.Object):
     yaml: str
 
 
-def publish_agent_config(name: str, yaml_content: str) -> Optional[str]:
+def publish_agent_config(name: str, yaml_content: str, object_name: str = "AgentConfig") -> Optional[str]:
     """
     Publish agent config to Weave.
     
-    Always publishes under the object name "AgentConfig" so all versions
-    are tracked together in Weave (AgentConfig:v0, AgentConfig:v1, etc.).
+    Publishes under the specified object name so all versions are tracked together.
+    Different steps can use different object names (BasicAgentConfig, AgentWithToolsConfig, etc.)
     
     Args:
-        name: Agent name (stored in the config, but not used as object name)
+        name: Agent name (stored in the config)
         yaml_content: Full YAML configuration content
+        object_name: Weave object name (e.g., "BasicAgentConfig", "SupportBotConfig")
         
     Returns:
-        Version string (e.g., "v3") on success, None on failure
+        Full config reference (e.g., "BasicAgentConfig:v3") on success, None on failure
     """
-    # Consistent object name for all agent configs
-    WEAVE_OBJECT_NAME = "AgentConfig"
     
     try:
         # Check for valid credentials (skip if placeholders)
@@ -485,17 +486,22 @@ def publish_agent_config(name: str, yaml_content: str) -> Optional[str]:
         # Note: Weave should already be initialized at notebook level
         # No need to call weave.init() here - just publish directly
         
-        # Create and publish config object (always use consistent name)
+        # Create and publish config object (use specified object name)
         config = AgentConfig(name=name, yaml=yaml_content)
-        ref = weave.publish(config, name=WEAVE_OBJECT_NAME)
+        ref = weave.publish(config, name=object_name)
         
-        # Extract version from ref
+        # Extract version from ref and return full reference
+        version = None
         if hasattr(ref, 'version'):
-            return f"v{ref.version}"
+            version = f"v{ref.version}"
         elif hasattr(ref, '_digest'):
             # Fallback: use first 8 chars of digest
-            return ref._digest[:8]
-        return "latest"
+            version = ref._digest[:8]
+        else:
+            version = "latest"
+        
+        # Return full reference like "BasicAgentConfig:v3"
+        return f"{object_name}:{version}"
         
     except Exception as e:
         # Log error but don't crash - auto-publish should be silent
