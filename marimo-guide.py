@@ -741,7 +741,8 @@ def _(mo, agent_4, agent_status_4, create_chat_adapter_subprocess, Path, create_
         agent_status=agent_status_4,
         config_path=_config_path_4,
         chat_adapter_fn=create_chat_adapter_subprocess,
-        prompts=DEFAULT_CHAT_PROMPTS
+        prompts=DEFAULT_CHAT_PROMPTS,
+        object_name="SupportBotConfig"  # Step 4 uses SupportBotConfig
     )
     
     return (chat_widget_4,)
@@ -1037,14 +1038,14 @@ def _(mo, Path, yaml):
 
 
 @app.cell
-def _(Path, name_input, purpose_input, notes_input, publish_agent_config):
+def _(Path, name_input, purpose_input, notes_input):
     # ============================================================================
     # STEP 4: SAVE INPUTS TO CONFIG (reactive - runs when inputs change)
-    # + AUTO-PUBLISH TO WEAVE
+    # Saves to file only, publish happens on chat
     # ============================================================================
     # This cell runs whenever the input VALUES change, and writes to the file
     # BEFORE any dependent cells (config_editor_4, agent_4) read the file.
-    # This ensures no race conditions.
+    # Publishing to Weave happens when user sends a chat message (version on use)
     
     _config_path_save = Path("workspace/step-4/tyler-chat-config.yaml")
     
@@ -1074,11 +1075,6 @@ def _(Path, name_input, purpose_input, notes_input, publish_agent_config):
             # Write back with comments preserved
             with open(_config_path_save, 'w') as f:
                 _yaml.dump(_config, f)
-            
-            # Auto-publish config to Weave (silent - don't interrupt user)
-            _agent_name = name_input.value if name_input.value else "agent"
-            _yaml_content = _config_path_save.read_text()
-            publish_agent_config(_agent_name, _yaml_content)
                 
         except ImportError:
             # Fallback to basic yaml if ruamel.yaml not available
@@ -1088,11 +1084,6 @@ def _(Path, name_input, purpose_input, notes_input, publish_agent_config):
             _config_data["purpose"] = purpose_input.value if purpose_input.value else ""
             _config_data["notes"] = notes_input.value if notes_input.value else ""
             _config_path_save.write_text(_pyyaml.dump(_config_data, default_flow_style=False, sort_keys=False))
-            
-            # Auto-publish config to Weave (silent - don't interrupt user)
-            _agent_name = name_input.value if name_input.value else "agent"
-            _yaml_content = _config_path_save.read_text()
-            publish_agent_config(_agent_name, _yaml_content)
         except Exception as e:
             pass  # Silently fail to avoid interrupting user experience
     
