@@ -1591,79 +1591,48 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, s
                     _error_msg = None
                     _total_cases = _sample_size or 30  # Estimate
                     
-                    # Use progress_bar for LIVE updates (shows at top of page during execution)
-                    # Note: Progress bar appears at top due to marimo's tabbed layout - this is expected
-                    with mo.status.progress_bar(
-                        total=_total_cases,
-                        title=f"⏳ Evaluating {_config_ref}",
-                        subtitle="Starting...",
-                        show_rate=True,
-                        show_eta=True,
-                        remove_on_exit=True
-                    ) as _bar:
-                        while True:
-                            _line = await _process.stdout.readline()
-                            if not _line:
-                                break
+                    # Read and display ALL output for debugging
+                    while True:
+                        _line = await _process.stdout.readline()
+                        if not _line:
+                            break
+                        
+                        _line_text = _line.decode().strip()
+                        if _line_text:
+                            _streaming_log.append(_line_text)  # Keep raw output
+                        
+                        try:
+                            _chunk = json.loads(_line_text)
+                            _output_lines.append(_chunk)
                             
-                            try:
-                                _chunk = json.loads(_line.decode().strip())
-                                _output_lines.append(_chunk)
-                                
-                                # Update progress bar based on message type
-                                if _chunk.get("type") == "status":
-                                    _log_line = f"✓ {_chunk.get('message', '')}"
-                                    _streaming_log.append(_log_line)
-                                    _bar.update(increment=0, subtitle=_chunk.get('message', '')[:50])
-                                elif _chunk.get("type") == "progress":
-                                    _current = _chunk.get('current', 0)
-                                    _total_cases = _chunk.get('total', _total_cases)
-                                    _input_preview = _chunk.get('input', '')[:40] + "..."
-                                    _log_line = f"[{_current}/{_total_cases}] {_input_preview}"
-                                    _streaming_log.append(_log_line)
-                                    # Update progress (increment by 1 for each new case)
-                                    _bar.update(increment=1, subtitle=_input_preview)
-                                elif _chunk.get("type") == "score":
-                                    if "error" not in _chunk:
-                                        _log_line = f"  → {_chunk.get('scorer')}: {_chunk.get('score', 0):.2f}"
-                                        _streaming_log.append(_log_line)
-                                elif _chunk.get("type") == "result":
-                                    _result_data = _chunk
-                                elif _chunk.get("type") == "error":
-                                    _error_msg = _chunk.get("message", "Unknown error")
-                                
-                            except json.JSONDecodeError:
-                                continue
+                            # Track specific message types
+                            if _chunk.get("type") == "result":
+                                _result_data = _chunk
+                            elif _chunk.get("type") == "error":
+                                _error_msg = _chunk.get("message", "Unknown error")
+                        except json.JSONDecodeError:
+                            # Not JSON, just keep as raw text
+                            pass
                     
                     await _process.wait()
                     
-                    # Final output (shown inline after progress bar completes)
-                    if _process.returncode != 0:
-                        # Subprocess failed - show both stdout parsing and stderr
-                        _stderr = await _process.stderr.read()
-                        _stderr_text = _stderr.decode().strip() if _stderr else ""
-                        
-                        # Build comprehensive error message
-                        _error_details = []
-                        if _error_msg:
-                            _error_details.append(f"**Error from subprocess:** {_error_msg}")
-                        if _stderr_text:
-                            # Only show last 50 lines of stderr to avoid overwhelming output
-                            _stderr_lines = _stderr_text.split('\n')
-                            _last_lines = _stderr_lines[-50:] if len(_stderr_lines) > 50 else _stderr_lines
-                            _error_details.append(f"**Subprocess stderr (last 50 lines):**\n```\n{chr(10).join(_last_lines)}\n```")
-                        
-                        _final_error = "\n\n".join(_error_details) if _error_details else "Unknown error (subprocess exited with non-zero code)"
-                        
-                        eval_output = mo.callout(
-                            mo.md(f"❌ **Evaluation failed:**\n\n{_final_error}"),
-                            kind="danger"
-                        )
-                    elif _error_msg:
-                        eval_output = mo.callout(
-                            mo.md(f"❌ **Error:** {_error_msg}"),
-                            kind="danger"
-                        )
+                    # Also capture stderr
+                    _stderr = await _process.stderr.read()
+                    _stderr_text = _stderr.decode().strip() if _stderr else ""
+                    if _stderr_text:
+                        _streaming_log.append("\n=== STDERR ===")
+                        _streaming_log.extend(_stderr_text.split('\n'))
+                    
+                    # Final output - show all logs for debugging
+                    if _process.returncode != 0 or _error_msg:
+                        eval_output = mo.vstack([
+                            mo.callout(
+                                mo.md(f"❌ **Evaluation failed** (exit code: {_process.returncode})"),
+                                kind="danger"
+                            ),
+                            mo.md("**Full subprocess output:**"),
+                            mo.ui.code_editor(value="\n".join(_streaming_log), language="text", disabled=True).style({"max-height": "600px", "overflow": "auto"})
+                        ])
                     elif _result_data:
                         _summary = _result_data.get("summary", {})
                         _total = _result_data.get("total_cases", 0)
