@@ -260,7 +260,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
     except Exception as e:
         import traceback
         emit({"type": "error", "message": str(e), "traceback": traceback.format_exc()})
-        raise
+        # Don't raise - just emit error and exit cleanly so marimo can display it
 
 
 def main():
