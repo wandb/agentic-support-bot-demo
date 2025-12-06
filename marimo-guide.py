@@ -1639,10 +1639,24 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, s
                     
                     # Final output (shown inline after progress bar completes)
                     if _process.returncode != 0:
+                        # Subprocess failed - show both stdout parsing and stderr
                         _stderr = await _process.stderr.read()
-                        _error_text = _stderr.decode().strip() if _stderr else _error_msg or "Unknown error"
+                        _stderr_text = _stderr.decode().strip() if _stderr else ""
+                        
+                        # Build comprehensive error message
+                        _error_details = []
+                        if _error_msg:
+                            _error_details.append(f"**Error from subprocess:** {_error_msg}")
+                        if _stderr_text:
+                            # Only show last 50 lines of stderr to avoid overwhelming output
+                            _stderr_lines = _stderr_text.split('\n')
+                            _last_lines = _stderr_lines[-50:] if len(_stderr_lines) > 50 else _stderr_lines
+                            _error_details.append(f"**Subprocess stderr (last 50 lines):**\n```\n{chr(10).join(_last_lines)}\n```")
+                        
+                        _final_error = "\n\n".join(_error_details) if _error_details else "Unknown error (subprocess exited with non-zero code)"
+                        
                         eval_output = mo.callout(
-                            mo.md(f"❌ **Evaluation failed:**\n\n```\n{_error_text}\n```"),
+                            mo.md(f"❌ **Evaluation failed:**\n\n{_final_error}"),
                             kind="danger"
                         )
                     elif _error_msg:
