@@ -75,6 +75,11 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
         workspace_dir = config_path.parent  # e.g., workspace/step-4/
         original_cwd = os.getcwd()
         
+        # Calculate scorers path BEFORE changing directories
+        # Go up from workspace/step-4 to project root, then to workspace/step-5
+        project_root = workspace_dir.parent.parent  # From workspace/step-4/ -> workspace/ -> project root
+        scorers_path = project_root / "workspace" / "step-5"
+        
         # Load config from Weave (the source of truth)
         emit({"type": "status", "message": f"Loading config from Weave: {config_ref}..."})
         
@@ -145,10 +150,9 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
         # Import scorers
         emit({"type": "status", "message": "Loading scorers..."})
         
-        # Add step-5 workspace to path for scorers
-        scorers_path = str(Path("workspace/step-5").absolute())
-        if scorers_path not in sys.path:
-            sys.path.insert(0, scorers_path)
+        # Add step-5 workspace to path for scorers (calculated earlier, before chdir)
+        if str(scorers_path) not in sys.path:
+            sys.path.insert(0, str(scorers_path))
         
         from scorers import tool_usage_scorer, accuracy_scorer, safety_scorer
         
