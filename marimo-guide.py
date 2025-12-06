@@ -1508,12 +1508,8 @@ def _(mo):
         label="Number of samples"
     )
     
-    # Single button to run evaluation
-    run_eval_btn = mo.ui.button(
-        label="🚀 Run Evaluation",
-        value=0,
-        on_click=lambda v: v + 1
-    )
+    # Run button for evaluation (terminal-like play button)
+    run_eval_btn = mo.ui.run_button(label="▶ Run")
     
     return (sample_size_selector, run_eval_btn)
 
@@ -1815,11 +1811,27 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
         mo.md("""
         ##
 
-        Now choose how many samples (the number of test cases from the dataset) to evaluate and run the evaluation:
+        Now choose how many samples (the number of test cases from the dataset) to evaluate and run the evaluation.
+        
+        This is equivalent to running:
         """),
         
-        mo.hstack([sample_size_selector, run_eval_btn], justify="start", gap=1),
-        mo.md("*⏳ When running, look for the progress bar at the **top of the page** (above the tabs)*"),
+        mo.hstack([
+            mo.md("""
+```python
+evaluation = weave.Evaluation(
+    dataset=dataset,
+    scorers=[tool_usage_scorer, accuracy_scorer, safety_scorer]
+)
+evaluation.evaluate(agent)
+```
+            """),
+            mo.vstack([
+                sample_size_selector,
+                run_eval_btn
+            ], gap=0.5)
+        ], justify="start", align="center", gap=2),
+        
         eval_output,
         
         mo.md(f"""
