@@ -1423,7 +1423,11 @@ async def _(mo, publish_dataset_run, weave, os):
     # ============================================================================
     
     # Python code to show in the UI
-    _publish_code = 'weave.publish(EVALUATION_DATASET, "support-bot-eval-dataset")'
+    _publish_code = '''dataset = weave.Dataset(
+    name="support-bot-eval-dataset",
+    rows=EVALUATION_DATASET
+)
+weave.publish(dataset)'''
     
     # Terminal-like display: code + run button
     _publish_display = mo.hstack([
@@ -1445,8 +1449,14 @@ async def _(mo, publish_dataset_run, weave, os):
                 _sys.path.insert(0, _workspace_path)
             import dataset as _dataset_mod
             
+            # Create Weave Dataset object
+            _dataset = weave.Dataset(
+                name="support-bot-eval-dataset",
+                rows=_dataset_mod.EVALUATION_DATASET
+            )
+            
             # Publish to Weave
-            _dataset_ref = weave.publish(_dataset_mod.EVALUATION_DATASET, "support-bot-eval-dataset")
+            _dataset_ref = weave.publish(_dataset)
             
             # Show success message with ref
             _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
