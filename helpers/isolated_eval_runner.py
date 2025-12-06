@@ -205,31 +205,25 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
                     # Apply scorers
                     try:
                         tool_score = tool_usage_scorer(test_case, output)
-                        # Extract numeric score for logging
-                        tool_score_value = tool_score.get("score", 0) if isinstance(tool_score, dict) else tool_score
-                        pred_logger.log_score(scorer="tool_usage", score=tool_score_value)
-                        case_results["tool_usage"] = tool_score_value
-                        emit({"type": "score", "case": i, "scorer": "tool_usage", "score": tool_score_value})
+                        pred_logger.log_score(scorer="tool_usage", score=tool_score)
+                        case_results["tool_usage"] = tool_score.get("score", 0)
+                        emit({"type": "score", "case": i, "scorer": "tool_usage", "score": tool_score.get("score", 0)})
                     except Exception as e:
                         emit({"type": "score", "case": i, "scorer": "tool_usage", "error": str(e)})
                     
                     try:
                         accuracy_score = await accuracy_scorer(test_case, output)
-                        # Extract numeric score for logging
-                        accuracy_score_value = accuracy_score.get("accuracy", 0) if isinstance(accuracy_score, dict) else accuracy_score
-                        pred_logger.log_score(scorer="accuracy", score=accuracy_score_value)
-                        case_results["accuracy"] = accuracy_score_value
-                        emit({"type": "score", "case": i, "scorer": "accuracy", "score": accuracy_score_value})
+                        pred_logger.log_score(scorer="accuracy", score=accuracy_score)
+                        case_results["accuracy"] = accuracy_score.get("accuracy", 0)
+                        emit({"type": "score", "case": i, "scorer": "accuracy", "score": accuracy_score.get("accuracy", 0)})
                     except Exception as e:
                         emit({"type": "score", "case": i, "scorer": "accuracy", "error": str(e)})
                     
                     try:
                         safety_score = await safety_scorer(test_case, output)
-                        # Extract numeric score for logging
-                        safety_score_value = safety_score.get("overall_safety", 0) if isinstance(safety_score, dict) else safety_score
-                        pred_logger.log_score(scorer="safety", score=safety_score_value)
-                        case_results["safety"] = safety_score_value
-                        emit({"type": "score", "case": i, "scorer": "safety", "score": safety_score_value})
+                        pred_logger.log_score(scorer="safety", score=safety_score)
+                        case_results["safety"] = safety_score.get("overall_safety", 0)
+                        emit({"type": "score", "case": i, "scorer": "safety", "score": safety_score.get("overall_safety", 0)})
                     except Exception as e:
                         emit({"type": "score", "case": i, "scorer": "safety", "error": str(e)})
                     
