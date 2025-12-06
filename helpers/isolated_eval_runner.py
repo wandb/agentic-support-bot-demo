@@ -164,11 +164,11 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
         from scorers import tool_usage_scorer, accuracy_scorer, safety_scorer
         
         # Initialize EvaluationLogger
-        # The agent is a weave.Model subclass, so Weave will track it properly
+        # Pass agent.name (string) not the agent object itself
         emit({"type": "status", "message": f"Creating evaluation with model: {model_name}"})
         eval_logger = weave.EvaluationLogger(
             name="support-bot-eval",
-            model=agent,  # Tyler Agent is a weave.Model subclass
+            model=model_name,  # Pass string name, not agent object
             dataset=eval_dataset  # Use the (possibly sampled) Weave Dataset
         )
         emit({"type": "status", "message": "Starting evaluation..."})
