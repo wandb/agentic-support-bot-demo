@@ -1407,6 +1407,81 @@ def _(config_selector, version_selector):
 @app.cell
 def _(mo):
     # ============================================================================
+    # STEP 5: UI ELEMENTS - Publish Dataset Button
+    # ============================================================================
+    
+    # Run button for publishing dataset (terminal-like play button)
+    publish_dataset_run = mo.ui.run_button(label="▶ Run")
+    
+    return (publish_dataset_run,)
+
+
+@app.cell
+async def _(mo, publish_dataset_run, weave, os):
+    # ============================================================================
+    # STEP 5: PUBLISH DATASET LOGIC
+    # ============================================================================
+    
+    # Python code to show in the UI
+    _publish_code = 'weave.publish(EVALUATION_DATASET, "support-bot-eval-dataset")'
+    
+    # Terminal-like display: code + run button
+    _publish_display = mo.hstack([
+        mo.md(f"```python\n{_publish_code}\n```"),
+        publish_dataset_run
+    ], justify="start", align="center", gap=1)
+    
+    # Default: just show the code with run button
+    publish_dataset_output = _publish_display
+    
+    # If button was clicked, execute publish
+    if publish_dataset_run.value:
+        try:
+            # Import dataset from workspace
+            from pathlib import Path as _Path
+            import sys as _sys
+            _workspace_path = str(_Path("workspace/step-5").absolute())
+            if _workspace_path not in _sys.path:
+                _sys.path.insert(0, _workspace_path)
+            import dataset as _dataset_mod
+            
+            # Publish to Weave
+            _dataset_ref = weave.publish(_dataset_mod.EVALUATION_DATASET, "support-bot-eval-dataset")
+            
+            # Show success message with ref
+            _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
+            publish_dataset_output = mo.vstack([
+                _publish_display,
+                mo.callout(
+                    mo.md(f"""
+                    ✅ **Dataset published successfully!**
+                    
+                    - **Name:** `support-bot-eval-dataset`
+                    - **Ref:** `{_dataset_ref.uri()}`
+                    - **Cases:** {len(_dataset_mod.EVALUATION_DATASET)}
+                    
+                    You can now run evaluations using this dataset in Weave.
+                    """),
+                    kind="success"
+                )
+            ], gap=1)
+            
+        except Exception as e:
+            import traceback as _tb
+            publish_dataset_output = mo.vstack([
+                _publish_display,
+                mo.callout(
+                    mo.md(f"❌ **Error publishing dataset:** {str(e)}\n\n```\n{_tb.format_exc()}\n```"),
+                    kind="danger"
+                )
+            ], gap=1)
+    
+    return (publish_dataset_output,)
+
+
+@app.cell
+def _(mo):
+    # ============================================================================
     # STEP 5: EVAL CONTROLS (Sample Size + Run Button)
     # ============================================================================
     
@@ -1605,7 +1680,7 @@ Evaluated **{_config_ref}** on {_total} test cases ({_sample_label}).
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, config_selector, version_selector, refresh_btn, sample_size_selector, run_eval_btn, eval_output, step5_files_ready, Path, sys, weave_evals_url):
+def _(mo, weave_entity, weave_project, config_selector, version_selector, refresh_btn, sample_size_selector, run_eval_btn, eval_output, publish_dataset_output, step5_files_ready, Path, sys, weave_evals_url):
     # ============================================================================
     # STEP 5: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1656,6 +1731,14 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
         """),
         
         _dataset_table,
+        
+        mo.md("""
+        ##
+        
+        Before running evaluations, publish this dataset to Weave so it can be reused across evaluation runs:
+        """),
+        
+        publish_dataset_output,
         
         mo.accordion({
             "📋 (Optional) Dataset Structure Details": mo.md("""
