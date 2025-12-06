@@ -75,25 +75,41 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
         workspace_dir = config_path.parent  # e.g., workspace/step-4/
         original_cwd = os.getcwd()
         
-        # Load config YAML from Weave (the source of truth)
+        # Load config from Weave (the source of truth)
         emit({"type": "status", "message": f"Loading config from Weave: {config_ref}..."})
         
         # Ensure config_ref has version (default to :latest)
         ref_str = config_ref if ":" in config_ref else f"{config_ref}:latest"
-        config_obj = weave.ref(ref_str).get()
         
-        # Extract YAML content and name from AgentConfig
-        yaml_content = config_obj.yaml
-        config_name = config_obj.name
-        
-        emit({"type": "status", "message": f"Loaded config '{config_name}' from Weave ({ref_str})"})
+        try:
+            config_obj = weave.ref(ref_str).get()
+            
+            # Extract YAML content from AgentConfig object
+            # AgentConfig is a custom Weave Object with a 'yaml' attribute
+            if hasattr(config_obj, 'yaml'):
+                yaml_content = config_obj.yaml
+                config_name = config_obj.name
+            else:
+                # Fallback: if it's a dict or other structure
+                emit({"type": "error", "message": f"Unexpected config object type: {type(config_obj)}. Expected AgentConfig with 'yaml' attribute."})
+                return
+            
+            emit({"type": "status", "message": f"Loaded config '{config_name}' from Weave ({ref_str})"})
+            
+        except Exception as e:
+            emit({"type": "error", "message": f"Failed to load config from Weave: {e}. Make sure the config exists."})
+            return
         
         # Write YAML to workspace directory where tools.py lives
         # This ensures ./tools.py relative path resolves correctly
         temp_config_path = workspace_dir / "tyler-chat-config.yaml"
-        temp_config_path.write_text(yaml_content)
         
-        emit({"type": "status", "message": f"Config written to {temp_config_path}"})
+        try:
+            temp_config_path.write_text(yaml_content)
+            emit({"type": "status", "message": f"Config written to {temp_config_path}"})
+        except Exception as e:
+            emit({"type": "error", "message": f"Failed to write config file: {e}"})
+            return
         
         # Change to workspace directory and load agent
         os.chdir(workspace_dir)
@@ -103,7 +119,8 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
             model_name = agent.name
             emit({"type": "status", "message": f"Agent created: {model_name} (tools: {len(agent.tools) if hasattr(agent, 'tools') and agent.tools else 0})"})
         except Exception as e:
-            emit({"type": "error", "message": f"Failed to create agent from config: {e}"})
+            import traceback
+            emit({"type": "error", "message": f"Failed to create agent from config: {e}\n\nTraceback:\n{traceback.format_exc()}"})
             os.chdir(original_cwd)
             return
         
