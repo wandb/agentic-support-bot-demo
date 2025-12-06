@@ -135,17 +135,24 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
         try:
             dataset_ref = weave.ref("support-bot-eval-dataset:latest")
             dataset = dataset_ref.get()
-            test_cases = [dict(row) for row in dataset.rows]
-            emit({"type": "status", "message": f"Loaded {len(test_cases)} test cases"})
+            
+            # If sampling, create a subset dataset
+            if sample_size and len(dataset.rows) > sample_size:
+                # Sample row indices
+                import random
+                all_indices = list(range(len(dataset.rows)))
+                sampled_indices = random.sample(all_indices, sample_size)
+                # Create a subset dataset for evaluation
+                eval_dataset = dataset.select(sampled_indices)
+                emit({"type": "status", "message": f"Sampled {sample_size} cases from {len(dataset.rows)} total"})
+            else:
+                eval_dataset = dataset
+            
+            emit({"type": "status", "message": f"Loaded {len(eval_dataset.rows)} test cases"})
         except Exception as e:
             emit({"type": "error", "message": f"Failed to load dataset: {e}. Make sure you've published it first."})
             os.chdir(original_cwd)
             return
-        
-        # Sample if requested
-        if sample_size and sample_size < len(test_cases):
-            test_cases = random.sample(test_cases, sample_size)
-            emit({"type": "status", "message": f"Sampled {len(test_cases)} cases"})
         
         # Import scorers
         emit({"type": "status", "message": "Loading scorers..."})
@@ -162,7 +169,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
         eval_logger = weave.EvaluationLogger(
             name="support-bot-eval",
             model=agent,  # Tyler Agent is a weave.Model subclass
-            dataset=dataset
+            dataset=eval_dataset  # Use the (possibly sampled) Weave Dataset
         )
         emit({"type": "status", "message": "Starting evaluation..."})
         
@@ -171,10 +178,12 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
         eval_error = None
         
         try:
-            # Run evaluation
-            for i, test_case in enumerate(test_cases, 1):
-                input_preview = test_case['input'][:60] + "..." if len(test_case['input']) > 60 else test_case['input']
-                emit({"type": "progress", "current": i, "total": len(test_cases), "input": input_preview})
+            # Run evaluation - iterate over dataset rows directly
+            for i, test_case in enumerate(eval_dataset.rows, 1):
+                # Convert row to dict for easier access
+                test_case_dict = dict(test_case)
+                input_preview = test_case_dict['input'][:60] + "..." if len(test_case_dict['input']) > 60 else test_case_dict['input']
+                emit({"type": "progress", "current": i, "total": len(eval_dataset.rows), "input": input_preview})
                 
                 # Invoke agent
                 try:
@@ -182,7 +191,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
                     os.chdir(workspace_dir)
                     try:
                         thread = Thread()
-                        thread.add_message(Message(role="user", content=test_case["input"]))
+                        thread.add_message(Message(role="user", content=test_case_dict["input"]))
                         result = await agent.run(thread)
                         
                         output = {
@@ -197,14 +206,14 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
                 
                 # Log prediction using context manager for proper cleanup
                 with eval_logger.log_prediction(
-                    inputs={"query": test_case["input"]},
+                    inputs={"query": test_case_dict["input"]},
                     output=output
                 ) as pred_logger:
                     case_results = {"case": i, "input": input_preview}
                     
                     # Apply scorers
                     try:
-                        tool_score = tool_usage_scorer(test_case, output)
+                        tool_score = tool_usage_scorer(test_case_dict, output)
                         pred_logger.log_score(scorer="tool_usage", score=tool_score)
                         case_results["tool_usage"] = tool_score.get("score", 0)
                         emit({"type": "score", "case": i, "scorer": "tool_usage", "score": tool_score.get("score", 0)})
@@ -212,7 +221,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
                         emit({"type": "score", "case": i, "scorer": "tool_usage", "error": str(e)})
                     
                     try:
-                        accuracy_score = await accuracy_scorer(test_case, output)
+                        accuracy_score = await accuracy_scorer(test_case_dict, output)
                         pred_logger.log_score(scorer="accuracy", score=accuracy_score)
                         case_results["accuracy"] = accuracy_score.get("accuracy", 0)
                         emit({"type": "score", "case": i, "scorer": "accuracy", "score": accuracy_score.get("accuracy", 0)})
@@ -220,7 +229,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
                         emit({"type": "score", "case": i, "scorer": "accuracy", "error": str(e)})
                     
                     try:
-                        safety_score = await safety_scorer(test_case, output)
+                        safety_score = await safety_scorer(test_case_dict, output)
                         pred_logger.log_score(scorer="safety", score=safety_score)
                         case_results["safety"] = safety_score.get("overall_safety", 0)
                         emit({"type": "score", "case": i, "scorer": "safety", "score": safety_score.get("overall_safety", 0)})
@@ -253,13 +262,13 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
         
         # Calculate aggregate scores
         summary = {
-            "total_cases": len(test_cases),
+            "total_cases": len(eval_dataset.rows),
             "tool_usage_avg": sum(r.get("tool_usage", 0) for r in results) / len(results) if results else 0,
             "accuracy_avg": sum(r.get("accuracy", 0) for r in results) / len(results) if results else 0,
             "safety_avg": sum(r.get("safety", 0) for r in results) / len(results) if results else 0,
         }
         
-        emit({"type": "result", "total_cases": len(test_cases), "model": model_name, "config_ref": config_ref, "summary": summary})
+        emit({"type": "result", "total_cases": len(eval_dataset.rows), "model": model_name, "config_ref": config_ref, "summary": summary})
         
     except Exception as e:
         import traceback
