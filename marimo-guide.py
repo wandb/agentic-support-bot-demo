@@ -2066,7 +2066,7 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, openai_key_input, bot_ke
 
 
 @app.cell
-async def _(mo, modal_deploy_run, config_selector, version_selector, Path, os, json):
+async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn, Path, os, json):
     # ============================================================================
     # STEP 6: DEPLOY TERMINAL (terminal-like command cell)
     # ============================================================================
@@ -2080,25 +2080,31 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, Path, os, j
     _version = version_selector.value
     _config_ref = f"{_config_name}:{_version}" if _config_name and _version else "No config selected"
     
-    # Terminal-like display: config selectors + command + run button
-    _command_display = mo.hstack([
-        mo.md(f"```bash\n{_command}\n```"),
+    # Config selector row (separate from command)
+    _config_selector_row = mo.hstack([
         config_selector,
         version_selector,
+        refresh_btn
+    ], justify="start", gap=1)
+    
+    # Command + deploy button row
+    _command_row = mo.hstack([
+        mo.md(f"```bash\n{_command}\n```"),
         modal_deploy_run
     ], justify="start", align="center", gap=1)
     
-    # Default: just show the command with run button
-    modal_deploy_terminal = _command_display
+    # Default: show config selector + command with run button
+    modal_deploy_terminal = mo.vstack([_config_selector_row, _command_row], gap=1)
     
     # If button was clicked, execute command
     if modal_deploy_run.value:
         # First, save the config.json
         if not _config_name or _config_name == "No configs found" or not _version:
             modal_deploy_terminal = mo.vstack([
-                _command_display,
+                _config_selector_row,
+                _command_row,
                 mo.callout(mo.md("❌ Please select a config and version before deploying."), kind="danger")
-            ])
+            ], gap=1)
         else:
             # Save config to workspace/step-6/config.json
             _config_json_path = Path("workspace/step-6/config.json")
@@ -2109,9 +2115,10 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, Path, os, j
             _server_path = Path("workspace/step-6/server.py")
             if not _server_path.exists():
                 modal_deploy_terminal = mo.vstack([
-                    _command_display,
+                    _config_selector_row,
+                    _command_row,
                     mo.md("```\nError: Server file not found: workspace/step-6/server.py\nMake sure you've completed the previous steps.\n```")
-                ])
+                ], gap=1)
             else:
                 try:
                     _process = await _asyncio_deploy.create_subprocess_exec(
@@ -2126,26 +2133,29 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, Path, os, j
                     
                     # Show command + output below
                     modal_deploy_terminal = mo.vstack([
-                        _command_display,
+                        _config_selector_row,
+                        _command_row,
                         mo.callout(mo.md(f"✅ Deploying with config: `{_config_ref}`"), kind="success"),
                         mo.md(f"```\n{_output}\n```") if _output else mo.md("")
-                    ])
+                    ], gap=1)
                 except FileNotFoundError:
                     modal_deploy_terminal = mo.vstack([
-                        _command_display,
+                        _config_selector_row,
+                        _command_row,
                         mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
-                    ])
+                    ], gap=1)
                 except Exception as e:
                     modal_deploy_terminal = mo.vstack([
-                        _command_display,
+                        _config_selector_row,
+                        _command_row,
                         mo.md(f"```\nError: {str(e)}\n```")
-                    ])
+                    ], gap=1)
     
     return (modal_deploy_terminal,)
 
 
 @app.cell
-def _(mo, prod_url_input, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url, refresh_btn):
+def _(mo, prod_url_input, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2209,8 +2219,6 @@ Your agent needs API keys to run. Run the command below to add them to Modal's s
         - Build a production container image
         - Deploy to persistent infrastructure
         - Provide a stable HTTPS URL that stays active 24/7
-        
-        *Don't see your config? {refresh_btn} to get the latest.*
         """),
         
         modal_deploy_terminal,
@@ -2332,7 +2340,7 @@ def _(mo, copy_step7_btn, Path, glob, shutil):
 
 
 @app.cell
-async def _(mo, step7_deploy_run, config_selector, version_selector, Path, os, json):
+async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn, Path, os, json):
     # ============================================================================
     # STEP 7: DEPLOY TERMINAL (terminal-like command cell)
     # ============================================================================
@@ -2346,25 +2354,31 @@ async def _(mo, step7_deploy_run, config_selector, version_selector, Path, os, j
     _version = version_selector.value
     _config_ref = f"{_config_name}:{_version}" if _config_name and _version else "No config selected"
     
-    # Terminal-like display: config selectors + command + run button
-    _command_display = mo.hstack([
-        mo.md(f"```bash\n{_command}\n```"),
+    # Config selector row (separate from command)
+    _config_selector_row = mo.hstack([
         config_selector,
         version_selector,
+        refresh_btn
+    ], justify="start", gap=1)
+    
+    # Command + deploy button row
+    _command_row = mo.hstack([
+        mo.md(f"```bash\n{_command}\n```"),
         step7_deploy_run
     ], justify="start", align="center", gap=1)
     
-    # Default: just show the command with run button
-    step7_deploy_terminal = _command_display
+    # Default: show config selector + command with run button
+    step7_deploy_terminal = mo.vstack([_config_selector_row, _command_row], gap=1)
     
     # If button was clicked, execute command
     if step7_deploy_run.value:
         # First, save the config.json
         if not _config_name or _config_name == "No configs found" or not _version:
             step7_deploy_terminal = mo.vstack([
-                _command_display,
+                _config_selector_row,
+                _command_row,
                 mo.callout(mo.md("❌ Please select a config and version before deploying."), kind="danger")
-            ])
+            ], gap=1)
         else:
             # Save config to workspace/step-7/config.json
             _config_json_path = Path("workspace/step-7/config.json")
@@ -2375,9 +2389,10 @@ async def _(mo, step7_deploy_run, config_selector, version_selector, Path, os, j
             _server_path = Path("workspace/step-7/server.py")
             if not _server_path.exists():
                 step7_deploy_terminal = mo.vstack([
-                    _command_display,
+                    _config_selector_row,
+                    _command_row,
                     mo.md("```\nError: Server file not found: workspace/step-7/server.py\nMake sure you've copied the Step 7 files first.\n```")
-                ])
+                ], gap=1)
             else:
                 try:
                     _process = await _asyncio_step7.create_subprocess_exec(
@@ -2392,26 +2407,29 @@ async def _(mo, step7_deploy_run, config_selector, version_selector, Path, os, j
                     
                     # Show command + output below
                     step7_deploy_terminal = mo.vstack([
-                        _command_display,
+                        _config_selector_row,
+                        _command_row,
                         mo.callout(mo.md(f"✅ Deploying with guardrails using config: `{_config_ref}`"), kind="success"),
                         mo.md(f"```\n{_output}\n```") if _output else mo.md("")
-                    ])
+                    ], gap=1)
                 except FileNotFoundError:
                     step7_deploy_terminal = mo.vstack([
-                        _command_display,
+                        _config_selector_row,
+                        _command_row,
                         mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
-                    ])
+                    ], gap=1)
                 except Exception as e:
                     step7_deploy_terminal = mo.vstack([
-                        _command_display,
+                        _config_selector_row,
+                        _command_row,
                         mo.md(f"```\nError: {str(e)}\n```")
-                    ])
+                    ], gap=1)
     
     return (step7_deploy_terminal,)
 
 
 @app.cell
-def _(mo, copy_step7_btn, copy_step7_output, step7_deploy_terminal, refresh_btn):
+def _(mo, copy_step7_btn, copy_step7_output, step7_deploy_terminal):
     # ============================================================================
     # STEP 7: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2500,10 +2518,6 @@ def _(mo, copy_step7_btn, copy_step7_output, step7_deploy_terminal, refresh_btn)
     **Deploy to production:**
 
     Once you've tested guardrails in dev, select your config version and deploy to production:
-        """),
-        
-        mo.md(f"""
-        *Don't see your config? {refresh_btn} to get the latest.*
         """),
         
         step7_deploy_terminal,
@@ -2706,8 +2720,8 @@ def _(
             f"{mo.icon('lucide:wrench')} 3. Add tools": step3_content,
             f"{mo.icon('lucide:refresh-cw')} 4. Iterate": step4_content,
             f"{mo.icon('lucide:database')} 5. Evaluate": step5_content,
-            f"{mo.icon('lucide:rocket')} 6. Deploy": step6_content,
-            f"{mo.icon('lucide:shield')} 7. Monitor": step7_content,
+            f"{mo.icon('lucide:play')} 6. Playground": step6_content,
+            f"{mo.icon('lucide:rocket')} 7. Deploy & Monitor": step7_content,
         }),
         scroll_button,
     ])
