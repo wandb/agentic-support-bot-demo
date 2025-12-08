@@ -2283,14 +2283,10 @@ def _(mo, glob, Path, shutil):
         on_click=lambda v: v + 1
     )
     
-    # Button to save selected config for Step 7 deployment
-    save_step7_config_btn = mo.ui.button(
-        label="💾 Save Config for Step 7 Deployment",
-        on_click=lambda v: v + 1,
-        value=0
-    )
+    # Run button for Step 7 deploy (like Step 6 pattern)
+    step7_deploy_run = mo.ui.run_button(label="▶ Deploy")
     
-    return (copy_step7_btn, save_step7_config_btn)
+    return (copy_step7_btn, step7_deploy_run)
 
 
 @app.cell
@@ -2336,47 +2332,86 @@ def _(mo, copy_step7_btn, Path, glob, shutil):
 
 
 @app.cell
-def _(mo, save_step7_config_btn, config_selector, version_selector, Path, json):
+async def _(mo, step7_deploy_run, config_selector, version_selector, Path, os, json):
     # ============================================================================
-    # STEP 7: SAVE CONFIG FOR DEPLOYMENT
+    # STEP 7: DEPLOY TERMINAL (terminal-like command cell)
     # ============================================================================
+    import asyncio as _asyncio_step7
     
-    # Save selected config to workspace/step-7/config.json when button is clicked
-    if save_step7_config_btn.value > 0:
-        _config_name = config_selector.value
-        _version = version_selector.value
-        
-        if _config_name and _config_name != "No configs found" and _version:
-            _config_ref = f"{_config_name}:{_version}"
+    # Command to display
+    _command = "uv run modal deploy workspace/step-7/server.py"
+    
+    # Get selected config for display
+    _config_name = config_selector.value
+    _version = version_selector.value
+    _config_ref = f"{_config_name}:{_version}" if _config_name and _version else "No config selected"
+    
+    # Terminal-like display: config selectors + command + run button
+    _command_display = mo.hstack([
+        mo.md(f"```bash\n{_command}\n```"),
+        config_selector,
+        version_selector,
+        step7_deploy_run
+    ], justify="start", align="center", gap=1)
+    
+    # Default: just show the command with run button
+    step7_deploy_terminal = _command_display
+    
+    # If button was clicked, execute command
+    if step7_deploy_run.value:
+        # First, save the config.json
+        if not _config_name or _config_name == "No configs found" or not _version:
+            step7_deploy_terminal = mo.vstack([
+                _command_display,
+                mo.callout(mo.md("❌ Please select a config and version before deploying."), kind="danger")
+            ])
+        else:
+            # Save config to workspace/step-7/config.json
             _config_json_path = Path("workspace/step-7/config.json")
             _config_json_path.parent.mkdir(parents=True, exist_ok=True)
-            
             _config_data = {"config_ref": _config_ref}
             _config_json_path.write_text(json.dumps(_config_data, indent=2))
             
-            save_step7_config_output = mo.callout(
-                mo.md(f"""
-✅ **Config saved for Step 7 deployment!**
-
-Saved `{_config_ref}` to `workspace/step-7/config.json`
-
-When you deploy with guardrails, the server will use this config version.
-                """),
-                kind="success"
-            )
-        else:
-            save_step7_config_output = mo.callout(
-                mo.md("❌ Please select a config and version first."),
-                kind="danger"
-            )
-    else:
-        save_step7_config_output = mo.md("")
+            _server_path = Path("workspace/step-7/server.py")
+            if not _server_path.exists():
+                step7_deploy_terminal = mo.vstack([
+                    _command_display,
+                    mo.md("```\nError: Server file not found: workspace/step-7/server.py\nMake sure you've copied the Step 7 files first.\n```")
+                ])
+            else:
+                try:
+                    _process = await _asyncio_step7.create_subprocess_exec(
+                        "uv", "run", "modal", "deploy", str(_server_path),
+                        stdout=_asyncio_step7.subprocess.PIPE,
+                        stderr=_asyncio_step7.subprocess.STDOUT,
+                        env=os.environ.copy()
+                    )
+                    
+                    _stdout, _ = await _process.communicate()
+                    _output = _stdout.decode() if _stdout else ""
+                    
+                    # Show command + output below
+                    step7_deploy_terminal = mo.vstack([
+                        _command_display,
+                        mo.callout(mo.md(f"✅ Deploying with guardrails using config: `{_config_ref}`"), kind="success"),
+                        mo.md(f"```\n{_output}\n```") if _output else mo.md("")
+                    ])
+                except FileNotFoundError:
+                    step7_deploy_terminal = mo.vstack([
+                        _command_display,
+                        mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
+                    ])
+                except Exception as e:
+                    step7_deploy_terminal = mo.vstack([
+                        _command_display,
+                        mo.md(f"```\nError: {str(e)}\n```")
+                    ])
     
-    return (save_step7_config_output,)
+    return (step7_deploy_terminal,)
 
 
 @app.cell
-def _(mo, copy_step7_btn, copy_step7_output, config_selector, version_selector, refresh_btn, save_step7_config_btn, save_step7_config_output):
+def _(mo, copy_step7_btn, copy_step7_output, step7_deploy_terminal, refresh_btn):
     # ============================================================================
     # STEP 7: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2400,21 +2435,6 @@ def _(mo, copy_step7_btn, copy_step7_output, config_selector, version_selector, 
         """),
         copy_step7_btn,
         copy_step7_output,
-        mo.md("""
-    ##
-    
-    Before deploying with guardrails, select which agent config version to use:
-    """),
-        
-        mo.hstack([config_selector, version_selector], justify="start", gap=1),
-        
-        mo.md(f"""
-        *Don't see your config? {refresh_btn} to get the latest.*
-        """),
-        
-        mo.hstack([save_step7_config_btn], justify="start", gap=1),
-        save_step7_config_output,
-        
         mo.md("""
     ---
 
@@ -2479,12 +2499,16 @@ def _(mo, copy_step7_btn, copy_step7_output, config_selector, version_selector, 
 
     **Deploy to production:**
 
-    Once you've tested guardrails in dev, deploy to production:
-
-    ```bash
-    uv run modal deploy workspace/step-7/server.py
-    ```
-
+    Once you've tested guardrails in dev, select your config version and deploy to production:
+        """),
+        
+        mo.md(f"""
+        *Don't see your config? {refresh_btn} to get the latest.*
+        """),
+        
+        step7_deploy_terminal,
+        
+        mo.md("""
     Your production agent now has real-time safety controls with streaming!
 
     **Key Points:**
