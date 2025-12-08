@@ -1427,6 +1427,7 @@ async def _(mo, publish_dataset_run, weave, os):
     name="support-bot-eval-dataset",
     rows=EVALUATION_DATASET
 )
+
 weave.publish(dataset)'''
     
     # Terminal-like display: code + run button
@@ -1720,15 +1721,7 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
         """),
         
         _dataset_table,
-        
-        mo.md("""
-        ##
-        
-        Before running evaluations, publish this dataset to Weave so it can be reused across evaluation runs:
-        """),
-        
-        publish_dataset_output,
-        
+
         mo.accordion({
             "📋 (Optional) Dataset Structure Details": mo.md("""
             Each test case includes:
@@ -1752,15 +1745,24 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
         
         mo.md("""
         ##
+        
+        Before running evaluations, publish this dataset to Weave so it can be reused across evaluation runs:
+        """),
+        
+        publish_dataset_output,
+        
+        
+        mo.md("""
+        ##
 
         Now that you have a dataset, you need to create a set of scorers to evaluate the agent's responses.
 
-        Take a minute to consider how you would evaluate the agent's responses.  What are the different ways you can evaluate the agent's responses?
+        Take a minute to consider how you would evaluate the agent's responses.  What might you want to "test" to ensure your agent is opperating as expected?
 
-        For this tutorial, focus on answering the following questions:
+        For this tutorial, you'll focus on answering the following questions:
         - Is the answer correct and helpful?
-        - Are the right tools called?
-        - Is the tone appropriate?
+        - Are the right tools used to take action?
+        - Is the tone of the answer appropriate?
         - Does it refuse to answer when it should?
 
         To answer these questions, you'll use a combination of **rule-based scorers** (fast, deterministic) and **LLM-as-judge scorers** (flexible, nuanced).
@@ -1789,17 +1791,9 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
         mo.md("""
         ##
 
-        You're ready to evaluate your agent.  This evaluation will go through each row in the dataset and use the scorers to evaluate the agent's response.
+        When you run this evaluation, it will go through each row in the dataset and use the scorers to evaluate the agent's response.
 
-        Normally, you would run this using a script in the terminal like this:
-
-        ```bash
-        uv run workspace/run_evaluation.py --agent-name Buzz --sample 5
-        ```
-
-        But this notebook has a handy UI to do this for you. 
-        
-        First, select which config and version you want to evaluate.  Each time you changed the agent's config (like purpose or notes), a new config version was saved to Weave.  Select the config and version you want to evaluate:
+        When you were iterating in previous steps, each time you changed the agent's config (like purpose or notes), a new config version was saved to Weave. To run the evaluation, you need to select which config and version you want to evaluate:
         """),
         
         mo.hstack([config_selector, version_selector], justify="start", gap=1),
@@ -1813,17 +1807,26 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
 
         Now choose how many samples (the number of test cases from the dataset) to evaluate and run the evaluation.
         
-        This is equivalent to running:
+        This uses the Weave `EvaluationLogger` API:
         """),
         
         mo.hstack([
             mo.md("""
 ```python
-evaluation = weave.Evaluation(
-    dataset=dataset,
-    scorers=[tool_usage_scorer, accuracy_scorer, safety_scorer]
+eval_logger = weave.EvaluationLogger(
+    name="support-bot-eval",
+    model=agent.name,
+    dataset=dataset
 )
-evaluation.evaluate(agent)
+
+for test_case in dataset.rows:
+    with eval_logger.log_prediction(
+        inputs={"query": test_case["input"]},
+        output=agent_response
+    ) as pred_logger:
+        pred_logger.log_score(scorer="tool_usage", score=tool_score)
+        pred_logger.log_score(scorer="accuracy", score=accuracy_score)
+        pred_logger.log_score(scorer="safety", score=safety_score)
 ```
             """),
             mo.vstack([
