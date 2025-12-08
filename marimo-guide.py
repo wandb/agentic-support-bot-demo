@@ -1893,50 +1893,22 @@ def _(mo, Path, json):
     # STEP 6: UI ELEMENTS
     # ============================================================================
     
-    # Load saved production URL if it exists
+    # Load saved production URL if it exists (auto-saved from deploy)
     _state_file = Path(".marimo-state.json")
-    _saved_prod_url = ""
+    saved_prod_url = ""
     if _state_file.exists():
         try:
             _state = json.loads(_state_file.read_text())
-            _saved_prod_url = _state.get("modal_prod_url", "")
+            saved_prod_url = _state.get("modal_prod_url", "")
         except:
             pass
-    
-    prod_url_input = mo.ui.text(
-        value=_saved_prod_url,
-        placeholder="https://yourname--agentic-support-bot.modal.run",
-        label="Production Server URL",
-        full_width=True
-    )
     
     # Run buttons for Modal commands (terminal-like play buttons)
     modal_setup_run = mo.ui.run_button(label="▶ Run")
     modal_secrets_run = mo.ui.run_button(label="▶ Run")
     modal_deploy_run = mo.ui.run_button(label="▶ Deploy")
     
-    return (prod_url_input, modal_setup_run, modal_secrets_run, modal_deploy_run)
-
-
-@app.cell
-def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
-    # ============================================================================
-    # STEP 6: URL PERSISTENCE
-    # ============================================================================
-    
-    # Save the production URL to state file for persistence if provided
-    if prod_url_input.value:
-        _state_file = Path(".marimo-state.json")
-        try:
-            _state = {}
-            if _state_file.exists():
-                _state = json.loads(_state_file.read_text())
-            _state["modal_prod_url"] = prod_url_input.value
-            _state_file.write_text(json.dumps(_state, indent=2))
-        except:
-            pass
-    
-    return
+    return (saved_prod_url, modal_setup_run, modal_secrets_run, modal_deploy_run)
 
 
 @app.cell
@@ -2199,20 +2171,20 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn
 
 
 @app.cell
-def _(mo, prod_url_input, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
+def _(mo, saved_prod_url, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     _playground_url = weave_playground_url(weave_entity, weave_project)
     _traces_url = weave_traces_url(weave_entity, weave_project)
     
-    # Generate API URL instruction based on whether production URL is provided
-    if prod_url_input.value:
-        _base_url = prod_url_input.value.rstrip('/').replace('/v1', '')
+    # Generate API URL instruction based on saved production URL
+    if saved_prod_url:
+        _base_url = saved_prod_url.rstrip('/').replace('/v1', '')
         _api_url = f"{_base_url}/v1"
         _url_instruction = f"`{_api_url}`"
     else:
-        _url_instruction = "`<your-production-modal-url>/v1`"
+        _url_instruction = "`<deploy first to get URL>`"
     
     # Get bot API key for Playground instructions
     _bot_key = bot_key_input.value or os.getenv("AGENTIC_SUPPORT_BOT_API_KEY", "")
@@ -2269,12 +2241,6 @@ Your agent needs API keys to run. Run the command below to add them to Modal's s
         
         modal_deploy_terminal,
         
-        mo.md("""
-        ##
-        
-        Copy your production URL (web function modal_endpoint) from the deploy output above and paste it here for easy reference:
-        """),
-        prod_url_input,
         mo.md(f"""
         ##
 
