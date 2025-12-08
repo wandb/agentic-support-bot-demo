@@ -742,7 +742,7 @@ def _(mo, agent_4, agent_status_4, create_chat_adapter_subprocess, Path, create_
         config_path=_config_path_4,
         chat_adapter_fn=create_chat_adapter_subprocess,
         prompts=DEFAULT_CHAT_PROMPTS,
-        object_name="SupportBotConfig"  # Step 4 uses SupportBotConfig
+        object_name="SupportAgentConfig"  # Step 4 uses SupportAgentConfig
     )
     
     return (chat_widget_4,)

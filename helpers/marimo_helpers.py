@@ -462,7 +462,7 @@ def publish_agent_config(name: str, yaml_content: str, object_name: str = "Agent
     Args:
         name: Agent name (stored in the config)
         yaml_content: Full YAML configuration content
-        object_name: Weave object name (e.g., "BasicAgentConfig", "SupportBotConfig")
+        object_name: Weave object name (e.g., "BasicAgentConfig", "SupportAgentConfig")
         
     Returns:
         Weave ref object on success, None on failure.
