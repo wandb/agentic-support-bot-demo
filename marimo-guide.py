@@ -1589,32 +1589,32 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, s
                     _total_cases = _sample_size or 30  # Estimate
                     
                     # Read and display ALL output for debugging
-                    while True:
-                        _line = await _process.stdout.readline()
-                        if not _line:
-                            break
-                        
+                        while True:
+                            _line = await _process.stdout.readline()
+                            if not _line:
+                                break
+                            
                         _line_text = _line.decode().strip()
                         if _line_text:
                             _streaming_log.append(_line_text)  # Keep raw output
                         
-                        try:
+                            try:
                             _chunk = json.loads(_line_text)
-                            _output_lines.append(_chunk)
-                            
+                                _output_lines.append(_chunk)
+                                
                             # Track specific message types
                             if _chunk.get("type") == "result":
-                                _result_data = _chunk
-                            elif _chunk.get("type") == "error":
-                                _error_msg = _chunk.get("message", "Unknown error")
-                        except json.JSONDecodeError:
+                                    _result_data = _chunk
+                                elif _chunk.get("type") == "error":
+                                    _error_msg = _chunk.get("message", "Unknown error")
+                            except json.JSONDecodeError:
                             # Not JSON, just keep as raw text
                             pass
                     
                     await _process.wait()
                     
                     # Also capture stderr
-                    _stderr = await _process.stderr.read()
+                        _stderr = await _process.stderr.read()
                     _stderr_text = _stderr.decode().strip() if _stderr else ""
                     if _stderr_text:
                         _streaming_log.append("\n=== STDERR ===")
@@ -1625,7 +1625,7 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, s
                         eval_output = mo.vstack([
                             mo.callout(
                                 mo.md(f"❌ **Evaluation failed** (exit code: {_process.returncode})"),
-                                kind="danger"
+                            kind="danger"
                             ),
                             mo.md("**Full subprocess output:**"),
                             mo.ui.code_editor(value="\n".join(_streaming_log), language="text", disabled=True).style({"max-height": "600px", "overflow": "auto"})
@@ -1721,7 +1721,7 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
         """),
         
         _dataset_table,
-
+        
         mo.accordion({
             "📋 (Optional) Dataset Structure Details": mo.md("""
             Each test case includes:
@@ -2084,42 +2084,41 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn
             _config_data = {"config_ref": _config_ref}
             _config_json_path.write_text(json.dumps(_config_data, indent=2))
             
-            _server_path = Path("workspace/step-6/server.py")
-            if not _server_path.exists():
-                modal_deploy_terminal = mo.vstack([
+        _server_path = Path("workspace/step-6/server.py")
+        if not _server_path.exists():
+            modal_deploy_terminal = mo.vstack([
                     _config_selector_row,
                     _command_row,
-                    mo.md("```\nError: Server file not found: workspace/step-6/server.py\nMake sure you've completed the previous steps.\n```")
+                mo.md("```\nError: Server file not found: workspace/step-6/server.py\nMake sure you've completed the previous steps.\n```")
                 ], gap=1)
-            else:
-                try:
-                    _process = await _asyncio_deploy.create_subprocess_exec(
-                        "uv", "run", "modal", "deploy", str(_server_path),
-                        stdout=_asyncio_deploy.subprocess.PIPE,
-                        stderr=_asyncio_deploy.subprocess.STDOUT,
-                        env=os.environ.copy()
-                    )
-                    
-                    _stdout, _ = await _process.communicate()
-                    _output = _stdout.decode() if _stdout else ""
-                    
+        else:
+            try:
+                _process = await _asyncio_deploy.create_subprocess_exec(
+                    "uv", "run", "modal", "deploy", str(_server_path),
+                    stdout=_asyncio_deploy.subprocess.PIPE,
+                    stderr=_asyncio_deploy.subprocess.STDOUT,
+                    env=os.environ.copy()
+                )
+                
+                _stdout, _ = await _process.communicate()
+                _output = _stdout.decode() if _stdout else ""
+                
                     # Extract key info from Modal output (URL, success message)
-                    import re
                     _endpoint_url = ""
                     _view_url = ""
                     _success = False
                     
-                    for line in _output.split('\n'):
-                        if 'modal_endpoint =>' in line or 'web function' in line.lower():
+                    for _line in _output.split('\n'):
+                        if 'modal_endpoint =>' in _line or 'web function' in _line.lower():
                             # Extract URL from line like "Created web function modal_endpoint => https://..."
-                            match = re.search(r'https://[^\s]+', line)
-                            if match:
-                                _endpoint_url = match.group(0)
-                        if 'View Deployment:' in line:
-                            match = re.search(r'https://[^\s]+', line)
-                            if match:
-                                _view_url = match.group(0)
-                        if 'App deployed' in line or '✓' in line:
+                            _match = re.search(r'https://[^\s]+', _line)
+                            if _match:
+                                _endpoint_url = _match.group(0)
+                        if 'View Deployment:' in _line:
+                            _match = re.search(r'https://[^\s]+', _line)
+                            if _match:
+                                _view_url = _match.group(0)
+                        if 'App deployed' in _line or '✓' in _line:
                             _success = True
                     
                     # Build concise output
@@ -2138,7 +2137,7 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn
                         _summary = f"**🎉 Deployed successfully!**\n\n**Endpoint URL:** `{_endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in the input below)*"
                         if _view_url:
                             _summary += f"\n\n[View deployment on Modal]({_view_url})"
-                        modal_deploy_terminal = mo.vstack([
+                modal_deploy_terminal = mo.vstack([
                             _config_selector_row,
                             _command_row,
                             mo.callout(mo.md(f"✅ Config: `{_config_ref}`"), kind="success"),
@@ -2154,17 +2153,17 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn
                             mo.callout(mo.md(f"✅ Config: `{_config_ref}`"), kind="success"),
                             mo.md(f"```\n{_truncated}\n```")
                         ], gap=1)
-                except FileNotFoundError:
-                    modal_deploy_terminal = mo.vstack([
+            except FileNotFoundError:
+                modal_deploy_terminal = mo.vstack([
                         _config_selector_row,
                         _command_row,
-                        mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
+                    mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
                     ], gap=1)
-                except Exception as e:
-                    modal_deploy_terminal = mo.vstack([
+            except Exception as e:
+                modal_deploy_terminal = mo.vstack([
                         _config_selector_row,
                         _command_row,
-                        mo.md(f"```\nError: {str(e)}\n```")
+                    mo.md(f"```\nError: {str(e)}\n```")
                     ], gap=1)
     
     return (modal_deploy_terminal,)
@@ -2418,19 +2417,18 @@ async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn
                     _output = _stdout.decode() if _stdout else ""
                     
                     # Extract key info from Modal output (URL, success message)
-                    import re
                     _endpoint_url = ""
                     _view_url = ""
                     
-                    for line in _output.split('\n'):
-                        if 'modal_endpoint =>' in line or 'web function' in line.lower():
-                            match = re.search(r'https://[^\s]+', line)
-                            if match:
-                                _endpoint_url = match.group(0)
-                        if 'View Deployment:' in line:
-                            match = re.search(r'https://[^\s]+', line)
-                            if match:
-                                _view_url = match.group(0)
+                    for _line in _output.split('\n'):
+                        if 'modal_endpoint =>' in _line or 'web function' in _line.lower():
+                            _match = re.search(r'https://[^\s]+', _line)
+                            if _match:
+                                _endpoint_url = _match.group(0)
+                        if 'View Deployment:' in _line:
+                            _match = re.search(r'https://[^\s]+', _line)
+                            if _match:
+                                _view_url = _match.group(0)
                     
                     # Build concise output
                     if _endpoint_url:
@@ -2569,9 +2567,9 @@ def _(mo, copy_step7_btn, copy_step7_output, step7_deploy_terminal):
 
     Once you've tested guardrails in dev, select your config version and deploy to production:
         """),
-        
+
         step7_deploy_terminal,
-        
+
         mo.md("""
     Your production agent now has real-time safety controls with streaming!
 
