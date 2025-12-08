@@ -2047,6 +2047,7 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn
     # STEP 6: DEPLOY TERMINAL (terminal-like command cell)
     # ============================================================================
     import asyncio as _asyncio_deploy
+    import re as _re
     
     # Command to display
     _command = "uv run modal deploy workspace/step-6/server.py"
@@ -2113,48 +2114,56 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn
                     _success = False
                     
                     for _line in _output.split('\n'):
-                        if 'modal_endpoint =>' in _line or 'web function' in _line.lower():
-                            # Extract URL from line like "Created web function modal_endpoint => https://..."
-                            _match = re.search(r'https://[^\s]+', _line)
+                        # Look for endpoint URL - multiple patterns Modal might use
+                        if 'modal_endpoint' in _line or 'web function' in _line.lower() or 'web endpoint' in _line.lower():
+                            _match = _re.search(r'https://[^\s]+', _line)
                             if _match:
                                 _endpoint_url = _match.group(0)
-                        if 'View Deployment:' in _line:
-                            _match = re.search(r'https://[^\s]+', _line)
+                        # Also catch any modal.run URL as fallback
+                        if not _endpoint_url and '.modal.run' in _line:
+                            _match = _re.search(r'https://[^\s]+\.modal\.run[^\s]*', _line)
+                            if _match:
+                                _endpoint_url = _match.group(0)
+                        if 'View Deployment:' in _line or 'view deployment' in _line.lower():
+                            _match = _re.search(r'https://[^\s]+', _line)
                             if _match:
                                 _view_url = _match.group(0)
-                        if 'App deployed' in _line or '✓' in _line:
+                        if 'App deployed' in _line or 'deployed!' in _line.lower() or '✓' in _line:
                             _success = True
                     
-                    # Build concise output
-                    if _endpoint_url:
+                    # Build concise output - show success callout with URL
+                    if _endpoint_url or _success:
                         # Auto-save URL to state file for persistence
-                        _state_file = Path(".marimo-state.json")
-                        try:
-                            _state = {}
-                            if _state_file.exists():
-                                _state = json.loads(_state_file.read_text())
-                            _state["modal_prod_url"] = _endpoint_url
-                            _state_file.write_text(json.dumps(_state, indent=2))
-                        except:
-                            pass
+                        if _endpoint_url:
+                            _state_file = Path(".marimo-state.json")
+                            try:
+                                _state = {}
+                                if _state_file.exists():
+                                    _state = json.loads(_state_file.read_text())
+                                _state["modal_prod_url"] = _endpoint_url
+                                _state_file.write_text(json.dumps(_state, indent=2))
+                            except:
+                                pass
                         
-                        _summary = f"**🎉 Deployed successfully!**\n\n**Endpoint URL:** `{_endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in Playground instructions below)*"
+                        if _endpoint_url:
+                            _summary = f"**🎉 Deployed successfully!**\n\n**Config:** `{_config_ref}`\n\n**Endpoint URL:** `{_endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in Playground instructions below)*"
+                        else:
+                            _summary = f"**🎉 Deployed successfully!**\n\n**Config:** `{_config_ref}`\n\n*(Could not extract endpoint URL - check Modal dashboard)*"
                         if _view_url:
                             _summary += f"\n\n[View deployment on Modal]({_view_url})"
                         modal_deploy_terminal = mo.vstack([
                             _config_selector_row,
                             _command_row,
-                            mo.callout(mo.md(f"✅ Config: `{_config_ref}`"), kind="success"),
                             mo.callout(mo.md(_summary), kind="success")
                         ], gap=1)
                     else:
-                        # Fallback: show last 15 lines if we couldn't parse
+                        # Only show output if something went wrong (no success detected)
                         _lines = _output.strip().split('\n')
                         _truncated = '\n'.join(_lines[-15:]) if len(_lines) > 15 else _output
                         modal_deploy_terminal = mo.vstack([
                             _config_selector_row,
                             _command_row,
-                            mo.callout(mo.md(f"✅ Config: `{_config_ref}`"), kind="success"),
+                            mo.callout(mo.md(f"⚠️ Deploy output (check for errors):"), kind="warn"),
                             mo.md(f"```\n{_truncated}\n```")
                         ], gap=1)
                 except FileNotFoundError:
@@ -2362,6 +2371,7 @@ async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn
     # STEP 7: DEPLOY TERMINAL (terminal-like command cell)
     # ============================================================================
     import asyncio as _asyncio_step7
+    import re as _re7
     
     # Command to display
     _command = "uv run modal deploy workspace/step-7/server.py"
@@ -2425,47 +2435,59 @@ async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn
                     # Extract key info from Modal output (URL, success message)
                     _endpoint_url = ""
                     _view_url = ""
+                    _success = False
                     
                     for _line in _output.split('\n'):
-                        if 'modal_endpoint =>' in _line or 'web function' in _line.lower():
-                            _match = re.search(r'https://[^\s]+', _line)
+                        # Look for endpoint URL - multiple patterns Modal might use
+                        if 'modal_endpoint' in _line or 'web function' in _line.lower() or 'web endpoint' in _line.lower():
+                            _match = _re7.search(r'https://[^\s]+', _line)
                             if _match:
                                 _endpoint_url = _match.group(0)
-                        if 'View Deployment:' in _line:
-                            _match = re.search(r'https://[^\s]+', _line)
+                        # Also catch any modal.run URL as fallback
+                        if not _endpoint_url and '.modal.run' in _line:
+                            _match = _re7.search(r'https://[^\s]+\.modal\.run[^\s]*', _line)
+                            if _match:
+                                _endpoint_url = _match.group(0)
+                        if 'View Deployment:' in _line or 'view deployment' in _line.lower():
+                            _match = _re7.search(r'https://[^\s]+', _line)
                             if _match:
                                 _view_url = _match.group(0)
+                        if 'App deployed' in _line or 'deployed!' in _line.lower() or '✓' in _line:
+                            _success = True
                     
-                    # Build concise output
-                    if _endpoint_url:
+                    # Build concise output - show success callout with URL
+                    if _endpoint_url or _success:
                         # Auto-save URL to state file for persistence
-                        _state_file = Path(".marimo-state.json")
-                        try:
-                            _state = {}
-                            if _state_file.exists():
-                                _state = json.loads(_state_file.read_text())
-                            _state["modal_prod_url"] = _endpoint_url
-                            _state_file.write_text(json.dumps(_state, indent=2))
-                        except:
-                            pass
+                        if _endpoint_url:
+                            _state_file = Path(".marimo-state.json")
+                            try:
+                                _state = {}
+                                if _state_file.exists():
+                                    _state = json.loads(_state_file.read_text())
+                                _state["modal_prod_url"] = _endpoint_url
+                                _state_file.write_text(json.dumps(_state, indent=2))
+                            except:
+                                pass
                         
-                        _summary = f"**🎉 Deployed with guardrails!**\n\n**Endpoint URL:** `{_endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in Playground step)*"
+                        if _endpoint_url:
+                            _summary = f"**🎉 Deployed with guardrails!**\n\n**Config:** `{_config_ref}`\n\n**Endpoint URL:** `{_endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in Playground step)*"
+                        else:
+                            _summary = f"**🎉 Deployed with guardrails!**\n\n**Config:** `{_config_ref}`\n\n*(Could not extract endpoint URL - check Modal dashboard)*"
                         if _view_url:
                             _summary += f"\n\n[View deployment on Modal]({_view_url})"
                         step7_deploy_terminal = mo.vstack([
                             _config_selector_row,
                             _command_row,
-                            mo.callout(mo.md(f"✅ Config: `{_config_ref}`"), kind="success"),
                             mo.callout(mo.md(_summary), kind="success")
                         ], gap=1)
                     else:
-                        # Fallback: show last 15 lines if we couldn't parse
+                        # Only show output if something went wrong (no success detected)
                         _lines = _output.strip().split('\n')
                         _truncated = '\n'.join(_lines[-15:]) if len(_lines) > 15 else _output
                         step7_deploy_terminal = mo.vstack([
                             _config_selector_row,
                             _command_row,
-                            mo.callout(mo.md(f"✅ Config: `{_config_ref}`"), kind="success"),
+                            mo.callout(mo.md(f"⚠️ Deploy output (check for errors):"), kind="warn"),
                             mo.md(f"```\n{_truncated}\n```")
                         ], gap=1)
                 except FileNotFoundError:
