@@ -2321,7 +2321,14 @@ def _(mo, glob, Path, shutil):
         on_click=lambda v: v + 1
     )
     
-    return (copy_step7_btn,)
+    # Button to save selected config for Step 7 deployment
+    save_step7_config_btn = mo.ui.button(
+        label="💾 Save Config for Step 7 Deployment",
+        on_click=lambda v: v + 1,
+        value=0
+    )
+    
+    return (copy_step7_btn, save_step7_config_btn)
 
 
 @app.cell
@@ -2367,7 +2374,47 @@ def _(mo, copy_step7_btn, Path, glob, shutil):
 
 
 @app.cell
-def _(mo, copy_step7_btn, copy_step7_output):
+def _(mo, save_step7_config_btn, config_selector, version_selector, Path, json):
+    # ============================================================================
+    # STEP 7: SAVE CONFIG FOR DEPLOYMENT
+    # ============================================================================
+    
+    # Save selected config to workspace/step-7/config.json when button is clicked
+    if save_step7_config_btn.value > 0:
+        _config_name = config_selector.value
+        _version = version_selector.value
+        
+        if _config_name and _config_name != "No configs found" and _version:
+            _config_ref = f"{_config_name}:{_version}"
+            _config_json_path = Path("workspace/step-7/config.json")
+            _config_json_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            _config_data = {"config_ref": _config_ref}
+            _config_json_path.write_text(json.dumps(_config_data, indent=2))
+            
+            save_step7_config_output = mo.callout(
+                mo.md(f"""
+✅ **Config saved for Step 7 deployment!**
+
+Saved `{_config_ref}` to `workspace/step-7/config.json`
+
+When you deploy with guardrails, the server will use this config version.
+                """),
+                kind="success"
+            )
+        else:
+            save_step7_config_output = mo.callout(
+                mo.md("❌ Please select a config and version first."),
+                kind="danger"
+            )
+    else:
+        save_step7_config_output = mo.md("")
+    
+    return (save_step7_config_output,)
+
+
+@app.cell
+def _(mo, copy_step7_btn, copy_step7_output, config_selector, version_selector, refresh_btn, save_step7_config_btn, save_step7_config_output):
     # ============================================================================
     # STEP 7: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2391,6 +2438,21 @@ def _(mo, copy_step7_btn, copy_step7_output):
         """),
         copy_step7_btn,
         copy_step7_output,
+        mo.md("""
+    ##
+    
+    Before deploying with guardrails, select which agent config version to use:
+    """),
+        
+        mo.hstack([config_selector, version_selector], justify="start", gap=1),
+        
+        mo.md(f"""
+        *Don't see your config? {refresh_btn} to get the latest.*
+        """),
+        
+        mo.hstack([save_step7_config_btn], justify="start", gap=1),
+        save_step7_config_output,
+        
         mo.md("""
     ---
 
