@@ -1963,7 +1963,7 @@ async def _(mo, modal_setup_run, os):
 
 
 @app.cell
-async def _(mo, modal_secrets_run, os, wandb_key_input, openai_key_input, bot_key_input):
+async def _(mo, modal_secrets_run, os, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input):
     # ============================================================================
     # STEP 6: MODAL SECRETS TERMINAL (terminal-like command cell)
     # ============================================================================
@@ -1971,12 +1971,14 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, openai_key_input, bot_ke
     
     # Get keys from Step 1 inputs (or env vars)
     _wandb = wandb_key_input.value or os.getenv("WANDB_API_KEY", "")
+    _wandb_project = wandb_project_input.value or os.getenv("WANDB_PROJECT", "")
     _openai = openai_key_input.value or os.getenv("OPENAI_API_KEY", "")
     _bot = bot_key_input.value or os.getenv("AGENTIC_SUPPORT_BOT_API_KEY", "")
     
     # Command display (with placeholders for security - don't show actual keys)
     _cmd_display = """uv run modal secret create --env main agentic-support-bot-secrets \\
     WANDB_API_KEY=<from-step-1> \\
+    WANDB_PROJECT=<from-step-1> \\
     OPENAI_API_KEY=<from-step-1> \\
     AGENTIC_SUPPORT_BOT_API_KEY=<from-step-1>"""
     
@@ -1994,13 +1996,14 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, openai_key_input, bot_ke
         # Validate keys first
         _missing = []
         if not _wandb: _missing.append("WANDB_API_KEY")
+        if not _wandb_project: _missing.append("WANDB_PROJECT")
         if not _openai: _missing.append("OPENAI_API_KEY")
         if not _bot: _missing.append("AGENTIC_SUPPORT_BOT_API_KEY")
         
         if _missing:
             modal_secrets_terminal = mo.vstack([
                 _command_display,
-                mo.md(f"```\nError: Missing API keys: {', '.join(_missing)}\nConfigure these in Step 1 first.\n```")
+                mo.md(f"```\nError: Missing values: {', '.join(_missing)}\nConfigure these in Step 1 first.\n```")
             ])
         else:
             # Execute command with actual keys (--env main to match server)
@@ -2008,6 +2011,7 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, openai_key_input, bot_ke
                 _process = await _asyncio_secrets.create_subprocess_exec(
                     "uv", "run", "modal", "secret", "create", "--env", "main", "agentic-support-bot-secrets",
                     f"WANDB_API_KEY={_wandb}",
+                    f"WANDB_PROJECT={_wandb_project}",
                     f"OPENAI_API_KEY={_openai}",
                     f"AGENTIC_SUPPORT_BOT_API_KEY={_bot}",
                     stdout=_asyncio_secrets.subprocess.PIPE,
@@ -2223,8 +2227,6 @@ This will open a browser window to authenticate. Once complete, you're ready to 
         
         mo.md("""
         ##
-        
-        **Set up secrets** (required before first deploy, run again if you change API keys):
         
         Your agent needs API keys to run on Modal. Run the command below to add/update them in Modal's secrets manager:
         """),
