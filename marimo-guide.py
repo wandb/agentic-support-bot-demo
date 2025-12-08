@@ -2177,12 +2177,15 @@ def _(mo, prod_url_input, bot_key_input, os, modal_deploy_terminal, modal_setup_
     step6_content = mo.vstack([
         mo.md("""
         ##
+        ## Test your agent in Weave Playground 🎮
             
-        **Goal:** Deploy your agent as an API service and test it using Weave Playground.
+        **Goal:** Deploy a basic server and test your agent interactively using Weave's built-in Playground.
 
-        After building confidence through your evaluations, it's time to deploy the agent to production! So far you've been testing your agent directly in this notebook, but now you'll deploy it as a real API service that can be accessed from anywhere - including Weave's built-in Playground for interactive testing.
+        So far you've been testing your agent directly in this notebook. Now you'll deploy it as an API service so you can test it in Weave Playground - a chat interface that lets you interact with your agent while viewing traces in real-time.
 
         You'll use [Modal](https://modal.com) to deploy your agent. Modal makes it easy to deploy Python apps as serverless APIs with just a few commands.
+        
+        *Note: This is for testing only. For production deployment with guardrails, continue to Step 7.*
         """),
         
         mo.accordion({
@@ -2436,20 +2439,18 @@ def _(mo, copy_step7_btn, copy_step7_output, step7_deploy_terminal):
     step7_content = mo.vstack([
         mo.md("""
         ##  
-        ## Online monitoring & guardrails 🛡️
+        ## Deploy to production with guardrails & monitoring 🚀
 
-        **Goal:** Add production safety controls and quality monitoring to your deployed agent.
+        **Goal:** Deploy your agent to production with safety controls and quality monitoring.
 
-        After Step 6, your agent is deployed and accessible, but you have no safety mechanisms or production monitoring. This step adds two complementary patterns:
+        This is the step you'll return to whenever you want to deploy a new version of your agent. It adds two production-critical patterns:
 
-        - **Part A: Guardrails** - Active safety controls that block unsafe input
+        - **Part A: Guardrails** - Active safety controls that block unsafe input before generation
         - **Part B: Monitors** - Passive quality tracking that samples and scores production traffic
 
-        Guardrails and monitors work together: guardrails ensure safety in real-time, while monitors help you understand quality trends and identify areas for improvement.
+        Guardrails ensure safety in real-time, while monitors help you track quality trends and identify areas for improvement.
 
-        **Setup:** Copy all Step 7 files to your workspace - these include:
-        - **Part A**: Guardrails (`guardrails.py`, updated `server.py`)
-        - **Part B**: Monitors (configured via Weave UI, no files to copy)
+        **Setup:** Copy the guardrails files to your workspace:
         """),
         copy_step7_btn,
         copy_step7_output,
