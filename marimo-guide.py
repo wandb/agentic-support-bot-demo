@@ -1975,7 +1975,7 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, openai_key_input, bot_ke
     _bot = bot_key_input.value or os.getenv("AGENTIC_SUPPORT_BOT_API_KEY", "")
     
     # Command display (with placeholders for security - don't show actual keys)
-    _cmd_display = """uv run modal secret create agentic-support-bot-secrets \\
+    _cmd_display = """uv run modal secret create --env main agentic-support-bot-secrets \\
     WANDB_API_KEY=<from-step-1> \\
     OPENAI_API_KEY=<from-step-1> \\
     AGENTIC_SUPPORT_BOT_API_KEY=<from-step-1>"""
@@ -2003,10 +2003,10 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, openai_key_input, bot_ke
                 mo.md(f"```\nError: Missing API keys: {', '.join(_missing)}\nConfigure these in Step 1 first.\n```")
             ])
         else:
-            # Execute command with actual keys
+            # Execute command with actual keys (--env main to match server)
             try:
                 _process = await _asyncio_secrets.create_subprocess_exec(
-                    "uv", "run", "modal", "secret", "create", "agentic-support-bot-secrets",
+                    "uv", "run", "modal", "secret", "create", "--env", "main", "agentic-support-bot-secrets",
                     f"WANDB_API_KEY={_wandb}",
                     f"OPENAI_API_KEY={_openai}",
                     f"AGENTIC_SUPPORT_BOT_API_KEY={_bot}",
@@ -2217,22 +2217,26 @@ After creating your account, run the command below to authenticate the Modal CLI
                 modal_setup_terminal,
                 mo.md("""
 This will open a browser window to authenticate. Once complete, you're ready to deploy!
-
-**3. Add your secrets to Modal**
-
-Your agent needs API keys to run. Run the command below to add them to Modal's secrets manager (uses values from Step 1):
-                """),
-                modal_secrets_terminal,
-                mo.md("""
-*The command above uses your API keys from Step 1. Make sure they're configured before running.*
                 """)
             ])
         }),
         
+        mo.md("""
+        ##
+        
+        **Set up secrets** (required before first deploy, run again if you change API keys):
+        
+        Your agent needs API keys to run on Modal. Run the command below to add/update them in Modal's secrets manager:
+        """),
+        modal_secrets_terminal,
+        mo.md("""
+        *Uses your API keys from Step 1. The secrets are stored securely in Modal and injected at runtime.*
+        """),
+        
         mo.md(f"""
         ##
 
-        Once you have your Modal account set up, select which config version to deploy and click Deploy. This will:
+        **Deploy your agent** - select which config version to deploy and click Deploy. This will:
         - Build a production container image
         - Deploy to persistent infrastructure
         - Provide a stable HTTPS URL that stays active 24/7
