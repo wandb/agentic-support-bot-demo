@@ -2218,7 +2218,6 @@ Your agent needs API keys to run. Run the command below to add them to Modal's s
         ##
 
         Once you have your Modal account set up, select which config version to deploy and click Deploy. This will:
-        - Save the config to `workspace/step-6/config.json`
         - Build a production container image
         - Deploy to persistent infrastructure
         - Provide a stable HTTPS URL that stays active 24/7
