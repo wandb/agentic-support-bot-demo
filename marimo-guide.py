@@ -2131,13 +2131,57 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn
                     _stdout, _ = await _process.communicate()
                     _output = _stdout.decode() if _stdout else ""
                     
-                    # Show command + output below
-                    modal_deploy_terminal = mo.vstack([
-                        _config_selector_row,
-                        _command_row,
-                        mo.callout(mo.md(f"✅ Deploying with config: `{_config_ref}`"), kind="success"),
-                        mo.md(f"```\n{_output}\n```") if _output else mo.md("")
-                    ], gap=1)
+                    # Extract key info from Modal output (URL, success message)
+                    import re
+                    _endpoint_url = ""
+                    _view_url = ""
+                    _success = False
+                    
+                    for line in _output.split('\n'):
+                        if 'modal_endpoint =>' in line or 'web function' in line.lower():
+                            # Extract URL from line like "Created web function modal_endpoint => https://..."
+                            match = re.search(r'https://[^\s]+', line)
+                            if match:
+                                _endpoint_url = match.group(0)
+                        if 'View Deployment:' in line:
+                            match = re.search(r'https://[^\s]+', line)
+                            if match:
+                                _view_url = match.group(0)
+                        if 'App deployed' in line or '✓' in line:
+                            _success = True
+                    
+                    # Build concise output
+                    if _endpoint_url:
+                        # Auto-save URL to state file for persistence
+                        _state_file = Path(".marimo-state.json")
+                        try:
+                            _state = {}
+                            if _state_file.exists():
+                                _state = json.loads(_state_file.read_text())
+                            _state["modal_prod_url"] = _endpoint_url
+                            _state_file.write_text(json.dumps(_state, indent=2))
+                        except:
+                            pass
+                        
+                        _summary = f"**🎉 Deployed successfully!**\n\n**Endpoint URL:** `{_endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in the input below)*"
+                        if _view_url:
+                            _summary += f"\n\n[View deployment on Modal]({_view_url})"
+                        modal_deploy_terminal = mo.vstack([
+                            _config_selector_row,
+                            _command_row,
+                            mo.callout(mo.md(f"✅ Config: `{_config_ref}`"), kind="success"),
+                            mo.callout(mo.md(_summary), kind="success")
+                        ], gap=1)
+                    else:
+                        # Fallback: show last 15 lines if we couldn't parse
+                        _lines = _output.strip().split('\n')
+                        _truncated = '\n'.join(_lines[-15:]) if len(_lines) > 15 else _output
+                        modal_deploy_terminal = mo.vstack([
+                            _config_selector_row,
+                            _command_row,
+                            mo.callout(mo.md(f"✅ Config: `{_config_ref}`"), kind="success"),
+                            mo.md(f"```\n{_truncated}\n```")
+                        ], gap=1)
                 except FileNotFoundError:
                     modal_deploy_terminal = mo.vstack([
                         _config_selector_row,
@@ -2407,13 +2451,53 @@ async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn
                     _stdout, _ = await _process.communicate()
                     _output = _stdout.decode() if _stdout else ""
                     
-                    # Show command + output below
-                    step7_deploy_terminal = mo.vstack([
-                        _config_selector_row,
-                        _command_row,
-                        mo.callout(mo.md(f"✅ Deploying with guardrails using config: `{_config_ref}`"), kind="success"),
-                        mo.md(f"```\n{_output}\n```") if _output else mo.md("")
-                    ], gap=1)
+                    # Extract key info from Modal output (URL, success message)
+                    import re
+                    _endpoint_url = ""
+                    _view_url = ""
+                    
+                    for line in _output.split('\n'):
+                        if 'modal_endpoint =>' in line or 'web function' in line.lower():
+                            match = re.search(r'https://[^\s]+', line)
+                            if match:
+                                _endpoint_url = match.group(0)
+                        if 'View Deployment:' in line:
+                            match = re.search(r'https://[^\s]+', line)
+                            if match:
+                                _view_url = match.group(0)
+                    
+                    # Build concise output
+                    if _endpoint_url:
+                        # Auto-save URL to state file for persistence
+                        _state_file = Path(".marimo-state.json")
+                        try:
+                            _state = {}
+                            if _state_file.exists():
+                                _state = json.loads(_state_file.read_text())
+                            _state["modal_prod_url"] = _endpoint_url
+                            _state_file.write_text(json.dumps(_state, indent=2))
+                        except:
+                            pass
+                        
+                        _summary = f"**🎉 Deployed with guardrails!**\n\n**Endpoint URL:** `{_endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in Playground step)*"
+                        if _view_url:
+                            _summary += f"\n\n[View deployment on Modal]({_view_url})"
+                        step7_deploy_terminal = mo.vstack([
+                            _config_selector_row,
+                            _command_row,
+                            mo.callout(mo.md(f"✅ Config: `{_config_ref}`"), kind="success"),
+                            mo.callout(mo.md(_summary), kind="success")
+                        ], gap=1)
+                    else:
+                        # Fallback: show last 15 lines if we couldn't parse
+                        _lines = _output.strip().split('\n')
+                        _truncated = '\n'.join(_lines[-15:]) if len(_lines) > 15 else _output
+                        step7_deploy_terminal = mo.vstack([
+                            _config_selector_row,
+                            _command_row,
+                            mo.callout(mo.md(f"✅ Config: `{_config_ref}`"), kind="success"),
+                            mo.md(f"```\n{_truncated}\n```")
+                        ], gap=1)
                 except FileNotFoundError:
                     step7_deploy_terminal = mo.vstack([
                         _config_selector_row,
