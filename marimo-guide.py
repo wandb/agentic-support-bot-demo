@@ -1915,7 +1915,14 @@ def _(mo, Path, json):
     modal_secrets_run = mo.ui.run_button(label="▶ Run")
     modal_deploy_run = mo.ui.run_button(label="▶ Run")
     
-    return (prod_url_input, modal_setup_run, modal_secrets_run, modal_deploy_run)
+    # Button to save selected config for deployment
+    save_deploy_config_btn = mo.ui.button(
+        label="💾 Save Config for Deployment",
+        on_click=lambda v: v + 1,
+        value=0
+    )
+    
+    return (prod_url_input, modal_setup_run, modal_secrets_run, modal_deploy_run, save_deploy_config_btn)
 
 
 @app.cell
@@ -1937,6 +1944,46 @@ def _(mo, prod_url_input, weave_entity, weave_project, Path, json):
             pass
     
     return
+
+
+@app.cell
+def _(mo, save_deploy_config_btn, config_selector, version_selector, Path, json):
+    # ============================================================================
+    # STEP 6: SAVE CONFIG FOR DEPLOYMENT
+    # ============================================================================
+    
+    # Save selected config to workspace/step-6/config.json when button is clicked
+    if save_deploy_config_btn.value > 0:
+        _config_name = config_selector.value
+        _version = version_selector.value
+        
+        if _config_name and _config_name != "No configs found" and _version:
+            _config_ref = f"{_config_name}:{_version}"
+            _config_json_path = Path("workspace/step-6/config.json")
+            _config_json_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            _config_data = {"config_ref": _config_ref}
+            _config_json_path.write_text(json.dumps(_config_data, indent=2))
+            
+            save_deploy_config_output = mo.callout(
+                mo.md(f"""
+✅ **Config saved for deployment!**
+
+Saved `{_config_ref}` to `workspace/step-6/config.json`
+
+When you deploy, the server will use this config version.
+                """),
+                kind="success"
+            )
+        else:
+            save_deploy_config_output = mo.callout(
+                mo.md("❌ Please select a config and version first."),
+                kind="danger"
+            )
+    else:
+        save_deploy_config_output = mo.md("")
+    
+    return (save_deploy_config_output,)
 
 
 @app.cell
@@ -2124,7 +2171,7 @@ async def _(mo, modal_deploy_run, Path, os):
 
 
 @app.cell
-def _(mo, prod_url_input, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
+def _(mo, prod_url_input, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url, config_selector, version_selector, refresh_btn, save_deploy_config_btn, save_deploy_config_output):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2182,8 +2229,23 @@ Your agent needs API keys to run. Run the command below to add them to Modal's s
         
         mo.md("""
         ##
+        
+        Before deploying, select which agent config version you want to deploy to production:
+        """),
+        
+        mo.hstack([config_selector, version_selector], justify="start", gap=1),
+        
+        mo.md(f"""
+        *Don't see your config? {refresh_btn} to get the latest.*
+        """),
+        
+        mo.hstack([save_deploy_config_btn], justify="start", gap=1),
+        save_deploy_config_output,
+        
+        mo.md("""
+        ##
 
-        Once you have your Modal account set up, you can deploy your agent.  Running the command below will:
+        Once you've saved your config and have your Modal account set up, you can deploy your agent.  Running the command below will:
         - Build a production container image
         - Deploy to persistent infrastructure
         - Provide a stable HTTPS URL that stays active 24/7
