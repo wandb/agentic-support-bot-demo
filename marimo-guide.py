@@ -2104,22 +2104,21 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn
                     _output = _stdout.decode() if _stdout else ""
                     
                     # Extract key info from Modal output (URL, success message)
-                    import re
                     _endpoint_url = ""
                     _view_url = ""
                     _success = False
                     
-                    for line in _output.split('\n'):
-                        if 'modal_endpoint =>' in line or 'web function' in line.lower():
+                    for _line in _output.split('\n'):
+                        if 'modal_endpoint =>' in _line or 'web function' in _line.lower():
                             # Extract URL from line like "Created web function modal_endpoint => https://..."
-                            match = re.search(r'https://[^\s]+', line)
-                            if match:
-                                _endpoint_url = match.group(0)
-                        if 'View Deployment:' in line:
-                            match = re.search(r'https://[^\s]+', line)
-                            if match:
-                                _view_url = match.group(0)
-                        if 'App deployed' in line or '✓' in line:
+                            _match = re.search(r'https://[^\s]+', _line)
+                            if _match:
+                                _endpoint_url = _match.group(0)
+                        if 'View Deployment:' in _line:
+                            _match = re.search(r'https://[^\s]+', _line)
+                            if _match:
+                                _view_url = _match.group(0)
+                        if 'App deployed' in _line or '✓' in _line:
                             _success = True
                     
                     # Build concise output
@@ -2418,19 +2417,18 @@ async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn
                     _output = _stdout.decode() if _stdout else ""
                     
                     # Extract key info from Modal output (URL, success message)
-                    import re
                     _endpoint_url = ""
                     _view_url = ""
                     
-                    for line in _output.split('\n'):
-                        if 'modal_endpoint =>' in line or 'web function' in line.lower():
-                            match = re.search(r'https://[^\s]+', line)
-                            if match:
-                                _endpoint_url = match.group(0)
-                        if 'View Deployment:' in line:
-                            match = re.search(r'https://[^\s]+', line)
-                            if match:
-                                _view_url = match.group(0)
+                    for _line in _output.split('\n'):
+                        if 'modal_endpoint =>' in _line or 'web function' in _line.lower():
+                            _match = re.search(r'https://[^\s]+', _line)
+                            if _match:
+                                _endpoint_url = _match.group(0)
+                        if 'View Deployment:' in _line:
+                            _match = re.search(r'https://[^\s]+', _line)
+                            if _match:
+                                _view_url = _match.group(0)
                     
                     # Build concise output
                     if _endpoint_url:
