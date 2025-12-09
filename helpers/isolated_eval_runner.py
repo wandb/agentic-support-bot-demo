@@ -87,19 +87,19 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
         ref_str = config_ref if ":" in config_ref else f"{config_ref}:latest"
         
         try:
-        config_obj = weave.ref(ref_str).get()
-        
+            config_obj = weave.ref(ref_str).get()
+            
             # Extract YAML content from AgentConfig object
             # AgentConfig is a custom Weave Object with a 'yaml' attribute
             if hasattr(config_obj, 'yaml'):
-        yaml_content = config_obj.yaml
-        config_name = config_obj.name
+                yaml_content = config_obj.yaml
+                config_name = config_obj.name
             else:
                 # Fallback: if it's a dict or other structure
                 emit({"type": "error", "message": f"Unexpected config object type: {type(config_obj)}. Expected AgentConfig with 'yaml' attribute."})
                 return
-        
-        emit({"type": "status", "message": f"Loaded config '{config_name}' from Weave ({ref_str})"})
+            
+            emit({"type": "status", "message": f"Loaded config '{config_name}' from Weave ({ref_str})"})
             
         except Exception as e:
             emit({"type": "error", "message": f"Failed to load config from Weave: {e}. Make sure the config exists."})
@@ -111,7 +111,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
         
         try:
             temp_config_path.write_text(yaml_content)
-        emit({"type": "status", "message": f"Config written to {temp_config_path}"})
+            emit({"type": "status", "message": f"Config written to {temp_config_path}"})
         except Exception as e:
             emit({"type": "error", "message": f"Failed to write config file: {e}"})
             return
