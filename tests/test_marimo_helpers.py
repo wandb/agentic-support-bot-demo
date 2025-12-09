@@ -331,8 +331,8 @@ class TestBuildTracesSection:
         
         assert traces_table in components
     
-    def test_no_traces_yet_shows_loading(self):
-        """Should show loading message when messages sent but no traces yet."""
+    def test_no_traces_yet_shows_nothing(self):
+        """Should not show anything when no traces yet - just the header."""
         mo = MagicMock()
         mo.md.return_value = "markdown"
         mo.callout.return_value = "callout"
@@ -346,10 +346,10 @@ class TestBuildTracesSection:
             mo, None, None, chat_widget, "http://traces"
         )
         
-        # Should NOT have called callout - just shows loading md
+        # Should NOT have called callout
         mo.callout.assert_not_called()
-        # Should show loading message via mo.md
-        assert any("Loading traces" in str(call) for call in mo.md.call_args_list)
+        # Components should just have the header (1 item)
+        assert len(components) == 1
 
 
 class TestCreateStepChatWidget:

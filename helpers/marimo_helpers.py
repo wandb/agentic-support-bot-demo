@@ -337,24 +337,14 @@ def build_traces_section(
             """)
         ])
     elif traces_error:
-        # Show warning only for actual errors (not "no traces yet")
+        # Show warning only for actual errors
         components.append(
             mo.callout(
                 mo.md(f"⚠️ {traces_error}"),
                 kind="warn"
             )
         )
-    elif chat_widget is not None and len(chat_widget.value) == 0:
-        # No messages sent yet
-        components.append(
-            mo.callout(
-                mo.md("💬 **Send a message above** to see traces appear here automatically."),
-                kind="info"
-            )
-        )
-    else:
-        # Messages exist but traces not loaded yet
-        components.append(mo.md("⏳ Loading traces..."))
+    # Otherwise, just don't show anything - traces will appear when available
     
     return components
 
