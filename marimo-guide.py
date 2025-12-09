@@ -1200,20 +1200,21 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
             """),
             
             mo.md("""
-            ### Model
+            ## 
+
             Select a model from [W&B Inference](https://docs.wandb.ai/inference) - all available open-source models are included.
             """),
 
             model_dropdown,
             
             mo.md("""
-            ### Name
+            Give your agent a name — something memorable like "Buzz", "Atlas", or "Scout".
             """),
 
             name_input,
 
             mo.md("""
-            ### Purpose
+            Define what the agent should do — this becomes the core of its system prompt.
             """),
 
             example_purpose_accordion,
@@ -1221,7 +1222,7 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
             purpose_input,
 
             mo.md("""
-            ### Notes
+            Add any additional context, guidelines, or constraints for the agent's behavior.
             """),
             
             example_notes_accordion,
@@ -1229,6 +1230,8 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
             notes_input,
 
             mo.md("""
+            ## 
+            
             Try the same prompts from Step 3 and see if the agent behaves more like a support bot:
             
             ```
