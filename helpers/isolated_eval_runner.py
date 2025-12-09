@@ -244,7 +244,7 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
             # Always finalize the evaluation logger to prevent cleanup errors
             try:
                 # Log summary (this also finalizes the evaluation)
-                eval_logger.log_summary({"total_cases": len(test_cases), "sample": sample_size is not None})
+                eval_logger.log_summary({"total_cases": len(eval_dataset.rows), "sample": sample_size is not None})
             except Exception as summary_error:
                 # If log_summary fails, try explicit finish
                 emit({"type": "status", "message": f"Warning: log_summary failed ({summary_error}), calling finish()"})
