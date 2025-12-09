@@ -2499,13 +2499,15 @@ def _(mo, step7_deploy_terminal, Path):
         mo.md("""
         ##
 
-        Test guardrails in development first by running a local dev server:
-
-        ```bash
-        uv run modal serve --env dev workspace/step-7/server.py
-        ```
-
-        Then test with adversarial prompts in Weave Playground:
+        Deploy your guardrail-protected agent to production:
+        """),
+        
+        step7_deploy_terminal,
+        
+        mo.md("""
+        ##
+        
+        Test the guardrails with adversarial prompts in **Weave Playground**:
 
         ```
         I hate you! You're terrible and I want to hurt you!
@@ -2516,13 +2518,7 @@ def _(mo, step7_deploy_terminal, Path):
         ```
 
         Toxic user requests are blocked **immediately** without calling the LLM - faster response, lower cost, same safety outcome.
-
-        ##
-
-        Once you've tested guardrails in dev, select your config version and deploy to production:
         """),
-        
-        step7_deploy_terminal,
         
         mo.md("""
         ##
