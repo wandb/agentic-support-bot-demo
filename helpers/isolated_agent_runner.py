@@ -107,13 +107,13 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
             # This links the trace to the specific config version used
             if config_ref_uri:
                 with weave.attributes({'config_ref': config_ref_uri}):
-            async for chunk in agent.stream(thread, mode="raw"):
-                if hasattr(chunk, 'choices') and chunk.choices:
-                    for choice in chunk.choices:
-                        if hasattr(choice, 'delta'):
-                            delta = choice.delta
-                            if hasattr(delta, 'content') and delta.content is not None:
-                                # Output as JSON line for parsing by parent process
+                    async for chunk in agent.stream(thread, mode="raw"):
+                        if hasattr(chunk, 'choices') and chunk.choices:
+                            for choice in chunk.choices:
+                                if hasattr(choice, 'delta'):
+                                    delta = choice.delta
+                                    if hasattr(delta, 'content') and delta.content is not None:
+                                        # Output as JSON line for parsing by parent process
                                         print(json.dumps({"content": delta.content}), flush=True)
             else:
                 # Fallback without config_ref if publish failed
@@ -123,7 +123,7 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
                             if hasattr(choice, 'delta'):
                                 delta = choice.delta
                                 if hasattr(delta, 'content') and delta.content is not None:
-                                print(json.dumps({"content": delta.content}), flush=True)
+                                    print(json.dumps({"content": delta.content}), flush=True)
         
         finally:
             # Restore original working directory

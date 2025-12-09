@@ -65,15 +65,6 @@ def _():
         if _example_path.exists():
             _env_path.write_text(_example_path.read_text())
     
-    # Create workspace/db directory and copy sample data if needed
-    _workspace_db = Path("workspace/db")
-    _workspace_db.mkdir(parents=True, exist_ok=True)
-    _tickets_file = _workspace_db / "tickets.json"
-    if not _tickets_file.exists():
-        _sample_file = Path("db/tickets.sample.json")
-        if _sample_file.exists():
-            shutil.copy2(_sample_file, _tickets_file)
-    
     # Load environment variables (suppress output)
     _ = load_dotenv()
     return (Path, datetime, glob, json, load_dotenv, mo, os, random, re, shutil, subprocess, sys, timezone, yaml, session_start_time,
@@ -294,9 +285,9 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
 
 
 @app.cell
-def _(auto_copy_step_files, Path, shutil, os, glob):
+def _(auto_copy_step_files, Path, shutil, glob):
     # ============================================================================
-    # STEP 2-4, 6: AUTO-COPY LOGIC (using helper)
+    # STEP 2-4, 6, 7: AUTO-COPY LOGIC (using helper)
     # ============================================================================
     
     # Auto-copy step files to workspace directories (skips if config already exists)
@@ -324,13 +315,17 @@ def _(auto_copy_step_files, Path, shutil, os, glob):
         if not _dest_file.exists():
             shutil.copy2(_src, _dest_file)
     
-    # Set database path to shared location (not per-step)
-    # This allows all steps to share the same ticket database
-    _shared_db_path = Path("db/tickets.json").absolute()
-    if not _shared_db_path.exists() and Path("db/tickets.sample.json").exists():
-        _shared_db_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2("db/tickets.sample.json", _shared_db_path)
-    os.environ["TICKETS_DB_PATH"] = str(_shared_db_path)
+    # Copy db/ folder to all steps that use tools (steps 3, 4, 6, 7)
+    # Each step gets its own db/tickets.json so Modal deployments work correctly
+    # (Modal's add_local_dir only copies the step directory, not shared locations)
+    _sample_db = Path("db/tickets.sample.json")
+    if _sample_db.exists():
+        for _step_num in [3, 4, 6, 7]:
+            _step_db_dir = Path(f"workspace/step-{_step_num}/db")
+            _step_db_dir.mkdir(parents=True, exist_ok=True)
+            _step_db_file = _step_db_dir / "tickets.json"
+            if not _step_db_file.exists():
+                shutil.copy2(_sample_db, _step_db_file)
     
     return
 
