@@ -69,6 +69,54 @@ def trace_peek_url(entity: str, project: str, trace_id: str) -> str:
 
 
 # =============================================================================
+# W&B INFERENCE HELPERS
+# =============================================================================
+
+WANDB_INFERENCE_API = "https://api.inference.wandb.ai/v1"
+
+def fetch_wandb_inference_models(wandb_token: str) -> Tuple[List[str], Optional[str]]:
+    """
+    Fetch available models from W&B Inference API.
+    
+    Args:
+        wandb_token: W&B API token for authentication
+        
+    Returns:
+        Tuple of (model_ids, error_message) - error_message is None on success
+    """
+    import requests
+    
+    if not wandb_token:
+        return [], "WANDB_API_KEY not set"
+    
+    try:
+        response = requests.get(
+            f"{WANDB_INFERENCE_API}/models",
+            headers={
+                "Authorization": f"Bearer {wandb_token}",
+                "Content-Type": "application/json"
+            },
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            return [], f"Failed to fetch models: HTTP {response.status_code}"
+        
+        data = response.json()
+        models = data.get("data", [])
+        
+        # Extract model IDs
+        model_ids = [m.get("id") for m in models if m.get("id")]
+        
+        return model_ids, None
+        
+    except requests.exceptions.Timeout:
+        return [], "Request timed out"
+    except Exception as e:
+        return [], f"Error fetching models: {str(e)}"
+
+
+# =============================================================================
 # ENVIRONMENT HELPERS
 # =============================================================================
 

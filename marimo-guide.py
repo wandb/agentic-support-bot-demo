@@ -52,6 +52,8 @@ def _():
         # Agent Config Storage (Weave Objects)
         publish_agent_config,
         fetch_weave_configs,
+        # W&B Inference
+        fetch_wandb_inference_models,
     )
 
     # Capture session start time for filtering traces
@@ -964,9 +966,38 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
 
 
 @app.cell
-def _(mo, Path, yaml):
+def _(mo, os, fetch_wandb_inference_models):
     # ============================================================================
-    # STEP 4: UI ELEMENTS (Name/Purpose/Notes Inputs)
+    # STEP 4: FETCH AVAILABLE MODELS FROM W&B INFERENCE
+    # ============================================================================
+    
+    _wandb_token = os.getenv("WANDB_API_KEY", "")
+    _available_models, _models_error = fetch_wandb_inference_models(_wandb_token)
+    
+    # Default model if fetch fails or returns empty
+    _default_model = "meta-llama/Llama-3.3-70B-Instruct"
+    
+    # Build dropdown options - use fetched models or fallback to common ones
+    if _available_models:
+        wandb_inference_models = _available_models
+    else:
+        # Fallback list of common W&B Inference models
+        wandb_inference_models = [
+            "meta-llama/Llama-3.3-70B-Instruct",
+            "meta-llama/Llama-3.1-8B-Instruct",
+            "Qwen/Qwen2.5-72B-Instruct",
+            "Qwen/QwQ-32B",
+            "deepseek-ai/DeepSeek-R1-0528",
+            "google/gemma-2-27b-it",
+        ]
+    
+    return wandb_inference_models,
+
+
+@app.cell
+def _(mo, Path, yaml, wandb_inference_models):
+    # ============================================================================
+    # STEP 4: UI ELEMENTS (Name/Purpose/Notes/Model Inputs)
     # ============================================================================
     
     # Load current config and extract name/purpose/notes from Step 4
@@ -974,18 +1005,23 @@ def _(mo, Path, yaml):
     _current_name = ""
     _current_purpose = ""
     _current_notes = ""
+    _current_model = "meta-llama/Llama-3.3-70B-Instruct"
     
     if _config_path_step4.exists():
         try:
             _config_data = yaml.safe_load(_config_path_step4.read_text())
-            # Get name, purpose and notes
+            # Get name, purpose, notes and model_name
             _current_name = _config_data.get("name", "") or ""
             _current_purpose = _config_data.get("purpose", "") or ""
             _current_notes = _config_data.get("notes", "") or ""
+            # Extract model from model_name (strip "openai/" prefix if present for W&B Inference)
+            _raw_model = _config_data.get("model_name", "") or ""
+            if _raw_model.startswith("openai/"):
+                _current_model = _raw_model[7:]  # Remove "openai/" prefix
+            elif _raw_model:
+                _current_model = _raw_model
         except Exception as e:
-            _current_name = ""
-            _current_purpose = ""
-            _current_notes = ""
+            pass
     
     # Create inputs WITHOUT on_change callbacks
     # We'll handle saving in a separate reactive cell
@@ -1009,11 +1045,19 @@ def _(mo, Path, yaml):
         full_width=True,
     )
     
-    return name_input, purpose_input, notes_input
+    # Model dropdown - only W&B Inference models
+    model_dropdown = mo.ui.dropdown(
+        options=wandb_inference_models,
+        value=_current_model if _current_model in wandb_inference_models else wandb_inference_models[0],
+        label="",
+        full_width=True,
+    )
+    
+    return name_input, purpose_input, notes_input, model_dropdown
 
 
 @app.cell
-def _(Path, name_input, purpose_input, notes_input):
+def _(Path, name_input, purpose_input, notes_input, model_dropdown):
     # ============================================================================
     # STEP 4: SAVE INPUTS TO CONFIG (reactive - runs when inputs change)
     # Saves to file only, publish happens on chat
@@ -1026,7 +1070,7 @@ def _(Path, name_input, purpose_input, notes_input):
     
     # Use a tuple of input values as the marker - this will change when inputs change
     # Dependent cells will see this tuple change and re-execute
-    step4_inputs_tuple = (name_input.value, purpose_input.value, notes_input.value)
+    step4_inputs_tuple = (name_input.value, purpose_input.value, notes_input.value, model_dropdown.value)
     
     if _config_path_save.exists():
         try:
@@ -1046,6 +1090,8 @@ def _(Path, name_input, purpose_input, notes_input):
             _config["name"] = name_input.value if name_input.value else ""
             _config["purpose"] = purpose_input.value if purpose_input.value else ""
             _config["notes"] = notes_input.value if notes_input.value else ""
+            # Save model with "openai/" prefix for W&B Inference compatibility
+            _config["model_name"] = f"openai/{model_dropdown.value}" if model_dropdown.value else ""
             
             # Write back with comments preserved
             with open(_config_path_save, 'w') as f:
@@ -1058,6 +1104,7 @@ def _(Path, name_input, purpose_input, notes_input):
             _config_data["name"] = name_input.value if name_input.value else ""
             _config_data["purpose"] = purpose_input.value if purpose_input.value else ""
             _config_data["notes"] = notes_input.value if notes_input.value else ""
+            _config_data["model_name"] = f"openai/{model_dropdown.value}" if model_dropdown.value else ""
             _config_path_save.write_text(_pyyaml.dump(_config_data, default_flow_style=False, sort_keys=False))
         except Exception as e:
             pass  # Silently fail to avoid interrupting user experience
@@ -1130,7 +1177,7 @@ def _(mo, os, weave_entity, weave_project, chat_widget_4, session_start_time, fe
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_purpose_accordion, example_notes_accordion, name_input, purpose_input, notes_input, traces_table_4, traces_error_4, weave_traces_url):
+def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_purpose_accordion, example_notes_accordion, name_input, purpose_input, notes_input, model_dropdown, traces_table_4, traces_error_4, weave_traces_url):
     # ============================================================================
     # STEP 4: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1146,10 +1193,18 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
             **Goal:** Improve the agent's behavior by giving it a clear purpose and operational guidelines.
 
             The agent from Step 3 has tools but the agent is still stuck in the "generic assistant" mode. Let's fix that by:
+            - **Selecting a model**: Choose from available W&B Inference models
             - **Naming your agent**: Give it personality!
             - **Defining a clear purpose**: What is this agent's role?  How should it behave?  How should it respond?
             - **Adding operational notes**: When should it use each tool?
             """),
+            
+            mo.md("""
+            ### Model
+            Select a model from [W&B Inference](https://docs.wandb.ai/inference) - all available open-source models are included.
+            """),
+
+            model_dropdown,
             
             mo.md("""
             ### Name
