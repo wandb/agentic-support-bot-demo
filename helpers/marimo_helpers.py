@@ -231,7 +231,7 @@ def fetch_traces_data(
         traces = [json.loads(obj) for obj in json_objects if obj]
         
         if not traces:
-            return None, "No traces found yet. Traces may take a few seconds to appear in Weave after sending a message."
+            return None, None  # No traces yet - will just not show the table
         
         # Build table data
         table_data = []
@@ -337,21 +337,13 @@ def build_traces_section(
             """)
         ])
     elif traces_error:
-        # Check if it's a "no traces yet" message vs actual error
-        if "No traces found yet" in traces_error:
-            components.append(
-                mo.callout(
-                    mo.md(f"⏳ {traces_error}"),
-                    kind="info"
-                )
+        # Show warning only for actual errors (not "no traces yet")
+        components.append(
+            mo.callout(
+                mo.md(f"⚠️ {traces_error}"),
+                kind="warn"
             )
-        else:
-            components.append(
-                mo.callout(
-                    mo.md(f"⚠️ {traces_error}"),
-                    kind="warn"
-                )
-            )
+        )
     elif chat_widget is not None and len(chat_widget.value) == 0:
         # No messages sent yet
         components.append(

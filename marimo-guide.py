@@ -779,22 +779,13 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
                 """)
             ])
         elif traces_error_2a:
-            # Show message if traces failed to load or aren't available yet
-            # Check if it's a "no traces yet" message vs actual error
-            if "No traces found yet" in traces_error_2a:
-                _traces_section.append(
-                    mo.callout(
-                        mo.md(f"⏳ {traces_error_2a}"),
-                        kind="info"
-                    )
+            # Show warning only for actual errors
+            _traces_section.append(
+                mo.callout(
+                    mo.md(f"⚠️ {traces_error_2a}"),
+                    kind="warn"
                 )
-            else:
-                _traces_section.append(
-                    mo.callout(
-                        mo.md(f"⚠️ {traces_error_2a}"),
-                        kind="warn"
-                    )
-                )
+            )
         elif chat_widget_2a is not None and len(chat_widget_2a.value) == 0:
             # No messages sent yet
             _traces_section.append(
@@ -940,14 +931,12 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
             Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Traces will appear below:
             """),
             
-            # Show traces table or loading/error message
+            # Show traces table or error message (no callout when just waiting for traces)
             (traces_table_3 if traces_table_3 is not None 
              else mo.callout(
-                 mo.md(f"⏳ {traces_error_3}") if traces_error_3 and "No traces found yet" in traces_error_3
-                 else mo.md(f"⚠️ {traces_error_3}") if traces_error_3
-                 else mo.md("💬 **Send a message above** to see traces appear here automatically."),
-                 kind="info" if not traces_error_3 or "No traces found yet" in traces_error_3 else "warn"
-             )),
+                 mo.md(f"⚠️ {traces_error_3}"),
+                 kind="warn"
+             ) if traces_error_3 else mo.md("")),
             
             (mo.md(f"""
             💡 **Tip:** Click on the trace link to view the full execution details in Weave, including inputs, outputs, and timing information, or view all traces in [your project]({_traces_url_3})
@@ -1230,14 +1219,12 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
             Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Traces will appear below:
             """),
             
-            # Show traces table or loading/error message
+            # Show traces table or error message (no callout when just waiting for traces)
             (traces_table_4 if traces_table_4 is not None 
              else mo.callout(
-                 mo.md(f"⏳ {traces_error_4}") if traces_error_4 and "No traces found yet" in traces_error_4
-                 else mo.md(f"⚠️ {traces_error_4}") if traces_error_4
-                 else mo.md("💬 **Send a message above** to see traces appear here automatically."),
-                 kind="info" if not traces_error_4 or "No traces found yet" in traces_error_4 else "warn"
-             )),
+                 mo.md(f"⚠️ {traces_error_4}"),
+                 kind="warn"
+             ) if traces_error_4 else mo.md("")),
             
             (mo.md(f"""
             💡 **Tip:** Click on the trace link to view the full execution details in Weave, including inputs, outputs, and timing information, or view all traces in [your project]({_traces_url_4})

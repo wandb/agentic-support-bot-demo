@@ -331,18 +331,25 @@ class TestBuildTracesSection:
         
         assert traces_table in components
     
-    def test_shows_error_when_no_traces(self):
-        """Should show info message when no traces yet."""
+    def test_no_traces_yet_shows_loading(self):
+        """Should show loading message when messages sent but no traces yet."""
         mo = MagicMock()
         mo.md.return_value = "markdown"
         mo.callout.return_value = "callout"
         
+        # Chat widget with messages (so we're waiting for traces)
+        chat_widget = MagicMock()
+        chat_widget.value = [{"role": "user", "content": "test"}]
+        
+        # When no traces and no error, we pass None for both
         components = build_traces_section(
-            mo, None, "No traces found yet.", MagicMock(), "http://traces"
+            mo, None, None, chat_widget, "http://traces"
         )
         
-        # Should have called callout with info kind
-        mo.callout.assert_called()
+        # Should NOT have called callout - just shows loading md
+        mo.callout.assert_not_called()
+        # Should show loading message via mo.md
+        assert any("Loading traces" in str(call) for call in mo.md.call_args_list)
 
 
 class TestCreateStepChatWidget:
