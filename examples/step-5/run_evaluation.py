@@ -117,7 +117,8 @@ async def invoke_agent(agent: Agent, query: str) -> dict[str, Any]:
 
 async def run_evaluation(
     dataset_name: str = "support-bot-eval-dataset",
-    agent_config_path: str = "workspace/tyler-chat-config.yaml",
+    agent_name: str = None,
+    agent_config_path: str = "workspace/step-4/tyler-chat-config.yaml",
     sample_size: int = None,
     use_llm_judges: bool = True
 ):
@@ -126,7 +127,11 @@ async def run_evaluation(
     
     Args:
         dataset_name: Name of the dataset in Weave
-        agent_config_path: Path to the agent config file
+        agent_name: Name of agent in Weave to evaluate (e.g. "Buzz"). 
+                   Will try to load "{agent_name}:latest" from Weave.
+                   Can include version tag (e.g. "Buzz:v2").
+                   If not provided, loads from config file instead.
+        agent_config_path: Path to config file (fallback if agent_name not in Weave)
         sample_size: If set, evaluate only this many random cases (for testing)
         use_llm_judges: Whether to use LLM judge scorers (costs money)
     """
@@ -151,10 +156,27 @@ async def run_evaluation(
     print(f"✓ Connected to Weave project: {weave_project}")
     print()
     
-    # Create agent
-    print(f"Loading agent from: {agent_config_path}")
-    agent = create_agent_from_config(agent_config_path)
-    print(f"✓ Agent created: {agent.name}")
+    # Load agent - try Weave first if agent_name provided, fall back to config
+    if agent_name:
+        print(f"Attempting to load agent '{agent_name}' from Weave...")
+        # If agent_name doesn't include version, append :latest
+        agent_ref_name = agent_name if ':' in agent_name else f"{agent_name}:latest"
+        try:
+            agent_ref = weave.ref(agent_ref_name)
+            agent = agent_ref.get()
+            print(f"✓ Loaded agent from Weave: {agent.name}")
+            print(f"✓ Agent version: {agent_ref.uri()}")
+        except Exception as e:
+            print(f"⚠️  Could not load '{agent_ref_name}' from Weave: {e}")
+            print(f"   Falling back to config file: {agent_config_path}")
+            agent = create_agent_from_config(agent_config_path)
+            print(f"✓ Agent created from config: {agent.name}")
+    else:
+        print(f"Loading agent from config: {agent_config_path}")
+        agent = create_agent_from_config(agent_config_path)
+        print(f"✓ Agent created from config: {agent.name}")
+        print(f"💡 Tip: Use --agent-name '{agent.name}' to evaluate the Weave-tracked version")
+    
     print()
     
     # Load dataset from Weave
@@ -283,15 +305,35 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run full evaluation (often free with W&B Inference)
-  python run_evaluation.py
+  # Evaluate the latest version of agent "Buzz" from Weave (recommended)
+  python run_evaluation.py --agent-name Buzz
+  
+  # Evaluate a specific version from Weave
+  python run_evaluation.py --agent-name Buzz:v3
+  
+  # Evaluate from config file (creates new agent instance)
+  python run_evaluation.py --config workspace/step-4/tyler-chat-config.yaml
   
   # Test on 10 random cases first
-  python run_evaluation.py --sample 10
+  python run_evaluation.py --agent-name Buzz --sample 10
   
   # Run without LLM judges (only tool correctness)
-  python run_evaluation.py --no-llm-judges
+  python run_evaluation.py --agent-name Buzz --no-llm-judges
         """
+    )
+    
+    parser.add_argument(
+        "--agent-name",
+        help="Name of agent in Weave to evaluate (e.g. 'Buzz' loads 'Buzz:latest'). "
+             "Can include version tag (e.g. 'Buzz:v2'). "
+             "If not provided, loads from --config instead."
+    )
+    
+    parser.add_argument(
+        "--config",
+        default="workspace/step-4/tyler-chat-config.yaml",
+        help="Path to agent config file (default: workspace/step-4/tyler-chat-config.yaml). "
+             "Used when --agent-name is not provided."
     )
     
     parser.add_argument(
@@ -312,17 +354,12 @@ Examples:
         help="Name of dataset in Weave (default: support-bot-eval-dataset)"
     )
     
-    parser.add_argument(
-        "--config",
-        default="workspace/tyler-chat-config.yaml",
-        help="Path to agent config file (default: workspace/tyler-chat-config.yaml)"
-    )
-    
     args = parser.parse_args()
     
     # Run the async evaluation
     asyncio.run(run_evaluation(
         dataset_name=args.dataset,
+        agent_name=args.agent_name,
         agent_config_path=args.config,
         sample_size=args.sample,
         use_llm_judges=not args.no_llm_judges

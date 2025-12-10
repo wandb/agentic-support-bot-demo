@@ -1,129 +1,398 @@
 """
-Unit tests for Marimo notebook helper functions.
+Tests for marimo_helpers module.
 
-These tests validate the file operations, config management, URL generation,
-and other utility functions used in the interactive Marimo guide.
+Tests the helper functions used by marimo-guide.py for trace fetching,
+URL building, file operations, and other utilities.
 """
 
-import pytest
-import yaml
+import json
+import os
+import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from helpers.marimo_helpers import (
+    # Constants
+    WEAVE_TRACE_API,
+    WEAVE_OBJS_API,
+    WANDB_BASE_URL,
+    DEFAULT_CHAT_PROMPTS,
+    TOOL_CHAT_PROMPTS,
+    # URL Builders
+    weave_traces_url,
+    weave_evals_url,
+    weave_playground_url,
+    trace_peek_url,
+    # Environment Helpers
+    save_env_var,
+    # File Operations
+    auto_copy_step_files,
+    # Trace Fetching
+    fetch_traces_data,
+    build_traces_table_ui,
+    build_traces_section,
+    # Chat Widget Helpers
+    create_step_chat_widget,
+    # Model Fetching
+    fetch_weave_models,
+)
 
 
-class TestFileOperations:
-    """Test file operation helpers."""
+# =============================================================================
+# CONSTANTS TESTS
+# =============================================================================
+
+class TestConstants:
+    """Test that constants are defined correctly."""
     
-    def test_copy_files_success(self, tmp_path):
-        """GIVEN source files exist WHEN copy_files called THEN files copied"""
-        # Import the function (we'll need to extract it for testing)
-        # For now, this is a placeholder that will fail until we extract helpers
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_api_endpoints_defined(self):
+        """API endpoints should be valid URLs."""
+        assert WEAVE_TRACE_API.startswith("https://")
+        assert WEAVE_OBJS_API.startswith("https://")
+        assert WANDB_BASE_URL.startswith("https://")
     
-    def test_copy_files_no_match(self, tmp_path):
-        """GIVEN pattern matches no files WHEN copy_files called THEN error returned"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_default_prompts_not_empty(self):
+        """Default prompts should have content."""
+        assert len(DEFAULT_CHAT_PROMPTS) > 0
+        assert all(isinstance(p, str) for p in DEFAULT_CHAT_PROMPTS)
+        assert all(len(p) > 0 for p in DEFAULT_CHAT_PROMPTS)
     
-    def test_copy_files_permission_error(self, tmp_path):
-        """GIVEN dest not writable WHEN copy_files called THEN error returned"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
-    
-    def test_copy_files_overwrite_warning(self, tmp_path):
-        """GIVEN files exist WHEN copy_files with confirm THEN warning returned"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_tool_prompts_not_empty(self):
+        """Tool prompts should have content."""
+        assert len(TOOL_CHAT_PROMPTS) > 0
+        assert all(isinstance(p, str) for p in TOOL_CHAT_PROMPTS)
 
 
-class TestConfigOperations:
-    """Test config save/load helpers."""
+# =============================================================================
+# URL BUILDER TESTS
+# =============================================================================
+
+class TestURLBuilders:
+    """Test URL building functions."""
     
-    def test_save_valid_yaml(self, tmp_path):
-        """GIVEN valid YAML WHEN save_config called THEN file written"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_weave_traces_url(self):
+        """Should build correct traces URL."""
+        url = weave_traces_url("test-entity", "test-project")
+        assert url == "https://wandb.ai/test-entity/test-project/weave/traces"
     
-    def test_save_invalid_yaml(self, tmp_path):
-        """GIVEN malformed YAML WHEN save_config called THEN validation error"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_weave_evals_url(self):
+        """Should build correct evaluations URL."""
+        url = weave_evals_url("my-entity", "my-project")
+        assert url == "https://wandb.ai/my-entity/my-project/weave/evaluations"
     
-    def test_load_config_success(self, tmp_path):
-        """GIVEN config file exists WHEN load_config called THEN content returned"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_weave_playground_url(self):
+        """Should build correct playground URL."""
+        url = weave_playground_url("entity", "project")
+        assert url == "https://wandb.ai/entity/project/weave/playground"
     
-    def test_load_config_not_found(self, tmp_path):
-        """GIVEN config file missing WHEN load_config called THEN error returned"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_trace_peek_url(self):
+        """Should build correct trace peek URL with encoded path."""
+        url = trace_peek_url("entity", "project", "trace-123")
+        assert "wandb.ai/entity/project/weave/traces" in url
+        assert "peekPath=" in url
+        assert "trace-123" in url
 
 
-class TestURLGeneration:
-    """Test Weave URL generation."""
+# =============================================================================
+# ENVIRONMENT HELPERS TESTS
+# =============================================================================
+
+class TestSaveEnvVar:
+    """Test save_env_var function."""
     
-    @patch.dict("os.environ", {"WANDB_PROJECT": "myteam/demo"})
-    def test_generate_playground_url(self):
-        """GIVEN entity/project WHEN generate_weave_url THEN correct URL"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_save_new_var(self, tmp_path, monkeypatch):
+        """Should add new variable to .env file."""
+        monkeypatch.chdir(tmp_path)
+        
+        # Create empty .env
+        env_file = tmp_path / ".env"
+        env_file.write_text("")
+        
+        save_env_var("TEST_KEY", "test_value")
+        
+        content = env_file.read_text()
+        assert "TEST_KEY=test_value" in content
     
-    @patch.dict("os.environ", {"WANDB_PROJECT": "demo", "WANDB_ENTITY": "myteam"})
-    def test_generate_traces_url_with_filter(self):
-        """GIVEN filters WHEN generate_weave_url THEN URL with query params"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_update_existing_var(self, tmp_path, monkeypatch):
+        """Should update existing variable."""
+        monkeypatch.chdir(tmp_path)
+        
+        env_file = tmp_path / ".env"
+        env_file.write_text("TEST_KEY=old_value\nOTHER_KEY=other")
+        
+        save_env_var("TEST_KEY", "new_value")
+        
+        content = env_file.read_text()
+        assert "TEST_KEY=new_value" in content
+        assert "old_value" not in content
+        assert "OTHER_KEY=other" in content
     
-    @patch.dict("os.environ", {"WANDB_PROJECT": "demo"}, clear=True)
-    def test_generate_url_no_entity(self):
-        """GIVEN no entity WHEN generate_weave_url THEN URL with double slash"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_creates_env_from_example(self, tmp_path, monkeypatch):
+        """Should create .env from .env.example if it doesn't exist."""
+        monkeypatch.chdir(tmp_path)
+        
+        # Create .env.example
+        example_file = tmp_path / ".env.example"
+        example_file.write_text("EXAMPLE_VAR=example")
+        
+        save_env_var("NEW_KEY", "new_value")
+        
+        env_file = tmp_path / ".env"
+        assert env_file.exists()
+        content = env_file.read_text()
+        assert "EXAMPLE_VAR=example" in content
+        assert "NEW_KEY=new_value" in content
 
 
-class TestModalOutputParsing:
-    """Test parsing Modal command output."""
+# =============================================================================
+# FILE OPERATIONS TESTS
+# =============================================================================
+
+class TestAutoCopyStepFiles:
+    """Test auto_copy_step_files function."""
     
-    def test_extract_modal_url(self):
-        """GIVEN modal serve output WHEN parse THEN URL extracted"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_copies_files_when_config_missing(self, tmp_path, monkeypatch):
+        """Should copy files when config doesn't exist."""
+        monkeypatch.chdir(tmp_path)
+        
+        # Create source directory with files
+        source_dir = tmp_path / "examples" / "step-2"
+        source_dir.mkdir(parents=True)
+        (source_dir / "main.py").write_text("# main")
+        (source_dir / "tyler-chat-config.yaml").write_text("name: test")
+        
+        # Run auto-copy
+        copied = auto_copy_step_files(2)
+        
+        # Check files were copied
+        dest_dir = tmp_path / "workspace" / "step-2"
+        assert dest_dir.exists()
+        assert (dest_dir / "main.py").exists()
+        assert (dest_dir / "tyler-chat-config.yaml").exists()
+        assert "main.py" in copied
+        assert "tyler-chat-config.yaml" in copied
     
-    def test_extract_modal_url_not_found(self):
-        """GIVEN output without URL WHEN parse THEN None returned"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_skips_when_config_exists(self, tmp_path, monkeypatch):
+        """Should skip copying if config already exists."""
+        monkeypatch.chdir(tmp_path)
+        
+        # Create source directory
+        source_dir = tmp_path / "examples" / "step-3"
+        source_dir.mkdir(parents=True)
+        (source_dir / "new_file.py").write_text("# new")
+        (source_dir / "tyler-chat-config.yaml").write_text("name: source")
+        
+        # Create destination with existing config
+        dest_dir = tmp_path / "workspace" / "step-3"
+        dest_dir.mkdir(parents=True)
+        (dest_dir / "tyler-chat-config.yaml").write_text("name: existing")
+        
+        # Run auto-copy
+        copied = auto_copy_step_files(3)
+        
+        # Should not copy
+        assert copied == []
+        assert (dest_dir / "tyler-chat-config.yaml").read_text() == "name: existing"
+        assert not (dest_dir / "new_file.py").exists()
+    
+    def test_returns_empty_when_no_source_files(self, tmp_path, monkeypatch):
+        """Should return empty list when no source files exist."""
+        monkeypatch.chdir(tmp_path)
+        
+        # No source directory
+        copied = auto_copy_step_files(99)
+        
+        assert copied == []
 
 
-class TestDatasetURLParsing:
-    """Test parsing dataset publish output."""
+# =============================================================================
+# TRACE FETCHING TESTS
+# =============================================================================
+
+class TestFetchTracesData:
+    """Test fetch_traces_data function."""
     
-    def test_extract_dataset_url(self):
-        """GIVEN publish output WHEN parse THEN URL extracted"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_returns_error_when_no_token(self):
+        """Should return error when no token provided."""
+        table_data, error = fetch_traces_data(
+            "entity", "project", "2024-01-01T00:00:00+00:00", ""
+        )
+        
+        assert table_data is None
+        assert error == "WANDB_API_KEY not set"
     
-    def test_extract_dataset_url_not_found(self):
-        """GIVEN output without URL WHEN parse THEN None returned"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    @patch("requests.post")
+    def test_returns_error_on_api_failure(self, mock_post):
+        """Should return error on API failure."""
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_post.return_value = mock_response
+        
+        table_data, error = fetch_traces_data(
+            "entity", "project", "2024-01-01T00:00:00+00:00", "token"
+        )
+        
+        assert table_data is None
+        assert "500" in error
+    
+    @patch("requests.post")
+    def test_returns_data_on_success(self, mock_post):
+        """Should return table data on success."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = json.dumps({
+            "id": "trace-123",
+            "started_at": "2024-01-01T12:00:00Z",
+            "summary": {"weave": {"status": "success", "latency_ms": 1500}},
+            "costs": {}
+        })
+        mock_post.return_value = mock_response
+        
+        table_data, error = fetch_traces_data(
+            "entity", "project", "2024-01-01T00:00:00+00:00", "token"
+        )
+        
+        assert error is None
+        assert len(table_data) == 1
+        assert table_data[0]["Trace ID"] == "trace-123"
+        assert table_data[0]["Latency"] == "1.500s"
 
 
-class TestEnvironmentValidation:
-    """Test environment checking."""
+# =============================================================================
+# MODEL FETCHING TESTS
+# =============================================================================
+
+class TestFetchWeaveModels:
+    """Test fetch_weave_models function."""
     
-    @patch.dict("os.environ", {
-        "WANDB_API_KEY": "test_key",
-        "OPENAI_API_KEY": "test_key",
-        "WANDB_PROJECT": "demo"
-    })
-    def test_check_environment_all_set(self):
-        """GIVEN all env vars set WHEN check_environment THEN no missing"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    def test_returns_empty_when_no_token(self):
+        """Should return empty dict when no token."""
+        result = fetch_weave_models("entity", "project", "")
+        assert result == {}
     
-    @patch.dict("os.environ", {}, clear=True)
-    def test_check_environment_all_missing(self):
-        """GIVEN no env vars WHEN check_environment THEN all missing"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    @patch("requests.post")
+    def test_excludes_judge_models(self, mock_post):
+        """Should exclude safety-judge and accuracy-judge models."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "objs": [
+                {"object_id": "my-agent", "version_index": 0},
+                {"object_id": "safety-judge", "version_index": 0},
+                {"object_id": "accuracy-judge", "version_index": 0},
+            ]
+        }
+        mock_post.return_value = mock_response
+        
+        result = fetch_weave_models("entity", "project", "token")
+        
+        assert "my-agent" in result
+        assert "safety-judge" not in result
+        assert "accuracy-judge" not in result
     
-    def test_check_environment_workspace_exists(self, tmp_path, monkeypatch):
-        """GIVEN workspace dir exists WHEN check_environment THEN workspace_exists true"""
-        pytest.skip("Helper functions need to be extracted from marimo notebook for testing")
+    @patch("requests.post")
+    def test_groups_versions_correctly(self, mock_post):
+        """Should group versions by model name."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "objs": [
+                {"object_id": "buzz", "version_index": 0},
+                {"object_id": "buzz", "version_index": 1},
+                {"object_id": "buzz", "version_index": 2},
+            ]
+        }
+        mock_post.return_value = mock_response
+        
+        result = fetch_weave_models("entity", "project", "token")
+        
+        assert "buzz" in result
+        assert result["buzz"] == ["v2", "v1", "v0"]  # Sorted descending
 
 
-# Note: These tests are placeholders. The actual helper functions are embedded
-# in the Marimo notebook cells. To properly test them, we have two options:
-#
-# 1. Extract helpers to a separate module (marimo_helpers.py) - cleaner testing
-# 2. Import and execute the marimo notebook to access functions - more complex
-#
-# For now, we'll continue with embedded helpers and rely on manual testing
-# through the Marimo UI. We can extract to a module later if needed for CI.
+# =============================================================================
+# UI BUILDER TESTS
+# =============================================================================
 
+class TestBuildTracesSection:
+    """Test build_traces_section function."""
+    
+    def test_shows_table_when_available(self):
+        """Should include traces table when available."""
+        mo = MagicMock()
+        mo.md.return_value = "markdown"
+        traces_table = MagicMock()
+        
+        components = build_traces_section(
+            mo, traces_table, None, MagicMock(), "http://traces"
+        )
+        
+        assert traces_table in components
+    
+    def test_no_traces_yet_shows_nothing(self):
+        """Should not show anything when no traces yet - just the header."""
+        mo = MagicMock()
+        mo.md.return_value = "markdown"
+        mo.callout.return_value = "callout"
+        
+        # Chat widget with messages (so we're waiting for traces)
+        chat_widget = MagicMock()
+        chat_widget.value = [{"role": "user", "content": "test"}]
+        
+        # When no traces and no error, we pass None for both
+        components = build_traces_section(
+            mo, None, None, chat_widget, "http://traces"
+        )
+        
+        # Should NOT have called callout
+        mo.callout.assert_not_called()
+        # Components should just have the header (1 item)
+        assert len(components) == 1
+
+
+class TestCreateStepChatWidget:
+    """Test create_step_chat_widget function."""
+    
+    def test_returns_empty_when_no_agent(self):
+        """Should return empty display when agent is None."""
+        mo = MagicMock()
+        mo.md.return_value = "markdown"
+        
+        status, widget = create_step_chat_widget(
+            mo, None, "", Path("config.yaml"), lambda x: x
+        )
+        
+        assert widget is None
+    
+    def test_returns_error_display_on_error(self):
+        """Should return error callout when agent_status indicates error."""
+        mo = MagicMock()
+        mo.callout.return_value = "error_callout"
+        mo.md.return_value = "markdown"
+        
+        status, widget = create_step_chat_widget(
+            mo, None, "❌ Failed to load", Path("config.yaml"), lambda x: x
+        )
+        
+        assert widget is None
+        mo.callout.assert_called()
+    
+    def test_creates_widget_when_agent_exists(self):
+        """Should create chat widget when agent is provided."""
+        mo = MagicMock()
+        mo.callout.return_value = "status"
+        mo.md.return_value = "markdown"
+        mo.ui.chat.return_value = "chat_widget"
+        
+        agent = MagicMock()
+        adapter_fn = MagicMock(return_value="chat_function")
+        
+        status, widget = create_step_chat_widget(
+            mo, agent, "✅ Loaded", Path("config.yaml"), adapter_fn
+        )
+        
+        assert widget == "chat_widget"
+        adapter_fn.assert_called_once()
+        mo.ui.chat.assert_called_once()

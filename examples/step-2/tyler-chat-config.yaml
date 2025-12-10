@@ -1,0 +1,22 @@
+# Tyler Agent Configuration - Basic Setup
+# This is a minimal configuration to get an agent running
+
+# Agent identity
+name: "agent"  # A simple name for your agent
+
+# Model configuration
+model_name: "openai/deepseek-ai/DeepSeek-R1-0528"  # Which LLM to use (try: gpt-4o, claude-3-5-sonnet-20241022, etc.)
+
+# Agent behavior
+purpose: "You are a helpful AI assistant."  # High-level description of what the agent does
+notes: ""  # Operational guidelines (empty for now - we'll add these in Step 4!)
+temperature: 0.7  # Creativity (0.0 = deterministic, 1.0 = creative)
+reasoning: "low"  # How much reasoning to show (low, medium, high)
+
+# LLM API endpoint (using W&B Inference in this tutorial)
+base_url: "https://api.inference.wandb.ai/v1"  # API endpoint
+api_key: "${WANDB_API_KEY}"  # API key (uses environment variable)
+
+# Tools and external knowledge
+# tools: []  # No tools yet - agent can only chat
+# mcp: {}    # No external knowledge sources yet

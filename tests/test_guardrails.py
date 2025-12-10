@@ -23,9 +23,9 @@ import os
 from pathlib import Path
 import sys
 
-# Add examples/step-6/part-a to path so we can import guardrails
-step_6_path = Path(__file__).parent.parent / "examples" / "step-6" / "part-a"
-sys.path.insert(0, str(step_6_path))
+# Add examples/step-7 to path so we can import guardrails
+step_7_path = Path(__file__).parent.parent / "examples" / "step-7"
+sys.path.insert(0, str(step_7_path))
 
 # Check if API key is available for tests that need it
 HAS_OPENAI_KEY = bool(os.getenv("OPENAI_API_KEY") or os.getenv("WANDB_API_KEY"))

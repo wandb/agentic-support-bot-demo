@@ -55,8 +55,7 @@ def _get_db():
 
 
 def create_issue(*, title: str, description: str, priority: str = "medium") -> dict:
-    # TODO: Add a better description explaining when to use this tool
-    
+    """Create a new support ticket in the system."""
     # Validate priority
     if priority not in ["low", "medium", "high"]:
         priority = "medium"
@@ -84,8 +83,7 @@ def create_issue(*, title: str, description: str, priority: str = "medium") -> d
 
 
 def get_issue(*, issue_id: str) -> dict:
-    # TODO: Add a better description explaining when to use this tool
-    
+    """Retrieve details of an existing support ticket by its ID."""
     # Query database for ticket
     db = _get_db()
     TicketQuery = Query()
@@ -105,13 +103,33 @@ def get_issue(*, issue_id: str) -> dict:
 
 
 # Export tools for Slide framework
-# TODO: Add descriptions and parameter details to help the agent understand when to use these tools
 TOOLS = [
     {
         "definition": {
             "type": "function",
             "function": {
                 "name": "support-create_issue",
+                "description": "Create a new support ticket in the system. Use this when a customer reports a new issue, bug, or feature request that needs to be tracked. Returns the created ticket with its unique ID.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "A brief, descriptive title summarizing the issue (e.g., 'Login page not loading')"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Detailed description of the issue including steps to reproduce, expected behavior, and actual behavior"
+                        },
+                        "priority": {
+                            "type": "string",
+                            "enum": ["low", "medium", "high"],
+                            "description": "Priority level: 'high' for critical/blocking issues, 'medium' for standard issues, 'low' for minor issues or enhancements",
+                            "default": "medium"
+                        }
+                    },
+                    "required": ["title", "description"]
+                }
             }
         },
         "implementation": create_issue
@@ -121,6 +139,17 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "support-get_issue",
+                "description": "Retrieve details of an existing support ticket by its ID. Use this to look up ticket status, description, and other details when a customer asks about an existing issue.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "issue_id": {
+                            "type": "string",
+                            "description": "The unique 5-digit ticket ID (e.g., '12345')"
+                        }
+                    },
+                    "required": ["issue_id"]
+                }
             }
         },
         "implementation": get_issue
