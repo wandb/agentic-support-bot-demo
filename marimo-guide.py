@@ -47,6 +47,7 @@ def _():
         fetch_traces_data,
         build_traces_table_ui,
         build_traces_section,
+        fetch_and_build_traces_ui,
         # Chat Widget Helpers
         create_step_chat_widget,
         # Agent Config Storage (Weave Objects)
@@ -54,6 +55,9 @@ def _():
         fetch_weave_configs,
         # W&B Inference
         fetch_wandb_inference_models,
+        # Terminal Helpers
+        run_terminal_command,
+        run_modal_deploy,
     )
 
     # Capture session start time for filtering traces
@@ -72,7 +76,8 @@ def _():
     return (Path, datetime, glob, json, load_dotenv, mo, os, random, re, shutil, subprocess, sys, timezone, yaml, session_start_time,
             DEFAULT_CHAT_PROMPTS, TOOL_CHAT_PROMPTS, weave_traces_url, weave_evals_url, weave_playground_url,
             save_env_var, auto_copy_step_files, fetch_traces_data, build_traces_table_ui, build_traces_section,
-            create_step_chat_widget, publish_agent_config, fetch_weave_configs)
+            fetch_and_build_traces_ui, create_step_chat_widget, publish_agent_config, fetch_weave_configs,
+            run_terminal_command, run_modal_deploy)
 
 
 @app.cell
@@ -695,23 +700,13 @@ def _(mo, agent_2a, agent_status_2a, create_chat_adapter_subprocess, Path, creat
 
 
 @app.cell
-def _(mo, os, weave_entity, weave_project, chat_widget_2a, session_start_time, fetch_traces_data, build_traces_table_ui):
+def _(mo, weave_entity, weave_project, chat_widget_2a, session_start_time, fetch_and_build_traces_ui):
     # ============================================================================
-    # STEP 2: RECENT TRACES TABLE (using helpers)
+    # STEP 2: RECENT TRACES TABLE (using combined helper)
     # ============================================================================
-    
-    traces_table_2a = None
-    traces_error_2a = None
-    
-    # Fetch traces if chat widget exists
-    if chat_widget_2a is not None:
-        _wandb_token = os.getenv("WANDB_API_KEY", "")
-        _table_data, traces_error_2a = fetch_traces_data(
-            weave_entity, weave_project, session_start_time, _wandb_token
-        )
-        if _table_data:
-            traces_table_2a = build_traces_table_ui(mo, _table_data)
-    
+    traces_table_2a, traces_error_2a = fetch_and_build_traces_ui(
+        mo, chat_widget_2a, weave_entity, weave_project, session_start_time
+    )
     return traces_table_2a, traces_error_2a
 
 
@@ -851,23 +846,13 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
 
 
 @app.cell
-def _(mo, os, weave_entity, weave_project, chat_widget_3, session_start_time, fetch_traces_data, build_traces_table_ui):
+def _(mo, weave_entity, weave_project, chat_widget_3, session_start_time, fetch_and_build_traces_ui):
     # ============================================================================
-    # STEP 3: RECENT TRACES TABLE (using helpers)
+    # STEP 3: RECENT TRACES TABLE (using combined helper)
     # ============================================================================
-    
-    traces_table_3 = None
-    traces_error_3 = None
-    
-    # Fetch traces if chat widget exists
-    if chat_widget_3 is not None:
-        _wandb_token = os.getenv("WANDB_API_KEY", "")
-        _table_data, traces_error_3 = fetch_traces_data(
-            weave_entity, weave_project, session_start_time, _wandb_token
-        )
-        if _table_data:
-            traces_table_3 = build_traces_table_ui(mo, _table_data)
-    
+    traces_table_3, traces_error_3 = fetch_and_build_traces_ui(
+        mo, chat_widget_3, weave_entity, weave_project, session_start_time
+    )
     return traces_table_3, traces_error_3
 
 
@@ -1156,23 +1141,13 @@ Always be friendly, clear, and helpful in your responses.
 
 
 @app.cell
-def _(mo, os, weave_entity, weave_project, chat_widget_4, session_start_time, fetch_traces_data, build_traces_table_ui):
+def _(mo, weave_entity, weave_project, chat_widget_4, session_start_time, fetch_and_build_traces_ui):
     # ============================================================================
-    # STEP 4: RECENT TRACES TABLE (using helpers)
+    # STEP 4: RECENT TRACES TABLE (using combined helper)
     # ============================================================================
-    
-    traces_table_4 = None
-    traces_error_4 = None
-    
-    # Fetch traces if chat widget exists
-    if chat_widget_4 is not None:
-        _wandb_token = os.getenv("WANDB_API_KEY", "")
-        _table_data, traces_error_4 = fetch_traces_data(
-            weave_entity, weave_project, session_start_time, _wandb_token
-        )
-        if _table_data:
-            traces_table_4 = build_traces_table_ui(mo, _table_data)
-    
+    traces_table_4, traces_error_4 = fetch_and_build_traces_ui(
+        mo, chat_widget_4, weave_entity, weave_project, session_start_time
+    )
     return traces_table_4, traces_error_4
 
 
@@ -1946,53 +1921,14 @@ def _(mo, Path, json):
 
 
 @app.cell
-async def _(mo, modal_setup_run, os):
+async def _(mo, modal_setup_run, run_terminal_command):
     # ============================================================================
-    # STEP 6: MODAL SETUP TERMINAL (terminal-like command cell)
+    # STEP 6: MODAL SETUP TERMINAL (using helper)
     # ============================================================================
-    import asyncio as _asyncio_setup
-    
-    # Command to display
-    _command = "uv run modal setup"
-    
-    # Terminal-like display: command + run button
-    _command_display = mo.hstack([
-        mo.md(f"```bash\n{_command}\n```"),
-        modal_setup_run
-    ], justify="start", align="center", gap=1)
-    
-    # Default: just show the command with run button
-    modal_setup_terminal = _command_display
-    
-    # If button was clicked, execute command
-    if modal_setup_run.value:
-        try:
-            _process = await _asyncio_setup.create_subprocess_exec(
-                "uv", "run", "modal", "setup",
-                stdout=_asyncio_setup.subprocess.PIPE,
-                stderr=_asyncio_setup.subprocess.STDOUT,
-                env=os.environ.copy()
-            )
-            
-            _stdout, _ = await _process.communicate()
-            _output = _stdout.decode() if _stdout else ""
-            
-            # Show command + output below
-            modal_setup_terminal = mo.vstack([
-                _command_display,
-                mo.md(f"```\n{_output}\n```") if _output else mo.md("")
-            ])
-        except FileNotFoundError:
-            modal_setup_terminal = mo.vstack([
-                _command_display,
-                mo.md("```\nError: Modal CLI not found. Make sure `modal` is installed.\n```")
-            ])
-        except Exception as e:
-            modal_setup_terminal = mo.vstack([
-                _command_display,
-                mo.md(f"```\nError: {str(e)}\n```")
-            ])
-    
+    modal_setup_terminal = await run_terminal_command(
+        mo, modal_setup_run,
+        command_args=["uv", "run", "modal", "setup"]
+    )
     return (modal_setup_terminal,)
 
 
@@ -2076,143 +2012,14 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, wandb_project_input, ope
 
 
 @app.cell
-async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn, Path, os, json):
+async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn, run_modal_deploy):
     # ============================================================================
-    # STEP 6: DEPLOY TERMINAL (terminal-like command cell)
+    # STEP 6: DEPLOY TERMINAL (using helper)
     # ============================================================================
-    import asyncio as _asyncio_deploy
-    import re as _re
-    
-    # Command to display
-    _command = "uv run modal deploy workspace/step-6/server.py"
-    
-    # Get selected config for display
-    _config_name = config_selector.value
-    _version = version_selector.value
-    _config_ref = f"{_config_name}:{_version}" if _config_name and _version else "No config selected"
-    
-    # Config selector row (separate from command)
-    _config_selector_row = mo.hstack([
-        config_selector,
-        version_selector,
-        refresh_btn
-    ], justify="start", gap=1)
-    
-    # Command + deploy button row
-    _command_row = mo.hstack([
-        mo.md(f"```bash\n{_command}\n```"),
-        modal_deploy_run
-    ], justify="start", align="center", gap=1)
-    
-    # Default: show config selector + command with run button
-    modal_deploy_terminal = mo.vstack([_config_selector_row, _command_row], gap=1)
-    
-    # If button was clicked, execute command
-    if modal_deploy_run.value:
-        # First, save the config.json
-        if not _config_name or _config_name == "No configs found" or not _version:
-            modal_deploy_terminal = mo.vstack([
-                _config_selector_row,
-                _command_row,
-                mo.callout(mo.md("❌ Please select a config and version before deploying."), kind="danger")
-            ], gap=1)
-        else:
-            # Save config to workspace/step-6/config.json
-            _config_json_path = Path("workspace/step-6/config.json")
-            _config_json_path.parent.mkdir(parents=True, exist_ok=True)
-            _config_data = {"config_ref": _config_ref}
-            _config_json_path.write_text(json.dumps(_config_data, indent=2))
-            
-            _server_path = Path("workspace/step-6/server.py")
-            if not _server_path.exists():
-                modal_deploy_terminal = mo.vstack([
-                    _config_selector_row,
-                    _command_row,
-                    mo.md("```\nError: Server file not found: workspace/step-6/server.py\nMake sure you've completed the previous steps.\n```")
-                ], gap=1)
-            else:
-                try:
-                    _process = await _asyncio_deploy.create_subprocess_exec(
-                        "uv", "run", "modal", "deploy", str(_server_path),
-                        stdout=_asyncio_deploy.subprocess.PIPE,
-                        stderr=_asyncio_deploy.subprocess.STDOUT,
-                        env=os.environ.copy()
-                    )
-                    
-                    _stdout, _ = await _process.communicate()
-                    _output = _stdout.decode() if _stdout else ""
-                    
-                    # Extract key info from Modal output (URL, success message)
-                    _endpoint_url = ""
-                    _view_url = ""
-                    _success = False
-                    
-                    for _line in _output.split('\n'):
-                        # Look for endpoint URL - multiple patterns Modal might use
-                        if 'modal_endpoint' in _line or 'web function' in _line.lower() or 'web endpoint' in _line.lower():
-                            _match = _re.search(r'https://[^\s]+', _line)
-                            if _match:
-                                _endpoint_url = _match.group(0)
-                        # Also catch any modal.run URL as fallback
-                        if not _endpoint_url and '.modal.run' in _line:
-                            _match = _re.search(r'https://[^\s]+\.modal\.run[^\s]*', _line)
-                            if _match:
-                                _endpoint_url = _match.group(0)
-                        if 'View Deployment:' in _line or 'view deployment' in _line.lower():
-                            _match = _re.search(r'https://[^\s]+', _line)
-                            if _match:
-                                _view_url = _match.group(0)
-                        if 'App deployed' in _line or 'deployed!' in _line.lower() or '✓' in _line:
-                            _success = True
-                    
-                    # Build concise output - show success callout with URL
-                    if _endpoint_url or _success:
-                        # Auto-save URL to state file for persistence
-                        if _endpoint_url:
-                            _state_file = Path(".marimo-state.json")
-                            try:
-                                _state = {}
-                                if _state_file.exists():
-                                    _state = json.loads(_state_file.read_text())
-                                _state["modal_prod_url"] = _endpoint_url
-                                _state_file.write_text(json.dumps(_state, indent=2))
-                            except:
-                                pass
-                        
-                        if _endpoint_url:
-                            _summary = f"**🎉 Deployed successfully!**\n\n**Config:** `{_config_ref}`\n\n**Endpoint URL:** `{_endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in Playground instructions below)*"
-                        else:
-                            _summary = f"**🎉 Deployed successfully!**\n\n**Config:** `{_config_ref}`\n\n*(Could not extract endpoint URL - check Modal dashboard)*"
-                        if _view_url:
-                            _summary += f"\n\n[View deployment on Modal]({_view_url})"
-                        modal_deploy_terminal = mo.vstack([
-                            _config_selector_row,
-                            _command_row,
-                            mo.callout(mo.md(_summary), kind="success")
-                        ], gap=1)
-                    else:
-                        # Only show output if something went wrong (no success detected)
-                        _lines = _output.strip().split('\n')
-                        _truncated = '\n'.join(_lines[-15:]) if len(_lines) > 15 else _output
-                        modal_deploy_terminal = mo.vstack([
-                            _config_selector_row,
-                            _command_row,
-                            mo.callout(mo.md(f"⚠️ Deploy output (check for errors):"), kind="warn"),
-                            mo.md(f"```\n{_truncated}\n```")
-                        ], gap=1)
-                except FileNotFoundError:
-                    modal_deploy_terminal = mo.vstack([
-                        _config_selector_row,
-                        _command_row,
-                        mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
-                    ], gap=1)
-                except Exception as e:
-                    modal_deploy_terminal = mo.vstack([
-                        _config_selector_row,
-                        _command_row,
-                        mo.md(f"```\nError: {str(e)}\n```")
-                    ], gap=1)
-    
+    modal_deploy_terminal = await run_modal_deploy(
+        mo, modal_deploy_run, config_selector, version_selector, refresh_btn,
+        step_num=6, success_message="Deployed successfully!"
+    )
     return (modal_deploy_terminal,)
 
 
@@ -2349,143 +2156,14 @@ def _(mo):
 
 
 @app.cell
-async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn, Path, os, json):
+async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn, run_modal_deploy):
     # ============================================================================
-    # STEP 7: DEPLOY TERMINAL (terminal-like command cell)
+    # STEP 7: DEPLOY TERMINAL (using helper)
     # ============================================================================
-    import asyncio as _asyncio_step7
-    import re as _re7
-    
-    # Command to display
-    _command = "uv run modal deploy workspace/step-7/server.py"
-    
-    # Get selected config for display
-    _config_name = config_selector.value
-    _version = version_selector.value
-    _config_ref = f"{_config_name}:{_version}" if _config_name and _version else "No config selected"
-    
-    # Config selector row (separate from command)
-    _config_selector_row = mo.hstack([
-        config_selector,
-        version_selector,
-        refresh_btn
-    ], justify="start", gap=1)
-    
-    # Command + deploy button row
-    _command_row = mo.hstack([
-        mo.md(f"```bash\n{_command}\n```"),
-        step7_deploy_run
-    ], justify="start", align="center", gap=1)
-    
-    # Default: show config selector + command with run button
-    step7_deploy_terminal = mo.vstack([_config_selector_row, _command_row], gap=1)
-    
-    # If button was clicked, execute command
-    if step7_deploy_run.value:
-        # First, save the config.json
-        if not _config_name or _config_name == "No configs found" or not _version:
-            step7_deploy_terminal = mo.vstack([
-                _config_selector_row,
-                _command_row,
-                mo.callout(mo.md("❌ Please select a config and version before deploying."), kind="danger")
-            ], gap=1)
-        else:
-            # Save config to workspace/step-7/config.json
-            _config_json_path = Path("workspace/step-7/config.json")
-            _config_json_path.parent.mkdir(parents=True, exist_ok=True)
-            _config_data = {"config_ref": _config_ref}
-            _config_json_path.write_text(json.dumps(_config_data, indent=2))
-            
-            _server_path = Path("workspace/step-7/server.py")
-            if not _server_path.exists():
-                step7_deploy_terminal = mo.vstack([
-                    _config_selector_row,
-                    _command_row,
-                    mo.md("```\nError: Server file not found: workspace/step-7/server.py\nMake sure you've copied the Step 7 files first.\n```")
-                ], gap=1)
-            else:
-                try:
-                    _process = await _asyncio_step7.create_subprocess_exec(
-                        "uv", "run", "modal", "deploy", str(_server_path),
-                        stdout=_asyncio_step7.subprocess.PIPE,
-                        stderr=_asyncio_step7.subprocess.STDOUT,
-                        env=os.environ.copy()
-                    )
-                    
-                    _stdout, _ = await _process.communicate()
-                    _output = _stdout.decode() if _stdout else ""
-                    
-                    # Extract key info from Modal output (URL, success message)
-                    _endpoint_url = ""
-                    _view_url = ""
-                    _success = False
-                    
-                    for _line in _output.split('\n'):
-                        # Look for endpoint URL - multiple patterns Modal might use
-                        if 'modal_endpoint' in _line or 'web function' in _line.lower() or 'web endpoint' in _line.lower():
-                            _match = _re7.search(r'https://[^\s]+', _line)
-                            if _match:
-                                _endpoint_url = _match.group(0)
-                        # Also catch any modal.run URL as fallback
-                        if not _endpoint_url and '.modal.run' in _line:
-                            _match = _re7.search(r'https://[^\s]+\.modal\.run[^\s]*', _line)
-                            if _match:
-                                _endpoint_url = _match.group(0)
-                        if 'View Deployment:' in _line or 'view deployment' in _line.lower():
-                            _match = _re7.search(r'https://[^\s]+', _line)
-                            if _match:
-                                _view_url = _match.group(0)
-                        if 'App deployed' in _line or 'deployed!' in _line.lower() or '✓' in _line:
-                            _success = True
-                    
-                    # Build concise output - show success callout with URL
-                    if _endpoint_url or _success:
-                        # Auto-save URL to state file for persistence
-                        if _endpoint_url:
-                            _state_file = Path(".marimo-state.json")
-                            try:
-                                _state = {}
-                                if _state_file.exists():
-                                    _state = json.loads(_state_file.read_text())
-                                _state["modal_prod_url"] = _endpoint_url
-                                _state_file.write_text(json.dumps(_state, indent=2))
-                            except:
-                                pass
-                        
-                        if _endpoint_url:
-                            _summary = f"**🎉 Deployed with guardrails!**\n\n**Config:** `{_config_ref}`\n\n**Endpoint URL:** `{_endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in Playground step)*"
-                        else:
-                            _summary = f"**🎉 Deployed with guardrails!**\n\n**Config:** `{_config_ref}`\n\n*(Could not extract endpoint URL - check Modal dashboard)*"
-                        if _view_url:
-                            _summary += f"\n\n[View deployment on Modal]({_view_url})"
-                        step7_deploy_terminal = mo.vstack([
-                            _config_selector_row,
-                            _command_row,
-                            mo.callout(mo.md(_summary), kind="success")
-                        ], gap=1)
-                    else:
-                        # Only show output if something went wrong (no success detected)
-                        _lines = _output.strip().split('\n')
-                        _truncated = '\n'.join(_lines[-15:]) if len(_lines) > 15 else _output
-                        step7_deploy_terminal = mo.vstack([
-                            _config_selector_row,
-                            _command_row,
-                            mo.callout(mo.md(f"⚠️ Deploy output (check for errors):"), kind="warn"),
-                            mo.md(f"```\n{_truncated}\n```")
-                        ], gap=1)
-                except FileNotFoundError:
-                    step7_deploy_terminal = mo.vstack([
-                        _config_selector_row,
-                        _command_row,
-                        mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
-                    ], gap=1)
-                except Exception as e:
-                    step7_deploy_terminal = mo.vstack([
-                        _config_selector_row,
-                        _command_row,
-                        mo.md(f"```\nError: {str(e)}\n```")
-                    ], gap=1)
-    
+    step7_deploy_terminal = await run_modal_deploy(
+        mo, step7_deploy_run, config_selector, version_selector, refresh_btn,
+        step_num=7, success_message="Deployed with guardrails!"
+    )
     return (step7_deploy_terminal,)
 
 

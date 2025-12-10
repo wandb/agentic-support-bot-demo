@@ -689,3 +689,276 @@ def fetch_weave_models(
     except Exception:
         return {}
 
+
+# =============================================================================
+# TRACE FETCHING (COMBINED HELPER)
+# =============================================================================
+
+def fetch_and_build_traces_ui(
+    mo,
+    chat_widget,
+    weave_entity: str,
+    weave_project: str,
+    session_start_time: str
+) -> Tuple[Optional[Any], Optional[str]]:
+    """
+    Fetch traces and build table UI in one call.
+    
+    Combines fetch_traces_data and build_traces_table_ui for cleaner notebook code.
+    
+    Args:
+        mo: marimo module (must be passed from notebook context)
+        chat_widget: Chat widget (if None, returns None, None)
+        weave_entity: Weave entity name
+        weave_project: Weave project name
+        session_start_time: ISO timestamp to filter traces after
+        
+    Returns:
+        Tuple of (table_ui, error_message) - table_ui is None if no traces or error
+    """
+    if chat_widget is None:
+        return None, None
+    
+    wandb_token = os.getenv("WANDB_API_KEY", "")
+    table_data, error = fetch_traces_data(
+        weave_entity, weave_project, session_start_time, wandb_token
+    )
+    
+    if table_data:
+        return build_traces_table_ui(mo, table_data), None
+    return None, error
+
+
+# =============================================================================
+# TERMINAL COMMAND HELPERS
+# =============================================================================
+
+async def run_terminal_command(
+    mo,
+    run_button,
+    command_args: List[str],
+    command_display: Optional[str] = None,
+    env_vars: Optional[Dict[str, str]] = None
+) -> Any:
+    """
+    Generic terminal command runner with marimo UI.
+    
+    Creates a terminal-like display with command + run button, and shows
+    output when the button is clicked.
+    
+    Args:
+        mo: marimo module
+        run_button: mo.ui.run_button instance
+        command_args: Command arguments as list (e.g., ["uv", "run", "modal", "setup"])
+        command_display: Optional display string (for hiding secrets). If None, joins command_args.
+        env_vars: Optional dict of environment variables to pass to subprocess
+        
+    Returns:
+        marimo vstack with command display and output (if run)
+    """
+    import asyncio
+    
+    # Build display command
+    display_cmd = command_display or " ".join(command_args)
+    
+    # Terminal-like display: command + run button
+    command_row = mo.hstack([
+        mo.md(f"```bash\n{display_cmd}\n```"),
+        run_button
+    ], justify="start", align="center", gap=1)
+    
+    # Default: just show the command with run button
+    if not run_button.value:
+        return command_row
+    
+    # Execute command
+    try:
+        env = os.environ.copy()
+        if env_vars:
+            env.update(env_vars)
+        
+        process = await asyncio.create_subprocess_exec(
+            *command_args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env=env
+        )
+        
+        stdout, _ = await process.communicate()
+        output = stdout.decode() if stdout else ""
+        
+        # Show command + output below
+        return mo.vstack([
+            command_row,
+            mo.md(f"```\n{output}\n```") if output else mo.md("")
+        ])
+    except FileNotFoundError:
+        return mo.vstack([
+            command_row,
+            mo.md(f"```\nError: Command not found: {command_args[0]}\n```")
+        ])
+    except Exception as e:
+        return mo.vstack([
+            command_row,
+            mo.md(f"```\nError: {str(e)}\n```")
+        ])
+
+
+async def run_modal_deploy(
+    mo,
+    run_button,
+    config_selector,
+    version_selector,
+    refresh_btn,
+    step_num: int,
+    success_message: str = "Deployed successfully!"
+) -> Any:
+    """
+    Execute Modal deploy command and return the terminal UI.
+    
+    Handles config selection, config.json saving, deploy execution, and
+    URL extraction from Modal output.
+    
+    Args:
+        mo: marimo module
+        run_button: Run button UI element
+        config_selector: Config dropdown selector
+        version_selector: Version dropdown selector
+        refresh_btn: Refresh button
+        step_num: Step number (6 or 7)
+        success_message: Custom success message (e.g., "Deployed with guardrails!")
+    
+    Returns:
+        Terminal UI vstack with config selectors, command, and output
+    """
+    import asyncio
+    import re
+    
+    command = f"uv run modal deploy workspace/step-{step_num}/server.py"
+    
+    # Get selected config for display
+    config_name = config_selector.value
+    version = version_selector.value
+    config_ref = f"{config_name}:{version}" if config_name and version else "No config selected"
+    
+    # Config selector row (separate from command)
+    config_selector_row = mo.hstack([
+        config_selector,
+        version_selector,
+        refresh_btn
+    ], justify="start", gap=1)
+    
+    # Command + deploy button row
+    command_row = mo.hstack([
+        mo.md(f"```bash\n{command}\n```"),
+        run_button
+    ], justify="start", align="center", gap=1)
+    
+    # Default: show config selector + command with run button
+    if not run_button.value:
+        return mo.vstack([config_selector_row, command_row], gap=1)
+    
+    # Validate config selection
+    if not config_name or config_name == "No configs found" or not version:
+        return mo.vstack([
+            config_selector_row,
+            command_row,
+            mo.callout(mo.md("❌ Please select a config and version before deploying."), kind="danger")
+        ], gap=1)
+    
+    # Save config to workspace/step-{N}/config.json
+    config_json_path = Path(f"workspace/step-{step_num}/config.json")
+    config_json_path.parent.mkdir(parents=True, exist_ok=True)
+    config_data = {"config_ref": config_ref}
+    config_json_path.write_text(json.dumps(config_data, indent=2))
+    
+    server_path = Path(f"workspace/step-{step_num}/server.py")
+    if not server_path.exists():
+        return mo.vstack([
+            config_selector_row,
+            command_row,
+            mo.md(f"```\nError: Server file not found: {server_path}\nMake sure you've completed the previous steps.\n```")
+        ], gap=1)
+    
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "uv", "run", "modal", "deploy", str(server_path),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env=os.environ.copy()
+        )
+        
+        stdout, _ = await process.communicate()
+        output = stdout.decode() if stdout else ""
+        
+        # Extract key info from Modal output (URL, success message)
+        endpoint_url = ""
+        view_url = ""
+        success = False
+        
+        for line in output.split('\n'):
+            # Look for endpoint URL - multiple patterns Modal might use
+            if 'modal_endpoint' in line or 'web function' in line.lower() or 'web endpoint' in line.lower():
+                match = re.search(r'https://[^\s]+', line)
+                if match:
+                    endpoint_url = match.group(0)
+            # Also catch any modal.run URL as fallback
+            if not endpoint_url and '.modal.run' in line:
+                match = re.search(r'https://[^\s]+\.modal\.run[^\s]*', line)
+                if match:
+                    endpoint_url = match.group(0)
+            if 'View Deployment:' in line or 'view deployment' in line.lower():
+                match = re.search(r'https://[^\s]+', line)
+                if match:
+                    view_url = match.group(0)
+            if 'App deployed' in line or 'deployed!' in line.lower() or '✓' in line:
+                success = True
+        
+        # Build concise output - show success callout with URL
+        if endpoint_url or success:
+            # Auto-save URL to state file for persistence
+            if endpoint_url:
+                state_file = Path(".marimo-state.json")
+                try:
+                    state = {}
+                    if state_file.exists():
+                        state = json.loads(state_file.read_text())
+                    state["modal_prod_url"] = endpoint_url
+                    state_file.write_text(json.dumps(state, indent=2))
+                except:
+                    pass
+            
+            if endpoint_url:
+                summary = f"**🎉 {success_message}**\n\n**Config:** `{config_ref}`\n\n**Endpoint URL:** `{endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in Playground instructions)*"
+            else:
+                summary = f"**🎉 {success_message}**\n\n**Config:** `{config_ref}`\n\n*(Could not extract endpoint URL - check Modal dashboard)*"
+            if view_url:
+                summary += f"\n\n[View deployment on Modal]({view_url})"
+            return mo.vstack([
+                config_selector_row,
+                command_row,
+                mo.callout(mo.md(summary), kind="success")
+            ], gap=1)
+        else:
+            # Only show output if something went wrong (no success detected)
+            lines = output.strip().split('\n')
+            truncated = '\n'.join(lines[-15:]) if len(lines) > 15 else output
+            return mo.vstack([
+                config_selector_row,
+                command_row,
+                mo.callout(mo.md(f"⚠️ Deploy output (check for errors):"), kind="warn"),
+                mo.md(f"```\n{truncated}\n```")
+            ], gap=1)
+    except FileNotFoundError:
+        return mo.vstack([
+            config_selector_row,
+            command_row,
+            mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
+        ], gap=1)
+    except Exception as e:
+        return mo.vstack([
+            config_selector_row,
+            command_row,
+            mo.md(f"```\nError: {str(e)}\n```")
+        ], gap=1)
+
