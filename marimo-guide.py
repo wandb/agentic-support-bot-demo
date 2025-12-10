@@ -1278,8 +1278,9 @@ def _(step5_files_ready, Path, sys):
             if _workspace_path not in sys.path:
                 sys.path.insert(0, _workspace_path)
             
-            # Import dataset module
-            import dataset as _dataset_module
+            # Import dataset module dynamically
+            import importlib as _importlib
+            _dataset_module = _importlib.import_module("dataset")
             _evaluation_dataset = _dataset_module.EVALUATION_DATASET
         except Exception as e:
             _evaluation_dataset = None
@@ -1415,7 +1416,8 @@ weave.publish(dataset)'''
             _workspace_path = str(_Path("workspace/step-5").absolute())
             if _workspace_path not in _sys.path:
                 _sys.path.insert(0, _workspace_path)
-            import dataset as _dataset_mod
+            import importlib as _importlib
+            _dataset_mod = _importlib.import_module("dataset")
             
             # Create Weave Dataset object
             _dataset = weave.Dataset(
@@ -1651,7 +1653,8 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
             _workspace_path = str(Path("workspace/step-5").absolute())
             if _workspace_path not in sys.path:
                 sys.path.insert(0, _workspace_path)
-            import dataset as _dataset_display_mod
+            import importlib as _importlib
+            _dataset_display_mod = _importlib.import_module("dataset")
             _evaluation_dataset_display = _dataset_display_mod.EVALUATION_DATASET
         except:
             pass
