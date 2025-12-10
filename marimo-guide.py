@@ -292,35 +292,14 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
 
 
 @app.cell
-def _(auto_copy_step_files, Path, shutil, glob):
+def _(auto_copy_step_files, Path, shutil):
     # ============================================================================
-    # STEP 2-4, 6, 7: AUTO-COPY LOGIC (using helper)
+    # STEP 2-7: AUTO-COPY LOGIC (using helper)
     # ============================================================================
     
-    # Auto-copy step files to workspace directories (skips if config already exists)
-    auto_copy_step_files(2)
-    auto_copy_step_files(3)
-    auto_copy_step_files(4)
-    
-    # Step 6: Copy server.py to workspace/step-6/ (for Modal deploy)
-    # Only copy if server.py doesn't already exist
-    _step6_dest = Path("workspace/step-6")
-    _server_dest = _step6_dest / "server.py"
-    if not _server_dest.exists():
-        _step6_source = Path("examples/step-6/server.py")
-        if _step6_source.exists():
-            _step6_dest.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(_step6_source, _server_dest)
-    
-    # Step 7: Auto-copy guardrails files to workspace/step-7/
-    _step7_dest = Path("workspace/step-7")
-    _step7_dest.mkdir(parents=True, exist_ok=True)
-    _step7_sources = glob("examples/step-7/*.py")
-    for _src in _step7_sources:
-        _filename = Path(_src).name
-        _dest_file = _step7_dest / _filename
-        if not _dest_file.exists():
-            shutil.copy2(_src, _dest_file)
+    # Auto-copy step files to workspace directories (only copies files that don't exist)
+    for _step_num in range(2, 8):
+        auto_copy_step_files(_step_num)
     
     # Copy db/ folder to all steps that use tools (steps 3, 4, 6, 7)
     # Each step gets its own db/tickets.json so Modal deployments work correctly
@@ -334,12 +313,6 @@ def _(auto_copy_step_files, Path, shutil, glob):
             if not _step_db_file.exists():
                 shutil.copy2(_sample_db, _step_db_file)
     
-    return
-
-
-@app.cell
-def _():
-    # Removed - auto-copy logic handles this now
     return
 
 
@@ -1276,29 +1249,14 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
 
 
 @app.cell
-def _(Path, glob, shutil):
+def _(Path):
     # ============================================================================
-    # STEP 5: AUTO-COPY FILES
+    # STEP 5: CHECK FILES READY (copying happens in main auto-copy cell above)
     # ============================================================================
     
-    # Auto-copy all Step 5 files (no button needed, happens on load)
+    # Check if Step 5 files exist (they're copied by auto_copy_step_files(5) above)
     _step5_dest = Path("workspace/step-5")
-    _step5_dest.mkdir(parents=True, exist_ok=True)
-    _step5_copied = []
-    _step5_error = None
-    step5_files_ready = False
-    
-    try:
-        # Copy all Python files and YAML configs from step-5
-        for _src in glob("examples/step-5/*.py") + glob("examples/step-5/*.yaml"):
-            _filename = Path(_src).name
-            shutil.copy2(_src, _step5_dest / _filename)
-            _step5_copied.append(_filename)
-        
-        step5_files_ready = True
-    except Exception as e:
-        _step5_error = str(e)
-        step5_files_ready = False
+    step5_files_ready = (_step5_dest / "dataset.py").exists()
     
     return (step5_files_ready,)
 
@@ -1467,6 +1425,7 @@ weave.publish(dataset)'''
             
             # Publish to Weave
             _dataset_ref = weave.publish(_dataset)
+            print(f">>>>>>>>>>>>>>>>>>>> {_dataset_ref=}")
             
             # Show success message with ref
             _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")
