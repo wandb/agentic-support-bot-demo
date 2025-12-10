@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 import sys
 from pathlib import Path
 
-# Add step-2/part-b to path (where server.py lives)
-step2_partb_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-b"
-sys.path.insert(0, str(step2_partb_dir))
+# Add step-6 to path (where server.py lives)
+step6_dir = Path(__file__).parent.parent / "examples" / "step-6"
+sys.path.insert(0, str(step6_dir))
 
 # Mock modal before importing server
 sys.modules['modal'] = MagicMock()
@@ -492,25 +492,25 @@ def test_coverage_summary():
 
 class TestServerWithGuardrails:
     """
-    Integration tests for server with guardrails (Step 6).
+    Integration tests for server with guardrails (Step 7).
     
-    These tests verify that the guardrails-enabled server (examples/step-6/part-a/server.py)
+    These tests verify that the guardrails-enabled server (examples/step-7/server.py)
     correctly blocks unsafe content and logs guardrail results to Weave.
     """
     
     @pytest.fixture
     def guardrails_client(self):
         """Create test client for guardrails-enabled server."""
-        # Add step-6/part-a to path (prepend to override step-2 import)
-        step6_parta_dir = Path(__file__).parent.parent / "examples" / "step-6" / "part-a"
-        sys.path.insert(0, str(step6_parta_dir))
+        # Add step-7 to path (prepend to override step-6 import)
+        step7_dir = Path(__file__).parent.parent / "examples" / "step-7"
+        sys.path.insert(0, str(step7_dir))
         
         try:
-            # Import fresh server module from step-6
+            # Import fresh server module from step-7
             import importlib.util
             spec = importlib.util.spec_from_file_location(
                 "guardrails_server",
-                step6_parta_dir / "server.py"
+                step7_dir / "server.py"
             )
             guardrails_server_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(guardrails_server_module)
@@ -522,7 +522,7 @@ class TestServerWithGuardrails:
             return TestClient(guardrails_server_module.web_app)
         finally:
             # Remove from path after loading
-            sys.path.remove(str(step6_parta_dir))
+            sys.path.remove(str(step7_dir))
     
     def test_guardrails_initialized(self, guardrails_client):
         """
@@ -564,7 +564,7 @@ class TestServerWithGuardrails:
     
     def test_guardrail_structure_verified(self):
         """
-        GIVEN Step 6 server with input guardrail
+        GIVEN Step 7 server with input guardrail
         WHEN guardrails imported
         THEN should have correct structure
         
@@ -573,19 +573,19 @@ class TestServerWithGuardrails:
         
         Note: Only INPUT guardrail used to maintain streaming UX.
         """
-        # Add step-6/part-a to path
-        step6_parta_dir = Path(__file__).parent.parent / "examples" / "step-6" / "part-a"
-        sys.path.insert(0, str(step6_parta_dir))
+        # Add step-7 to path
+        step7_dir = Path(__file__).parent.parent / "examples" / "step-7"
+        sys.path.insert(0, str(step7_dir))
         
         try:
             # Import guardrails
             from guardrails import InputToxicityGuardrail
             
-            # Import server from step-6
+            # Import server from step-7
             import importlib.util
             spec = importlib.util.spec_from_file_location(
                 "guardrails_server_check",
-                step6_parta_dir / "server.py"
+                step7_dir / "server.py"
             )
             guardrails_server = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(guardrails_server)
@@ -598,5 +598,5 @@ class TestServerWithGuardrails:
             # (OUTPUT_TOXICITY_GUARD should not exist or be None)
         finally:
             # Remove from path
-            sys.path.remove(str(step6_parta_dir))
+            sys.path.remove(str(step7_dir))
 

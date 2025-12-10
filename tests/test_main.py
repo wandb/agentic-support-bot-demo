@@ -13,7 +13,7 @@ from tinydb import TinyDB
 def load_tools_module_for_test(db_path):
     """Load tools module with a specific DB path for testing."""
     os.environ["TICKETS_DB_PATH"] = str(db_path)
-    tools_path = Path(__file__).parent.parent / "examples" / "step-2" / "part-b" / "tools.py"
+    tools_path = Path(__file__).parent.parent / "examples" / "step-3" / "tools.py"
     spec = importlib.util.spec_from_file_location("tools_test", tools_path)
     tools = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tools)
@@ -30,8 +30,8 @@ class TestEnvironmentValidation:
         import sys
         from pathlib import Path
         
-        # Add step-2/part-a to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-a"
+        # Add step-2 to path
+        step1_dir = Path(__file__).parent.parent / "examples" / "step-2"
         sys.path.insert(0, str(step1_dir))
         
         import main as main_module
@@ -52,8 +52,8 @@ class TestEnvironmentValidation:
         import sys
         from pathlib import Path
         
-        # Add step-2/part-a to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-2" / "part-a"
+        # Add step-2 to path
+        step1_dir = Path(__file__).parent.parent / "examples" / "step-2"
         sys.path.insert(0, str(step1_dir))
         
         with patch.dict(
@@ -221,7 +221,7 @@ class TestConfigurationFile:
     @pytest.fixture
     def config_path(self):
         """Get path to configuration file (checks both possible names)."""
-        base_path = Path(__file__).parent.parent / "examples" / "step-2" / "part-a"
+        base_path = Path(__file__).parent.parent / "examples" / "step-2"
         # Check for tyler-chat-config.yaml first, then support-bot.yaml
         for filename in ["tyler-chat-config.yaml", "support-bot.yaml"]:
             config_file = base_path / filename

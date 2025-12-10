@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 # Add examples directory to path to import dataset
-examples_dir = Path(__file__).parent.parent / "examples" / "step-4" / "part-a"
+examples_dir = Path(__file__).parent.parent / "examples" / "step-5"
 sys.path.insert(0, str(examples_dir))
 
 from dataset import EVALUATION_DATASET
