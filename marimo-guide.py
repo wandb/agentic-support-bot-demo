@@ -1427,7 +1427,6 @@ weave.publish(dataset)'''
             
             # Publish to Weave
             _dataset_ref = weave.publish(_dataset)
-            print(f">>>>>>>>>>>>>>>>>>>> {_dataset_ref=}")
             
             # Show success message with ref
             _project = os.getenv("WANDB_PROJECT", "agentic-support-bot-demo")

@@ -136,14 +136,19 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
             dataset_ref = weave.ref("support-bot-eval-dataset:latest")
             dataset = dataset_ref.get()
             
-            # If sampling, create a subset dataset
+            # If sampling, create a new dataset with "sample-" prefix in the name
+            # This distinguishes sampled evaluation runs from full dataset runs in Weave
             if sample_size and len(dataset.rows) > sample_size:
-                # Sample row indices
-                import random
+                # Sample row indices (random is imported at module level)
                 all_indices = list(range(len(dataset.rows)))
                 sampled_indices = random.sample(all_indices, sample_size)
-                # Create a subset dataset for evaluation
-                eval_dataset = dataset.select(sampled_indices)
+                # Get sampled rows from the original dataset
+                sampled_rows = [dataset.rows[i] for i in sampled_indices]
+                # Create a NEW dataset with "sample-" prefix for eval logging
+                eval_dataset = weave.Dataset(
+                    name="sample-support-bot-eval-dataset",
+                    rows=sampled_rows
+                )
                 emit({"type": "status", "message": f"Sampled {sample_size} cases from {len(dataset.rows)} total"})
             else:
                 eval_dataset = dataset
