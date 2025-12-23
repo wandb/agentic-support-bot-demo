@@ -260,23 +260,17 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
         mo.md("Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
         wandb_key_input,
         mo.md("""
-        ## 
-        ---
         ## """),
         mo.md("### OpenAI API key"),
         mo.md("Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys). *Required for guardrails (uses OpenAI's Moderation API)*"),
         openai_key_input,
         mo.md("""
-        ## 
-        ---
         ## """),
         mo.md("### Support bot API key"),
         mo.md("Choose any random string (e.g., `my-secret-key-123`)"),
         mo.md("*Used to authenticate requests to your Modal deployment and in W&B Team Secrets*"),
         bot_key_input,
         mo.md("""
-        ## 
-        ---
         ## """),
         mo.md("### W&B project name"),
         mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb/agentic-support-bot-yourname`)"),
