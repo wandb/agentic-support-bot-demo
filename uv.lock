@@ -11,6 +11,22 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "a2a-sdk"
+version = "0.3.22"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core" },
+    { name = "httpx" },
+    { name = "httpx-sse" },
+    { name = "protobuf" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/92/a3/76f2d94a32a1b0dc760432d893a09ec5ed31de5ad51b1ef0f9d199ceb260/a2a_sdk-0.3.22.tar.gz", hash = "sha256:77a5694bfc4f26679c11b70c7f1062522206d430b34bc1215cfbb1eba67b7e7d", size = 231535, upload-time = "2025-12-16T18:39:21.19Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/64/e8/f4e39fd1cf0b3c4537b974637143f3ebfe1158dad7232d9eef15666a81ba/a2a_sdk-0.3.22-py3-none-any.whl", hash = "sha256:b98701135bb90b0ff85d35f31533b6b7a299bf810658c1c65f3814a6c15ea385", size = 144347, upload-time = "2025-12-16T18:39:19.218Z" },
+]
+
+[[package]]
 name = "abnf"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -64,9 +80,9 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "ruamel-yaml", specifier = ">=0.18.16" },
     { name = "sentencepiece", specifier = ">=0.1.99" },
-    { name = "slide-lye", specifier = "==5.3.0" },
-    { name = "slide-narrator", specifier = "==5.3.0" },
-    { name = "slide-tyler", specifier = "==5.3.0" },
+    { name = "slide-lye", specifier = ">=6.0.0" },
+    { name = "slide-narrator", specifier = ">=6.0.0" },
+    { name = "slide-tyler", specifier = ">=6.0.0" },
     { name = "tinydb", specifier = ">=4.8.0" },
     { name = "torch", specifier = ">=2.0.0" },
     { name = "transformers", specifier = ">=4.30.0" },
@@ -6648,7 +6664,7 @@ wheels = [
 
 [[package]]
 name = "slide-lye"
-version = "5.3.0"
+version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -6668,14 +6684,14 @@ dependencies = [
     { name = "wandb-workspaces" },
     { name = "weave" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6c/ec/82c6b5c81a26c186fa046282463d27f1a835d195081f5ffdabdb07d89a52/slide_lye-5.3.0.tar.gz", hash = "sha256:f292f1bec09cb7304f617872edfef22d1ccb96ac5206e72c7192273e548dd3b8", size = 32913, upload-time = "2025-12-04T15:17:59.639Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/25/c2/abfd6d0c4db5e5ad0c225ec877cb81022669950aaa6041782f78d03917e9/slide_lye-6.0.0.tar.gz", hash = "sha256:c97fe0f5a5fc2c0cce7ddffd789dc17467e2cc41a42925973783bc5c462a494d", size = 32912, upload-time = "2026-01-12T16:10:26.038Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/35/a9/480c73b86bd80f07c6050968fc2c59ac8b2069d608112afef3b9b718aab4/slide_lye-5.3.0-py3-none-any.whl", hash = "sha256:e9865ea6d6af3e65c8a8a1c114b552b2fc92a9e7adfeb10d9643272a2b3c89be", size = 36932, upload-time = "2025-12-04T15:18:00.726Z" },
+    { url = "https://files.pythonhosted.org/packages/fc/3b/c6ad93f85eef7bc2fef3c870946c04ccb9681b287af4f8e3e3d86b0449f2/slide_lye-6.0.0-py3-none-any.whl", hash = "sha256:c7a794dbe24699d8f62f13e0c3e0a0981bf957bde87f87e7c9e9cd4aa36c5e49", size = 36928, upload-time = "2026-01-12T16:10:24.687Z" },
 ]
 
 [[package]]
 name = "slide-narrator"
-version = "5.3.0"
+version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiosqlite" },
@@ -6689,16 +6705,17 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e5/34/a26fdf19619d4657e82f70456f682c2148d993b829b4bd2fc255624c7b51/slide_narrator-5.3.0.tar.gz", hash = "sha256:be547c3670cd2e347645450c12638b3bd3384e800aab92dfe735f94c4b780b05", size = 35359, upload-time = "2025-12-04T15:17:56.351Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c0/1c/869dc2dcba4b6e4457e8d84a4e4bdddcddab5f990abc964a860754906fd8/slide_narrator-6.0.0.tar.gz", hash = "sha256:ac004790220ce2da3854607d3fa5f9a5f4f35db118428b670c259893d39bdaf3", size = 35539, upload-time = "2026-01-12T16:10:19.085Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/29/b2/26b17168a1e897e3acedabcddce0a0b70facee6381f94037daa9a32cb06f/slide_narrator-5.3.0-py3-none-any.whl", hash = "sha256:2db45e5e1cc5b1c67255c7f2f139533f5153130ee98426441438964769a6cc3d", size = 40897, upload-time = "2025-12-04T15:17:55.487Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/8f/d1f1a71216947c3d8b8a3cc820ecbacc4034a73921571bbea51e32b5aa7e/slide_narrator-6.0.0-py3-none-any.whl", hash = "sha256:2c7b1b6fad8ed08f1bc0b721b5aedb595e79b3c9320215e4d1e6581f6048bcf4", size = 41203, upload-time = "2026-01-12T16:10:20.196Z" },
 ]
 
 [[package]]
 name = "slide-tyler"
-version = "5.3.0"
+version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "a2a-sdk" },
     { name = "aiohappyeyeballs" },
     { name = "aiohttp" },
     { name = "aiosignal" },
@@ -6719,6 +6736,7 @@ dependencies = [
     { name = "docker-pycreds" },
     { name = "email-validator" },
     { name = "emoji" },
+    { name = "fastapi" },
     { name = "filelock" },
     { name = "filetype" },
     { name = "flask" },
@@ -6795,15 +6813,16 @@ dependencies = [
     { name = "tzdata" },
     { name = "urllib3" },
     { name = "uuid-utils" },
+    { name = "uvicorn" },
     { name = "wandb" },
     { name = "weave" },
     { name = "werkzeug" },
     { name = "yarl" },
     { name = "zipp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/22/36/ff84f21cb70c8dc7dc3cba6e6645b997f3fe848ee3ec3eca68b31e125dae/slide_tyler-5.3.0.tar.gz", hash = "sha256:2693e07f57ecb982b920f9d6995346d6c3440b943c563eca006caedb506cfd1b", size = 78210, upload-time = "2025-12-04T15:17:52.929Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/63/14/22c1b5171e00a0f90c533b9f071a405590bcbc32c4ade869f64c04865040/slide_tyler-6.0.0.tar.gz", hash = "sha256:4d522fc36c09b4cb521011f18982d254531f0018fd0b8b86af8b75fa30dd6864", size = 103270, upload-time = "2026-01-12T16:10:17.5Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/74/d2ea0495b3fb75812fe21b6e1f3a9c53e95bfc43c6df64da6593a2841021/slide_tyler-5.3.0-py3-none-any.whl", hash = "sha256:87abd8135fafa1116d7523bf88555918654062dfa7e4218e68de6745eaf6c9ee", size = 92560, upload-time = "2025-12-04T15:17:53.908Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/e0/d7d654aec3c8bef46582f2ad9259736a5418ce224df30bde7ad9c8495be1/slide_tyler-6.0.0-py3-none-any.whl", hash = "sha256:db980fc4356a1125f1c89c78795167a63a52b47e1d1625198a7097f1d4bbef11", size = 122962, upload-time = "2026-01-12T16:10:15.714Z" },
 ]
 
 [[package]]
@@ -7463,7 +7482,7 @@ wheels = [
 
 [[package]]
 name = "weave"
-version = "0.52.22"
+version = "0.52.23"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -7478,9 +7497,9 @@ dependencies = [
     { name = "tzdata", marker = "sys_platform == 'win32'" },
     { name = "wandb" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/ac/e9e271cd13f4568f8cbcc128d48088d3228eea4fb77ebca0cbd33a6ec034/weave-0.52.22.tar.gz", hash = "sha256:d82b91540449734c0fb3032e86af9fd072d062cb3f0f107c88ebd9de15e1f5fe", size = 627270, upload-time = "2025-12-04T21:59:30.093Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a2/3c/119b64e092218f7c37f9ca65bfda8ef856be6c03687e5701fa67fd16f3df/weave-0.52.23.tar.gz", hash = "sha256:ad4f37cc901cb93a000faedbe1313509e97c2e7a18cbaada574fef820741ff32", size = 647645, upload-time = "2026-01-08T18:23:46.71Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/40/ee/cfc8d421a3d00be8d8ce2e22e7d572441366d2daa02163beb5b6ced83a2a/weave-0.52.22-py3-none-any.whl", hash = "sha256:d243bc92552b7a673718c61d5bacf4a2d49705cc19fd284da65c9834d0f2136e", size = 788523, upload-time = "2025-12-04T21:59:28.149Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/06/489587dd6f5d06f19535ffbf6cd98e061eef3b50583d8dc40d79271c470b/weave-0.52.23-py3-none-any.whl", hash = "sha256:debe9eac5bdec857dc2507401f075b1b1f3199eccc9ef29f106747c13b23966c", size = 810639, upload-time = "2026-01-08T18:23:44.593Z" },
 ]
 
 [[package]]
