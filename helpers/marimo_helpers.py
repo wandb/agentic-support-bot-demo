@@ -171,35 +171,33 @@ def auto_copy_step_files(step_num: int, source_dir: Optional[str] = None) -> Lis
     """
     Auto-copy files for a step to workspace/step-{N}/.
     
-    Only copies if the tyler-chat-config.yaml doesn't already exist in destination.
+    Only copies files that don't already exist in the destination.
     
     Args:
         step_num: Step number (2, 3, 4, 5, etc.)
         source_dir: Override source directory (default: examples/step-{N})
         
     Returns:
-        List of filenames that were copied (empty if skipped)
+        List of filenames that were copied (empty if all files already exist)
     """
     source_dir = source_dir or f"examples/step-{step_num}"
     dest = Path(f"workspace/step-{step_num}")
-    config_file = dest / "tyler-chat-config.yaml"
-    
-    # Skip if config already exists (user may have modified it)
-    if config_file.exists():
-        return []
     
     # Find source files
     source_files = glob(f"{source_dir}/*.py") + glob(f"{source_dir}/*.yaml")
     if not source_files:
         return []
     
-    # Create destination and copy files
+    # Create destination and copy only files that don't exist
     dest.mkdir(parents=True, exist_ok=True)
     copied = []
     for src in source_files:
         filename = Path(src).name
-        shutil.copy2(src, dest / filename)
-        copied.append(filename)
+        dest_file = dest / filename
+        # Only copy if destination file doesn't already exist
+        if not dest_file.exists():
+            shutil.copy2(src, dest_file)
+            copied.append(filename)
     
     return copied
 

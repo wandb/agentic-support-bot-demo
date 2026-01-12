@@ -174,8 +174,8 @@ class TestAutoCopyStepFiles:
         assert "main.py" in copied
         assert "tyler-chat-config.yaml" in copied
     
-    def test_skips_when_config_exists(self, tmp_path, monkeypatch):
-        """Should skip copying if config already exists."""
+    def test_skips_existing_files_but_copies_new_ones(self, tmp_path, monkeypatch):
+        """Should skip files that exist but copy files that don't."""
         monkeypatch.chdir(tmp_path)
         
         # Create source directory
@@ -184,7 +184,7 @@ class TestAutoCopyStepFiles:
         (source_dir / "new_file.py").write_text("# new")
         (source_dir / "tyler-chat-config.yaml").write_text("name: source")
         
-        # Create destination with existing config
+        # Create destination with existing config (simulates user customization)
         dest_dir = tmp_path / "workspace" / "step-3"
         dest_dir.mkdir(parents=True)
         (dest_dir / "tyler-chat-config.yaml").write_text("name: existing")
@@ -192,10 +192,14 @@ class TestAutoCopyStepFiles:
         # Run auto-copy
         copied = auto_copy_step_files(3)
         
-        # Should not copy
-        assert copied == []
+        # Should copy new_file.py but NOT overwrite existing config
+        assert "new_file.py" in copied
+        assert "tyler-chat-config.yaml" not in copied
+        # Verify existing config was NOT overwritten
         assert (dest_dir / "tyler-chat-config.yaml").read_text() == "name: existing"
-        assert not (dest_dir / "new_file.py").exists()
+        # Verify new file was copied
+        assert (dest_dir / "new_file.py").exists()
+        assert (dest_dir / "new_file.py").read_text() == "# new"
     
     def test_returns_empty_when_no_source_files(self, tmp_path, monkeypatch):
         """Should return empty list when no source files exist."""

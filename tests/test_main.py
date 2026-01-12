@@ -21,53 +21,21 @@ def load_tools_module_for_test(db_path):
 
 
 class TestEnvironmentValidation:
-    """Test environment variable validation."""
+    """Test environment variable validation.
+    
+    Note: These tests are skipped as the main.py module with validate_environment
+    has been refactored out in favor of YAML-based agent configuration.
+    """
 
-    @pytest.mark.usefixtures()  # Don't use autofixtures for this test
+    @pytest.mark.skip(reason="main.py module no longer exists - validation moved to YAML config")
     def test_missing_wandb_key_raises_error(self):
         """AC-4: Test that missing WANDB_API_KEY raises clear error."""
-        import importlib
-        import sys
-        from pathlib import Path
-        
-        # Add step-2 to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-2"
-        sys.path.insert(0, str(step1_dir))
-        
-        import main as main_module
-        
-        with patch.dict(os.environ, {}, clear=True):
-            importlib.reload(main_module)
-            
-            with pytest.raises(ValueError) as exc_info:
-                main_module.validate_environment()
-            
-            assert "WANDB_API_KEY" in str(exc_info.value)
-        
-        # Clean up
-        sys.path.remove(str(step1_dir))
+        pass
 
+    @pytest.mark.skip(reason="main.py module no longer exists - validation moved to YAML config")
     def test_all_keys_present_succeeds(self):
         """AC-4: Test that validation succeeds when required keys present."""
-        import sys
-        from pathlib import Path
-        
-        # Add step-2 to path
-        step1_dir = Path(__file__).parent.parent / "examples" / "step-2"
-        sys.path.insert(0, str(step1_dir))
-        
-        with patch.dict(
-            os.environ,
-            {"WANDB_API_KEY": "test-wandb-key"},
-            clear=True,
-        ):
-            from main import validate_environment
-            
-            # Should not raise any exception
-            validate_environment()
-        
-        # Clean up
-        sys.path.remove(str(step1_dir))
+        pass
 
 
 class TestCreateIssueTool:
@@ -220,15 +188,15 @@ class TestConfigurationFile:
 
     @pytest.fixture
     def config_path(self):
-        """Get path to configuration file (checks both possible names)."""
+        """Get path to configuration file (checks possible names)."""
         base_path = Path(__file__).parent.parent / "examples" / "step-2"
-        # Check for tyler-chat-config.yaml first, then support-bot.yaml
-        for filename in ["tyler-chat-config.yaml", "support-bot.yaml"]:
+        # Check for various config file names in order of preference
+        for filename in ["basic-agent-config.yaml", "tyler-chat-config.yaml", "support-bot.yaml"]:
             config_file = base_path / filename
             if config_file.exists():
                 return config_file
-        # Default to tyler-chat-config.yaml for the assertion error
-        return base_path / "tyler-chat-config.yaml"
+        # Default to basic-agent-config.yaml for the assertion error
+        return base_path / "basic-agent-config.yaml"
 
     def test_config_file_exists(self, config_path):
         """Test that support-bot.yaml exists."""

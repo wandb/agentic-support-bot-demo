@@ -1,3 +1,6 @@
+# Marimo state (user-specific)
+.marimo-state.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -260,23 +260,17 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
         mo.md("Get your key from [wandb.ai/authorize](https://wandb.ai/authorize)"),
         wandb_key_input,
         mo.md("""
-        ## 
-        ---
         ## """),
         mo.md("### OpenAI API key"),
         mo.md("Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys). *Required for guardrails (uses OpenAI's Moderation API)*"),
         openai_key_input,
         mo.md("""
-        ## 
-        ---
         ## """),
         mo.md("### Support bot API key"),
         mo.md("Choose any random string (e.g., `my-secret-key-123`)"),
         mo.md("*Used to authenticate requests to your Modal deployment and in W&B Team Secrets*"),
         bot_key_input,
         mo.md("""
-        ## 
-        ---
         ## """),
         mo.md("### W&B project name"),
         mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb/agentic-support-bot-yourname`)"),
@@ -292,35 +286,14 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
 
 
 @app.cell
-def _(auto_copy_step_files, Path, shutil, glob):
+def _(auto_copy_step_files, Path, shutil):
     # ============================================================================
-    # STEP 2-4, 6, 7: AUTO-COPY LOGIC (using helper)
+    # STEP 2-7: AUTO-COPY LOGIC (using helper)
     # ============================================================================
     
-    # Auto-copy step files to workspace directories (skips if config already exists)
-    auto_copy_step_files(2)
-    auto_copy_step_files(3)
-    auto_copy_step_files(4)
-    
-    # Step 6: Copy server.py to workspace/step-6/ (for Modal deploy)
-    # Only copy if server.py doesn't already exist
-    _step6_dest = Path("workspace/step-6")
-    _server_dest = _step6_dest / "server.py"
-    if not _server_dest.exists():
-        _step6_source = Path("examples/step-6/server.py")
-        if _step6_source.exists():
-            _step6_dest.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(_step6_source, _server_dest)
-    
-    # Step 7: Auto-copy guardrails files to workspace/step-7/
-    _step7_dest = Path("workspace/step-7")
-    _step7_dest.mkdir(parents=True, exist_ok=True)
-    _step7_sources = glob("examples/step-7/*.py")
-    for _src in _step7_sources:
-        _filename = Path(_src).name
-        _dest_file = _step7_dest / _filename
-        if not _dest_file.exists():
-            shutil.copy2(_src, _dest_file)
+    # Auto-copy step files to workspace directories (only copies files that don't exist)
+    for _step_num in range(2, 8):
+        auto_copy_step_files(_step_num)
     
     # Copy db/ folder to all steps that use tools (steps 3, 4, 6, 7)
     # Each step gets its own db/tickets.json so Modal deployments work correctly
@@ -338,19 +311,13 @@ def _(auto_copy_step_files, Path, shutil, glob):
 
 
 @app.cell
-def _():
-    # Removed - auto-copy logic handles this now
-    return
-
-
-@app.cell
 def _(mo, Path):
     # ============================================================================
     # STEP 2: CONFIG EDITOR
     # ============================================================================
     
     # Load initial config
-    _config_path_2 = Path("workspace/step-2/tyler-chat-config.yaml")
+    _config_path_2 = Path("workspace/step-2/basic-agent-config.yaml")
     _initial_config_2 = _config_path_2.read_text() if _config_path_2.exists() else "# Config loading..."
     
     # Create editable config editor
@@ -371,7 +338,7 @@ def _(config_editor_2, Path):
     # Save config to file when edited (immediate sync)
     # Publishing to Weave happens when user sends a chat message (version on use)
     if config_editor_2.value:
-        _config_path_2_save = Path("workspace/step-2/tyler-chat-config.yaml")
+        _config_path_2_save = Path("workspace/step-2/basic-agent-config.yaml")
         _config_path_2_save.parent.mkdir(parents=True, exist_ok=True)
         _config_path_2_save.write_text(config_editor_2.value)
     
@@ -385,7 +352,7 @@ def _(mo, Path):
     # ============================================================================
     
     # Load initial config
-    _config_path_3 = Path("workspace/step-3/tyler-chat-config.yaml")
+    _config_path_3 = Path("workspace/step-3/tools-agent-config.yaml")
     _initial_config_3 = _config_path_3.read_text() if _config_path_3.exists() else "# Config loading..."
     
     # Create editable config editor
@@ -406,7 +373,7 @@ def _(config_editor_3, Path):
     # Save config to file when edited (immediate sync)
     # Publishing to Weave happens when user sends a chat message (version on use)
     if config_editor_3.value:
-        _config_path_3_save = Path("workspace/step-3/tyler-chat-config.yaml")
+        _config_path_3_save = Path("workspace/step-3/tools-agent-config.yaml")
         _config_path_3_save.parent.mkdir(parents=True, exist_ok=True)
         _config_path_3_save.write_text(config_editor_3.value)
     
@@ -421,7 +388,7 @@ def _(mo, Path, step4_inputs_tuple):
     
     # Depends on step4_inputs_tuple to ensure save happens first
     # Then reload config from file (will reflect any input changes)
-    _config_path_4 = Path("workspace/step-4/tyler-chat-config.yaml")
+    _config_path_4 = Path("workspace/step-4/support-agent-config.yaml")
     
     # Trigger reload by depending on the inputs tuple (after save completes)
     _ = step4_inputs_tuple
@@ -446,7 +413,7 @@ def _(config_editor_4, Path):
     # ============================================================================
     # Save config when edited
     if config_editor_4.value:
-        _config_path_4_save = Path("workspace/step-4/tyler-chat-config.yaml")
+        _config_path_4_save = Path("workspace/step-4/support-agent-config.yaml")
         _config_path_4_save.parent.mkdir(parents=True, exist_ok=True)
         _config_path_4_save.write_text(config_editor_4.value)
     
@@ -530,7 +497,7 @@ def _(yaml, os, Path, config_editor_2):
             return None, None, f"❌ Failed to load agent: {str(e)}\n{traceback.format_exc()}"
     
     # Load agent if config file exists in workspace/step-2/
-    _config_path_2a = Path("workspace/step-2/tyler-chat-config.yaml")
+    _config_path_2a = Path("workspace/step-2/basic-agent-config.yaml")
     if _config_path_2a.exists():
         agent_2a, config_2a, agent_status_2a = load_agent_from_config(_config_path_2a)
     else:
@@ -546,7 +513,7 @@ def _(yaml, os, Path, load_agent_from_config, config_editor_3):
     # ============================================================================
     
     # Load agent if Step 3 config exists in workspace/step-3/
-    _config_path_3 = Path("workspace/step-3/tyler-chat-config.yaml")
+    _config_path_3 = Path("workspace/step-3/tools-agent-config.yaml")
     if _config_path_3.exists():
         agent_3, config_3, agent_status_3 = load_agent_from_config(_config_path_3)
     else:
@@ -567,7 +534,7 @@ def _(yaml, os, Path, load_agent_from_config, config_editor_4, step4_inputs_tupl
     
     # Load agent if Step 4 config exists in workspace/step-4/
     # Depends on config_editor_4 AND the input tuple so it reloads when they change
-    _config_path_4 = Path("workspace/step-4/tyler-chat-config.yaml")
+    _config_path_4 = Path("workspace/step-4/support-agent-config.yaml")
     if _config_path_4.exists():
         agent_4, config_4, agent_status_4 = load_agent_from_config(_config_path_4)
     else:
@@ -685,7 +652,7 @@ def _(mo, agent_2a, agent_status_2a, create_chat_adapter_subprocess, Path, creat
     # STEP 2A: CHAT WIDGET (using helper factory)
     # ============================================================================
     
-    _config_path_2a = Path("workspace/step-2/tyler-chat-config.yaml")
+    _config_path_2a = Path("workspace/step-2/basic-agent-config.yaml")
     agent_status_display, chat_widget_2a = create_step_chat_widget(
         mo=mo,
         agent=agent_2a,
@@ -716,7 +683,7 @@ def _(mo, agent_3, agent_status_3, create_chat_adapter_subprocess, Path, create_
     # STEP 3: CHAT WIDGET (using helper factory)
     # ============================================================================
     
-    _config_path_3 = Path("workspace/step-3/tyler-chat-config.yaml")
+    _config_path_3 = Path("workspace/step-3/tools-agent-config.yaml")
     agent_status_display_3, chat_widget_3 = create_step_chat_widget(
         mo=mo,
         agent=agent_3,
@@ -736,7 +703,7 @@ def _(mo, agent_4, agent_status_4, create_chat_adapter_subprocess, Path, create_
     # STEP 4: CHAT WIDGET (using helper factory)
     # ============================================================================
     
-    _config_path_4 = Path("workspace/step-4/tyler-chat-config.yaml")
+    _config_path_4 = Path("workspace/step-4/support-agent-config.yaml")
     _agent_status_display_4, chat_widget_4 = create_step_chat_widget(
         mo=mo,
         agent=agent_4,
@@ -986,7 +953,7 @@ def _(mo, Path, yaml, wandb_inference_models):
     # ============================================================================
     
     # Load current config and extract name/purpose/notes from Step 4
-    _config_path_step4 = Path("workspace/step-4/tyler-chat-config.yaml")
+    _config_path_step4 = Path("workspace/step-4/support-agent-config.yaml")
     _current_name = ""
     _current_purpose = ""
     _current_notes = ""
@@ -1051,7 +1018,7 @@ def _(Path, name_input, purpose_input, notes_input, model_dropdown):
     # BEFORE any dependent cells (config_editor_4, agent_4) read the file.
     # Publishing to Weave happens when user sends a chat message (version on use)
     
-    _config_path_save = Path("workspace/step-4/tyler-chat-config.yaml")
+    _config_path_save = Path("workspace/step-4/support-agent-config.yaml")
     
     # Use a tuple of input values as the marker - this will change when inputs change
     # Dependent cells will see this tuple change and re-execute
@@ -1276,29 +1243,14 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
 
 
 @app.cell
-def _(Path, glob, shutil):
+def _(Path):
     # ============================================================================
-    # STEP 5: AUTO-COPY FILES
+    # STEP 5: CHECK FILES READY (copying happens in main auto-copy cell above)
     # ============================================================================
     
-    # Auto-copy all Step 5 files (no button needed, happens on load)
+    # Check if Step 5 files exist (they're copied by auto_copy_step_files(5) above)
     _step5_dest = Path("workspace/step-5")
-    _step5_dest.mkdir(parents=True, exist_ok=True)
-    _step5_copied = []
-    _step5_error = None
-    step5_files_ready = False
-    
-    try:
-        # Copy all Python files and YAML configs from step-5
-        for _src in glob("examples/step-5/*.py") + glob("examples/step-5/*.yaml"):
-            _filename = Path(_src).name
-            shutil.copy2(_src, _step5_dest / _filename)
-            _step5_copied.append(_filename)
-        
-        step5_files_ready = True
-    except Exception as e:
-        _step5_error = str(e)
-        step5_files_ready = False
+    step5_files_ready = (_step5_dest / "dataset.py").exists()
     
     return (step5_files_ready,)
 
@@ -1320,8 +1272,9 @@ def _(step5_files_ready, Path, sys):
             if _workspace_path not in sys.path:
                 sys.path.insert(0, _workspace_path)
             
-            # Import dataset module
-            import dataset as _dataset_module
+            # Import dataset module dynamically
+            import importlib as _importlib
+            _dataset_module = _importlib.import_module("dataset")
             _evaluation_dataset = _dataset_module.EVALUATION_DATASET
         except Exception as e:
             _evaluation_dataset = None
@@ -1457,7 +1410,8 @@ weave.publish(dataset)'''
             _workspace_path = str(_Path("workspace/step-5").absolute())
             if _workspace_path not in _sys.path:
                 _sys.path.insert(0, _workspace_path)
-            import dataset as _dataset_mod
+            import importlib as _importlib
+            _dataset_mod = _importlib.import_module("dataset")
             
             # Create Weave Dataset object
             _dataset = weave.Dataset(
@@ -1552,7 +1506,7 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, s
                 )
             else:
                 # Check workspace exists (for tools.py)
-                _config_path = Path("workspace/step-4/tyler-chat-config.yaml")
+                _config_path = Path("workspace/step-4/support-agent-config.yaml")
                 if not _config_path.parent.exists():
                     eval_output = mo.callout(
                         mo.md(f"❌ **Workspace not found:** {_config_path.parent}\n\nMake sure you've configured the agent in Step 4 first."),
@@ -1692,7 +1646,8 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
             _workspace_path = str(Path("workspace/step-5").absolute())
             if _workspace_path not in sys.path:
                 sys.path.insert(0, _workspace_path)
-            import dataset as _dataset_display_mod
+            import importlib as _importlib
+            _dataset_display_mod = _importlib.import_module("dataset")
             _evaluation_dataset_display = _dataset_display_mod.EVALUATION_DATASET
         except:
             pass
@@ -1872,9 +1827,9 @@ for test_case in dataset.rows:
 
         **Levers to adjust:**
 
-        1. **Purpose and Notes** (`tyler-chat-config.yaml`) - Add examples, refine tone guidance
+        1. **Purpose and Notes** (agent config) - Add examples, refine tone guidance
         2. **Tool Descriptions** (`tools.py`) - Clarify when to use each tool, add examples
-        3. **Model Selection** (`tyler-chat-config.yaml`) - Try `gpt-4.1` or other models available in W&B Inference, adjust `temperature`, experiment with `reasoning` levels
+        3. **Model Selection** (agent config) - Try `gpt-4.1` or other models available in W&B Inference, adjust `temperature`, experiment with `reasoning` levels
         4. **MCP Search Strategy** - Review traces where docs search failed
 
         **Iteration workflow:**

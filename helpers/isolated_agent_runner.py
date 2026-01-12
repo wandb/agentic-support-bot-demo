@@ -107,7 +107,7 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
             # This links the trace to the specific config version used
             if config_ref_uri:
                 with weave.attributes({'config_ref': config_ref_uri}):
-                    async for chunk in agent.stream(thread, mode="raw"):
+                    async for chunk in agent.stream(thread, mode="openai"):
                         if hasattr(chunk, 'choices') and chunk.choices:
                             for choice in chunk.choices:
                                 if hasattr(choice, 'delta'):
@@ -117,7 +117,7 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
                                         print(json.dumps({"content": delta.content}), flush=True)
             else:
                 # Fallback without config_ref if publish failed
-                async for chunk in agent.stream(thread, mode="raw"):
+                async for chunk in agent.stream(thread, mode="openai"):
                     if hasattr(chunk, 'choices') and chunk.choices:
                         for choice in chunk.choices:
                             if hasattr(choice, 'delta'):
