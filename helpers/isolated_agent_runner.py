@@ -17,13 +17,19 @@ Input (stdin JSON):
             {"role": "assistant", "content": "Hi there!"}
         ],
         "config_path": "/path/to/tyler-chat-config.yaml",
-        "object_name": "BasicAgentConfig"  # Optional, defaults to "AgentConfig"
+        "object_name": "BasicAgentConfig",  # Optional, defaults to "AgentConfig"
+        "stream_mode": "vercel_objects"  # Optional, "vercel_objects" or "openai", defaults to "vercel_objects"
     }
 
 Output (stdout, newline-delimited JSON):
-    {"content": "Hello"}
-    {"content": " there"}
-    {"content": "!"}
+    For stream_mode="vercel_objects":
+        {"chunk": {"type": "text-delta", "id": "text-1", "delta": "Hello"}}
+        {"chunk": {"type": "tool-input-available", "toolCallId": "t1", ...}}
+    
+    For stream_mode="openai":
+        {"content": "Hello"}
+        {"content": " there"}
+    
     {"error": "error message"}  # Only if error occurs
 
 Exit codes:
@@ -37,7 +43,12 @@ import asyncio
 from pathlib import Path
 
 
-async def run_agent_stream(messages: list[dict], config_path: str, object_name: str = "AgentConfig"):
+async def run_agent_stream(
+    messages: list[dict],
+    config_path: str,
+    object_name: str = "AgentConfig",
+    stream_mode: str = "vercel_objects"
+):
     """
     Load agent and stream response to stdout as JSON lines.
     
@@ -45,6 +56,7 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
         messages: List of message dicts with 'role' and 'content'
         config_path: Path to Tyler agent config YAML file
         object_name: Weave object name for config versioning (e.g., "BasicAgentConfig")
+        stream_mode: Tyler streaming mode - "vercel_objects" for Vercel chunk dicts, "openai" for raw chunks
         
     Yields:
         Content chunks as they're generated
@@ -105,8 +117,15 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
             
             # Stream response with config_ref as trace attribute
             # This links the trace to the specific config version used
-            if config_ref_uri:
-                with weave.attributes({'config_ref': config_ref_uri}):
+            async def stream_with_mode():
+                """Stream using the specified mode and output appropriate format."""
+                if stream_mode == "vercel_objects":
+                    # Vercel objects mode: output chunk dicts directly for mo.ui.chat(vercel_messages=True)
+                    async for chunk in agent.stream(thread, mode="vercel_objects"):
+                        # chunk is already a dict with "type" field (text-delta, reasoning-delta, etc.)
+                        print(json.dumps({"chunk": chunk}), flush=True)
+                else:
+                    # OpenAI mode: extract content from chunks
                     async for chunk in agent.stream(thread, mode="openai"):
                         if hasattr(chunk, 'choices') and chunk.choices:
                             for choice in chunk.choices:
@@ -115,15 +134,13 @@ async def run_agent_stream(messages: list[dict], config_path: str, object_name: 
                                     if hasattr(delta, 'content') and delta.content is not None:
                                         # Output as JSON line for parsing by parent process
                                         print(json.dumps({"content": delta.content}), flush=True)
+            
+            if config_ref_uri:
+                with weave.attributes({'config_ref': config_ref_uri}):
+                    await stream_with_mode()
             else:
                 # Fallback without config_ref if publish failed
-                async for chunk in agent.stream(thread, mode="openai"):
-                    if hasattr(chunk, 'choices') and chunk.choices:
-                        for choice in chunk.choices:
-                            if hasattr(choice, 'delta'):
-                                delta = choice.delta
-                                if hasattr(delta, 'content') and delta.content is not None:
-                                    print(json.dumps({"content": delta.content}), flush=True)
+                await stream_with_mode()
         
         finally:
             # Restore original working directory
@@ -142,6 +159,7 @@ def main():
         messages = input_data.get("messages", [])
         config_path = input_data.get("config_path")
         object_name = input_data.get("object_name", "AgentConfig")
+        stream_mode = input_data.get("stream_mode", "vercel_objects")  # Default to vercel_objects
         
         if not messages:
             print(json.dumps({"error": "No messages provided"}), flush=True)
@@ -151,8 +169,13 @@ def main():
             print(json.dumps({"error": "No config_path provided"}), flush=True)
             sys.exit(1)
         
+        # Validate stream_mode
+        if stream_mode not in ("vercel_objects", "openai"):
+            print(json.dumps({"error": f"Invalid stream_mode: {stream_mode}. Use 'vercel_objects' or 'openai'"}), flush=True)
+            sys.exit(1)
+        
         # Run the agent streaming
-        asyncio.run(run_agent_stream(messages, config_path, object_name))
+        asyncio.run(run_agent_stream(messages, config_path, object_name, stream_mode))
         sys.exit(0)
     
     except json.JSONDecodeError as e:

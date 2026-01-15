@@ -559,12 +559,15 @@ def _(Path, sys, os, json, subprocess):
         causing Weave traces to nest under a parent context. Running the agent in a
         subprocess ensures each message creates its own root trace (like the FastAPI server).
         
+        Uses Tyler's vercel_objects mode which yields Vercel AI SDK chunk dicts directly.
+        Marimo (0.19.3+) auto-detects these via ChunkSerializer (PR #7837).
+        
         Args:
             config_path: Path to Tyler agent config YAML file
             object_name: Weave object name for config versioning (e.g., "BasicAgentConfig")
             
         Returns:
-            Async callable compatible with mo.ui.chat() signature (streaming enabled)
+            Async generator yielding Vercel AI SDK chunk dicts for mo.ui.chat
         """
         async def streaming_chat(messages, config):
             """
@@ -577,7 +580,7 @@ def _(Path, sys, os, json, subprocess):
                 config: Model config from marimo (unused, for compatibility)
                 
             Yields:
-                Content deltas (new chunks only, marimo 0.18.1+ handles accumulation)
+                Vercel chunk dicts (for mo.ui.chat vercel_messages=True)
             """
             try:
                 # Convert marimo messages to simple dicts for JSON serialization
@@ -588,11 +591,12 @@ def _(Path, sys, os, json, subprocess):
                     else:
                         messages_data.append({"role": msg["role"], "content": msg["content"]})
                 
-                # Prepare input for subprocess
+                # Prepare input for subprocess - always use vercel_objects mode
                 input_json = json.dumps({
                     "messages": messages_data,
                     "config_path": str(Path(config_path).absolute()),
-                    "object_name": object_name
+                    "object_name": object_name,
+                    "stream_mode": "vercel_objects"
                 })
                 
                 # Get path to isolated agent runner script
@@ -620,11 +624,12 @@ def _(Path, sys, os, json, subprocess):
                         break
                     
                     try:
-                        chunk = json.loads(line.decode().strip())
-                        if "content" in chunk:
-                            yield chunk["content"]
-                        elif "error" in chunk:
-                            yield f"❌ Error: {chunk['error']}"
+                        data = json.loads(line.decode().strip())
+                        if "chunk" in data:
+                            # Yield Vercel chunk dict directly - marimo handles it
+                            yield data["chunk"]
+                        elif "error" in data:
+                            yield f"❌ Error: {data['error']}"
                     except json.JSONDecodeError:
                         continue
                 
@@ -2345,7 +2350,7 @@ def _(
     mo.vstack([
         mo.ui.tabs({
             f"{mo.icon('lucide:home')} Introduction": intro_content,
-            f"{mo.icon('lucide:settings')} 1. Project setup": step1_content,
+            f"{mo.icon('lucide:settings')} 1. Setup": step1_content,
             f"{mo.icon('lucide:bot')} 2. Basic agent": step2_content,
             f"{mo.icon('lucide:wrench')} 3. Add tools": step3_content,
             f"{mo.icon('lucide:refresh-cw')} 4. Iterate": step4_content,

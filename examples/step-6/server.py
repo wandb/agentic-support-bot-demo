@@ -461,7 +461,7 @@ async def chat_completions(
         """Generate SSE stream from Tyler agent."""
         try:
             with weave.attributes({"env": ENV, "config_ref": CONFIG_REF}):
-                async for chunk in AGENT.stream(thread, mode="raw"):
+                async for chunk in AGENT.stream(thread, mode="openai"):
                     yield serialize_chunk_to_sse(chunk)
             
             yield "data: [DONE]\n\n"

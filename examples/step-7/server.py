@@ -552,7 +552,7 @@ async def chat_completions(
         try:
             # Wrap agent call with weave.attributes to tag with environment
             with weave.attributes({"env": ENV}):
-                async for chunk in AGENT.stream(thread, mode="raw"):
+                async for chunk in AGENT.stream(thread, mode="openai"):
                     yield serialize_chunk_to_sse(chunk)
             
             # Send [DONE] message

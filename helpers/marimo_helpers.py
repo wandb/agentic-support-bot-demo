@@ -426,7 +426,8 @@ def create_step_chat_widget(
     prompts = prompts or DEFAULT_CHAT_PROMPTS
     
     if agent is not None:
-        # Create chat function using provided adapter (with object_name)
+        # Tyler vercel_objects mode yields Vercel AI SDK dicts
+        # Marimo (0.19.3+) auto-detects via ChunkSerializer (PR #7837)
         chat_function = chat_adapter_fn(config_path, object_name)
         
         # Show agent status (success)
@@ -435,7 +436,6 @@ def create_step_chat_widget(
             kind="success"
         )
         
-        # Create chat widget with prompts
         chat_widget = mo.ui.chat(
             chat_function,
             prompts=prompts,
