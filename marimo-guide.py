@@ -2350,7 +2350,7 @@ def _(
     mo.vstack([
         mo.ui.tabs({
             f"{mo.icon('lucide:home')} Introduction": intro_content,
-            f"{mo.icon('lucide:settings')} 1. Project setup": step1_content,
+            f"{mo.icon('lucide:settings')} 1. Setup": step1_content,
             f"{mo.icon('lucide:bot')} 2. Basic agent": step2_content,
             f"{mo.icon('lucide:wrench')} 3. Add tools": step3_content,
             f"{mo.icon('lucide:refresh-cw')} 4. Iterate": step4_content,
