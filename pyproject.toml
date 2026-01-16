@@ -6,10 +6,10 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "directive>=0.0.9",
-    "slide-lye==6.1.0",
+    "slide-lye==6.2.0",
     "weave>=0.52.20",
     "python-dotenv>=1.0.0",
-    "slide-tyler==6.1.0",
+    "slide-tyler==6.2.0",
     "fastapi>=0.119.0",
     "uvicorn[standard]>=0.37.0",
     "tinydb>=4.8.0",
@@ -22,8 +22,9 @@ dependencies = [
     # Marimo: Interactive tutorial guide
     "marimo>=0.18.1",
     "ruamel-yaml>=0.18.16",
-    "slide-narrator==6.1.0",
+    "slide-narrator==6.2.0",
     "pydantic-ai>=1.42.0",
+    "wandb>=0.24.0",
 ]
 
 [dependency-groups]
