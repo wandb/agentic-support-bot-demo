@@ -54,6 +54,7 @@ def _get_db():
     return TinyDB(DB_PATH)
 
 
+@weave.op()
 def create_issue(*, title: str, description: str, priority: str = "medium") -> dict:
     """Create a new support ticket in the system."""
     # Validate priority
@@ -82,6 +83,7 @@ def create_issue(*, title: str, description: str, priority: str = "medium") -> d
     return ticket
 
 
+@weave.op()
 def get_issue(*, issue_id: str) -> dict:
     """Retrieve details of an existing support ticket by its ID."""
     # Query database for ticket

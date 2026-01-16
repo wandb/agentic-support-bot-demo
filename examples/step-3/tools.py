@@ -54,6 +54,7 @@ def _get_db():
     return TinyDB(DB_PATH)
 
 
+@weave.op()
 def create_issue(*, title: str, description: str, priority: str = "medium") -> dict:
     # TODO: Add a better description explaining when to use this tool
     
@@ -83,6 +84,7 @@ def create_issue(*, title: str, description: str, priority: str = "medium") -> d
     return ticket
 
 
+@weave.op()
 def get_issue(*, issue_id: str) -> dict:
     # TODO: Add a better description explaining when to use this tool
     
