@@ -95,7 +95,7 @@ requires-dist = [
     { name = "directive", specifier = ">=0.0.9" },
     { name = "fastapi", specifier = ">=0.119.0" },
     { name = "marimo", specifier = ">=0.18.1" },
-    { name = "modal", specifier = ">=0.64.0" },
+    { name = "modal", specifier = ">=1.3.0" },
     { name = "protobuf", specifier = ">=3.20.0" },
     { name = "pydantic-ai", specifier = ">=1.42.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
