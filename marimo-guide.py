@@ -1681,11 +1681,11 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
         mo.md("""
         ##  
   
-        **Goal:** Move from "it feels right" to "it's provably ready for production" by building an evaluation with a comprehensive test dataset.
+        **Goal:** Move from "it feels right when we manually interact with it" to "we can objectively measure and be confident in how ready it is for production" by building an evaluation with a comprehensive test dataset.
 
-        In order to build an evaluation, you need a dataset of test cases and a set of scorers to evaluate the agent's responses.
+        In order to build an evaluation, you need two things: a **dataset** of test cases and a set of **scorers** to evaluate the agent's responses. In practice, these emerge from error analysis—collecting traces from real user interactions, identifying failure patterns, and creating test cases that cover those patterns.
 
-        This repository contains a dataset of test cases.  Take a look at the test cases to get a sense of the type of questions you'll want to evaluate the agent on:
+        For this tutorial, we've already built a dataset based on the types of questions and edge cases a support agent should handle. Take a look at the test cases to get a sense of what you're evaluating:
 
         """),
         
@@ -1726,9 +1726,9 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
 
         Now that you have a dataset, you need to create a set of scorers to evaluate the agent's responses.
 
-        Take a minute to consider how you would evaluate the agent's responses.  What might you want to "test" to ensure your agent is opperating as expected?
+        This is where **error analysis** comes in—the most important activity in evals. The process involves: (1) gathering representative traces of user interactions, (2) having a domain expert review traces and write open-ended notes about any issues ("open coding"), (3) categorizing those notes into a failure taxonomy ("axial coding"), and (4) iteratively refining until new traces stop revealing new failure modes. Based on these findings, you build evaluators targeting the specific failure patterns you discovered rather than using generic off-the-shelf metrics.
 
-        For this tutorial, you'll focus on answering the following questions:
+        For this tutorial, we've already done this work for you. After reviewing traces from our support agent, we identified the following key questions to evaluate:
         - Is the answer correct and helpful?
         - Are the right tools used to take action?
         - Is the tone of the answer appropriate?
@@ -1976,24 +1976,27 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn
     # ============================================================================
     # STEP 6: DEPLOY TERMINAL (using helper)
     # ============================================================================
-    modal_deploy_terminal = await run_modal_deploy(
+    modal_deploy_terminal, deployed_url = await run_modal_deploy(
         mo, modal_deploy_run, config_selector, version_selector, refresh_btn,
         step_num=6, success_message="Deployed successfully!"
     )
-    return (modal_deploy_terminal,)
+    return (modal_deploy_terminal, deployed_url)
 
 
 @app.cell
-def _(mo, saved_prod_url, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
+def _(mo, saved_prod_url, deployed_url, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     _playground_url = weave_playground_url(weave_entity, weave_project)
     _traces_url = weave_traces_url(weave_entity, weave_project)
     
-    # Generate API URL instruction based on saved production URL
-    if saved_prod_url:
-        _base_url = saved_prod_url.rstrip('/').replace('/v1', '')
+    # Use deployed_url (reactive from this session) or fall back to saved_prod_url (from file)
+    _prod_url = deployed_url or saved_prod_url
+    
+    # Generate API URL instruction based on production URL
+    if _prod_url:
+        _base_url = _prod_url.rstrip('/').replace('/v1', '')
         _api_url = f"{_base_url}/v1"
         _url_instruction = f"`{_api_url}`"
     else:
@@ -2120,11 +2123,11 @@ async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn
     # ============================================================================
     # STEP 7: DEPLOY TERMINAL (using helper)
     # ============================================================================
-    step7_deploy_terminal = await run_modal_deploy(
+    step7_deploy_terminal, step7_deployed_url = await run_modal_deploy(
         mo, step7_deploy_run, config_selector, version_selector, refresh_btn,
         step_num=7, success_message="Deployed with guardrails!"
     )
-    return (step7_deploy_terminal,)
+    return (step7_deploy_terminal, step7_deployed_url)
 
 
 @app.cell
