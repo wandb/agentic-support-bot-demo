@@ -810,9 +810,9 @@ async def run_modal_deploy(
     refresh_btn,
     step_num: int,
     success_message: str = "Deployed successfully!"
-) -> Any:
+) -> Tuple[Any, str]:
     """
-    Execute Modal deploy command and return the terminal UI.
+    Execute Modal deploy command and return the terminal UI plus endpoint URL.
     
     Handles config selection, config.json saving, deploy execution, and
     URL extraction from Modal output.
@@ -827,7 +827,7 @@ async def run_modal_deploy(
         success_message: Custom success message (e.g., "Deployed with guardrails!")
     
     Returns:
-        Terminal UI vstack with config selectors, command, and output
+        Tuple of (terminal_ui, endpoint_url) - endpoint_url is empty string if not deployed
     """
     import asyncio
     import re
@@ -854,7 +854,7 @@ async def run_modal_deploy(
     
     # Default: show config selector + command with run button
     if not run_button.value:
-        return mo.vstack([config_selector_row, command_row], gap=1)
+        return mo.vstack([config_selector_row, command_row], gap=1), ""
     
     # Validate config selection
     if not config_name or config_name == "No configs found" or not version:
@@ -862,7 +862,7 @@ async def run_modal_deploy(
             config_selector_row,
             command_row,
             mo.callout(mo.md("❌ Please select a config and version before deploying."), kind="danger")
-        ], gap=1)
+        ], gap=1), ""
     
     # Save config to workspace/step-{N}/config.json
     config_json_path = Path(f"workspace/step-{step_num}/config.json")
@@ -876,7 +876,7 @@ async def run_modal_deploy(
             config_selector_row,
             command_row,
             mo.md(f"```\nError: Server file not found: {server_path}\nMake sure you've completed the previous steps.\n```")
-        ], gap=1)
+        ], gap=1), ""
     
     try:
         process = await asyncio.create_subprocess_exec(
@@ -914,7 +914,7 @@ async def run_modal_deploy(
         
         # Build concise output - show success callout with URL
         if endpoint_url or success:
-            # Auto-save URL to state file for persistence
+            # Auto-save URL to state file for persistence across notebook restarts
             if endpoint_url:
                 state_file = Path(".marimo-state.json")
                 try:
@@ -927,7 +927,7 @@ async def run_modal_deploy(
                     pass
             
             if endpoint_url:
-                summary = f"**🎉 {success_message}**\n\n**Config:** `{config_ref}`\n\n**Endpoint URL:** `{endpoint_url}`\n\n*(URL auto-saved - reload notebook to see it in Playground instructions)*"
+                summary = f"**🎉 {success_message}**\n\n**Config:** `{config_ref}`\n\n**Endpoint URL:** `{endpoint_url}`"
             else:
                 summary = f"**🎉 {success_message}**\n\n**Config:** `{config_ref}`\n\n*(Could not extract endpoint URL - check Modal dashboard)*"
             if view_url:
@@ -936,7 +936,7 @@ async def run_modal_deploy(
                 config_selector_row,
                 command_row,
                 mo.callout(mo.md(summary), kind="success")
-            ], gap=1)
+            ], gap=1), endpoint_url
         else:
             # Only show output if something went wrong (no success detected)
             lines = output.strip().split('\n')
@@ -946,17 +946,17 @@ async def run_modal_deploy(
                 command_row,
                 mo.callout(mo.md(f"⚠️ Deploy output (check for errors):"), kind="warn"),
                 mo.md(f"```\n{truncated}\n```")
-            ], gap=1)
+            ], gap=1), ""
     except FileNotFoundError:
         return mo.vstack([
             config_selector_row,
             command_row,
             mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
-        ], gap=1)
+        ], gap=1), ""
     except Exception as e:
         return mo.vstack([
             config_selector_row,
             command_row,
             mo.md(f"```\nError: {str(e)}\n```")
-        ], gap=1)
+        ], gap=1), ""
 

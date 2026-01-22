@@ -1976,24 +1976,27 @@ async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn
     # ============================================================================
     # STEP 6: DEPLOY TERMINAL (using helper)
     # ============================================================================
-    modal_deploy_terminal = await run_modal_deploy(
+    modal_deploy_terminal, deployed_url = await run_modal_deploy(
         mo, modal_deploy_run, config_selector, version_selector, refresh_btn,
         step_num=6, success_message="Deployed successfully!"
     )
-    return (modal_deploy_terminal,)
+    return (modal_deploy_terminal, deployed_url)
 
 
 @app.cell
-def _(mo, saved_prod_url, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
+def _(mo, saved_prod_url, deployed_url, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
     _playground_url = weave_playground_url(weave_entity, weave_project)
     _traces_url = weave_traces_url(weave_entity, weave_project)
     
-    # Generate API URL instruction based on saved production URL
-    if saved_prod_url:
-        _base_url = saved_prod_url.rstrip('/').replace('/v1', '')
+    # Use deployed_url (reactive from this session) or fall back to saved_prod_url (from file)
+    _prod_url = deployed_url or saved_prod_url
+    
+    # Generate API URL instruction based on production URL
+    if _prod_url:
+        _base_url = _prod_url.rstrip('/').replace('/v1', '')
         _api_url = f"{_base_url}/v1"
         _url_instruction = f"`{_api_url}`"
     else:
@@ -2120,11 +2123,11 @@ async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn
     # ============================================================================
     # STEP 7: DEPLOY TERMINAL (using helper)
     # ============================================================================
-    step7_deploy_terminal = await run_modal_deploy(
+    step7_deploy_terminal, step7_deployed_url = await run_modal_deploy(
         mo, step7_deploy_run, config_selector, version_selector, refresh_btn,
         step_num=7, success_message="Deployed with guardrails!"
     )
-    return (step7_deploy_terminal,)
+    return (step7_deploy_terminal, step7_deployed_url)
 
 
 @app.cell
