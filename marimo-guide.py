@@ -46,6 +46,7 @@ def _():
         # Trace Fetching
         fetch_traces_data,
         build_traces_table_ui,
+        build_empty_traces_table,
         build_traces_section,
         fetch_and_build_traces_ui,
         # Chat Widget Helpers
@@ -75,7 +76,7 @@ def _():
     _ = load_dotenv()
     return (Path, datetime, glob, json, load_dotenv, mo, os, random, re, shutil, subprocess, sys, timezone, yaml, session_start_time,
             DEFAULT_CHAT_PROMPTS, TOOL_CHAT_PROMPTS, weave_traces_url, weave_evals_url, weave_playground_url,
-            save_env_var, auto_copy_step_files, fetch_traces_data, build_traces_table_ui, build_traces_section,
+            save_env_var, auto_copy_step_files, fetch_traces_data, build_traces_table_ui, build_empty_traces_table, build_traces_section,
             fetch_and_build_traces_ui, create_step_chat_widget, publish_agent_config, fetch_weave_configs,
             run_terminal_command, run_modal_deploy)
 
@@ -276,12 +277,13 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
         mo.md("**Customize your project name** - Use format `your-entity/project-name` (e.g., `wandb/agentic-support-bot-yourname`)"),
         wandb_project_input,
         weave_init_status,
-        mo.accordion({
-            "📖 Understand the Code: Weave Initialization": mo.vstack([
-                mo.md("""
+        mo.callout(
+            mo.accordion({
+                "📖 (Optional) Understand the code: Weave Initialization": mo.vstack([
+                    mo.md("""
 **One line enables all tracing.** When you call `weave.init()`, Weave automatically instruments Slide agents, tool calls, and LLM requests.
-                """),
-                mo.ui.code_editor(value='''import weave
+                    """),
+                    mo.ui.code_editor(value='''import weave
 
 # Initialize Weave with your project name
 weave.init("your-entity/your-project")
@@ -289,8 +291,10 @@ weave.init("your-entity/your-project")
 # That's it! All Agent calls are now traced automatically.
 # Every agent.stream() or agent.run() creates a trace in Weave.
 ''', language="python", disabled=True),
-            ])
-        }),
+                ])
+            }),
+            kind="neutral"
+        ),
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've configured your environment variables, continue to **Basic agent** using the tabs above."),
             kind="success"
@@ -738,7 +742,7 @@ def _(mo, agent_4, agent_status_4, create_chat_adapter_subprocess, Path, create_
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_table_2a, traces_error_2a, weave_traces_url):
+def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_table_2a, traces_error_2a, weave_traces_url, build_empty_traces_table):
     # ============================================================================
     # STEP 2: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -750,7 +754,7 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
             mo.md("""
             ## 
                        
-            Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Traces will appear below:
+            Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Click on the trace link to view the full execution details in Weave:
             """)
         ]
         
@@ -759,7 +763,7 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
             _traces_section.extend([
                 traces_table_2a,
                 mo.md(f"""
-                💡 **Tip:** Click on the trace link to view the full execution details in Weave, including inputs, outputs, and timing information, or view all traces in [your project]({_traces_url})
+                💡 **Tip:** View all traces in [your project]({_traces_url})
                 """)
             ])
         elif traces_error_2a:
@@ -770,14 +774,77 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
                     kind="warn"
                 )
             )
-        # Otherwise, just don't show anything - traces will appear when available
+        else:
+            # Show empty table placeholder
+            _traces_section.append(build_empty_traces_table(mo))
         
         # Single column layout
         step2_content = mo.vstack([
             mo.md("""
             ## 
             **Goal:** Understand how a minimal agent will respond to user messages.
+            
+            **What is an agent?** An agent is an LLM that can take actions. Unlike a simple chatbot that only generates text, an agent can use tools, access external data, and execute multi-step workflows autonomously.
+            """),
 
+            mo.callout(
+                mo.accordion({
+                    "📖 (Optional) Understand the code: How an Agent works": mo.vstack([
+                        mo.md("""
+At its core, an agent is a loop:
+
+1. Send a list of messages (a conversation) to an LLM
+2. Check if the LLM wants to use a tool (tools are just functions that helps the agent perform a task)
+3. If yes → execute the tool, add the result to the conversation, go back to step 1
+4. If no → return the final response
+
+Here's what a minimal agent looks like in ~20 lines of Python:
+                        """),
+                        mo.ui.code_editor(value='''def run_agent(messages, tools):
+    while True:
+        # 1. Call the LLM
+        response = openai.chat.completions.create(
+            model="gpt-4.1",
+            messages=messages,
+            tools=tools
+        )
+        
+        # 2. Check for tool calls
+        if response.tool_calls:
+            for tool_call in response.tool_calls:
+                # 3. Execute the tool and add result
+                result = execute_tool(tool_call)
+                messages.append({"role": "tool", "content": result})
+        else:
+            # 4. No tool call = we're done
+            return response.content
+''', language="python", disabled=True),
+                        mo.md("""
+That's the essence! But production agents need more: streaming, error handling, retries, configuration, tracing, and more. That's where frameworks help.
+
+**For this tutorial, we'll use the Agent from the [Slide framework](https://slide.mintlify.app)**, an open-source agent framework. Slide handles the loop, config loading, tool execution, MCP connections, and streaming—so you can focus on defining behavior, not plumbing:
+                        """),
+                        mo.ui.code_editor(value='''from tyler import Agent, Thread, Message
+
+# Load agent from YAML config - no boilerplate needed
+agent = Agent.from_config("basic-agent-config.yaml")
+
+# Create a conversation and stream the response
+thread = Thread()
+thread.add_message(Message(role="user", content="How do I use Weave?"))
+
+async for chunk in agent.stream(thread):
+    print(chunk)  # Slide handles the loop internally
+''', language="python", disabled=True),
+                    ])
+                }),
+                kind="neutral"
+            ),
+
+            mo.md("""
+            ##
+            In this step, we'll start with a basic agent that can only chat—then progressively add capabilities.
+            
             Let's start by asking the agent a couple questions you'll want the agent to be able to answer:
             
             ```
@@ -803,43 +870,20 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
                 ])
             }),
 
-            mo.accordion({
-                "📖 Understand the Code: The Agent framework": mo.vstack([
-                    mo.md("""
-**We use the Agent from the Slide framework.** [Slide](https://slide.mintlify.app) is an open-source framework that makes building agents easier. Slide handles config loading, tool execution, MCP connections, and streaming - so you can focus on defining behavior, not plumbing.
-
-Agents are config-driven from YAML files. The config defines the model, behavior, and capabilities.
-                    """),
-                    mo.ui.code_editor(value='''from tyler import Agent, Thread, Message
-
-# Load agent from YAML config file
-agent = Agent.from_config("basic-agent-config.yaml")
-
-# Create a conversation thread
-thread = Thread()
-thread.add_message(Message(role="user", content="How do I use Weave?"))
-
-# Stream the response
-async for chunk in agent.stream(thread):
-    print(chunk)  # {"type": "text-delta", "delta": "Weave is..."}
-''', language="python", disabled=True),
-                ])
-            }),
-
-
             # Add traces section after chat widget
             *_traces_section,
             
-            mo.accordion({
-                "📖 Understand the Code: Weave Traces and the @weave.op Decorator": mo.vstack([
-                    mo.md("""
+            mo.callout(
+                mo.accordion({
+                    "📖 (Optional) Understand the code: Weave traces and the @weave.op decorator": mo.vstack([
+                        mo.md("""
 **What are traces?** A trace is a record of a function's execution - its inputs, outputs, timing, and any nested calls. Weave stores traces so you can debug, analyze, and compare agent behavior over time.
 
 **The `@weave.op` decorator** is how you instrument your own functions. Any function decorated with `@weave.op` will automatically log its inputs, outputs, and duration to Weave.
 
 Slide agents are already instrumented, so you get tracing automatically. But you can add `@weave.op` to your own functions (like custom tools or scorers) to include them in traces.
-                    """),
-                    mo.ui.code_editor(value='''import weave
+                        """),
+                        mo.ui.code_editor(value='''import weave
 
 # Initialize Weave (done once at startup)
 weave.init("your-entity/your-project")
@@ -863,8 +907,10 @@ async def my_scorer(input: str, output: str) -> float:
 # - Nested calls (if they're also @weave.op)
 # - Errors (if any)
 ''', language="python", disabled=True),
-                ])
-            }),
+                    ])
+                }),
+                kind="neutral"
+            ),
                         
             mo.md("""
             ##  
@@ -905,7 +951,7 @@ def _(mo, weave_entity, weave_project, chat_widget_3, session_start_time, fetch_
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, agent_status_3, traces_table_3, traces_error_3, weave_traces_url):
+def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, agent_status_3, traces_table_3, traces_error_3, weave_traces_url, build_empty_traces_table):
     # ============================================================================
     # STEP 3: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -947,12 +993,13 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
                 ])
             }),            
             
-            mo.accordion({
-                "📖 Understand the Code: Defining Tools for the Agent": mo.vstack([
-                    mo.md("""
+            mo.callout(
+                mo.accordion({
+                    "📖 (Optional) Understand the code: Defining Tools for the Agent": mo.vstack([
+                        mo.md("""
 **Tools give agents capabilities.** Define Python functions and export them in the `TOOLS` format. The agent uses the description to decide when to call each tool.
-                    """),
-                    mo.ui.code_editor(value='''# tools.py - Define tools the agent can call
+                        """),
+                        mo.ui.code_editor(value='''# tools.py - Define tools the agent can call
 
 def create_issue(*, title: str, description: str, priority: str = "medium") -> dict:
     """Create a new support ticket when users report issues."""
@@ -988,28 +1035,31 @@ TOOLS = [
     }
 ]
 ''', language="python", disabled=True),
-                ])
-            }),
+                    ])
+                }),
+                kind="neutral"
+            ),
                         
             # Add traces section
             mo.md("""
             ## 
                        
-            Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Traces will appear below:
+            Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Click on the trace link to view the full execution details in Weave:
             """),
             
-            # Show traces table if available, error if there was one, otherwise nothing
+            # Show traces table if available, error if there was one, otherwise empty table
             (traces_table_3 if traces_table_3 is not None 
              else mo.callout(mo.md(f"⚠️ {traces_error_3}"), kind="warn") if traces_error_3 
-             else mo.md("")),
+             else build_empty_traces_table(mo)),
             
             (mo.md(f"""
-            💡 **Tip:** Click on the trace link to view the full execution details in Weave, including inputs, outputs, and timing information, or view all traces in [your project]({_traces_url_3})
+            💡 **Tip:** View all traces in [your project]({_traces_url_3})
             """) if traces_table_3 is not None else mo.md("")),
             
-            mo.accordion({
-                "📖 Understand the Code: Tool Calls in Weave Traces": mo.vstack([
-                    mo.md("""
+            mo.callout(
+                mo.accordion({
+                    "📖 (Optional) Understand the code: Tool Calls in Weave Traces": mo.vstack([
+                        mo.md("""
 **Tool calls appear as child spans.** When the agent calls a tool, Weave captures the inputs, outputs, and timing. This helps you debug why the agent made certain decisions.
 
 The trace hierarchy with tools:
@@ -1024,9 +1074,11 @@ Agent.stream
 ```
 
 Use traces to answer: Did the agent call the right tool? Were the parameters correct? Did it use the result appropriately?
-                    """),
-                ])
-            }),
+                        """),
+                    ])
+                }),
+                kind="neutral"
+            ),
                         
             mo.md(f"""
             ##  
@@ -1265,7 +1317,7 @@ def _(mo, weave_entity, weave_project, chat_widget_4, session_start_time, fetch_
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_purpose_accordion, example_notes_accordion, name_input, purpose_input, notes_input, model_dropdown, traces_table_4, traces_error_4, weave_traces_url):
+def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_purpose_accordion, example_notes_accordion, name_input, purpose_input, notes_input, model_dropdown, traces_table_4, traces_error_4, weave_traces_url, build_empty_traces_table):
     # ============================================================================
     # STEP 4: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1317,12 +1369,13 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
 
             notes_input,
             
-            mo.accordion({
-                "📖 Understand the Code: How Purpose and Notes Become the System Prompt": mo.vstack([
-                    mo.md("""
+            mo.callout(
+                mo.accordion({
+                    "📖 (Optional) Understand the code: How Purpose and Notes Become the System Prompt": mo.vstack([
+                        mo.md("""
 **Config fields shape agent behavior.** Agent constructs the system prompt from your YAML config. The `purpose` defines the agent's role, and `notes` provide operational guidelines.
-                    """),
-                    mo.ui.code_editor(value='''# Your YAML config:
+                        """),
+                        mo.ui.code_editor(value='''# Your YAML config:
 name: "buzz"
 model_name: "gpt-4.1"
 purpose: |
@@ -1338,8 +1391,10 @@ notes: |
 # This becomes the first message in every conversation,
 # guiding the LLM's behavior throughout the interaction.
 ''', language="python", disabled=True),
-                ])
-            }),
+                    ])
+                }),
+                kind="neutral"
+            ),
 
             mo.md("""
             ## 
@@ -1372,24 +1427,25 @@ notes: |
             mo.md("""
             ## 
                        
-            Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Traces will appear below:
+            Each time you send a message to the chat above, Weave creates a trace of the agent's execution. Click on the trace link to view the full execution details in Weave:
             """),
             
-            # Show traces table if available, error if there was one, otherwise nothing
+            # Show traces table if available, error if there was one, otherwise empty table
             (traces_table_4 if traces_table_4 is not None 
              else mo.callout(mo.md(f"⚠️ {traces_error_4}"), kind="warn") if traces_error_4 
-             else mo.md("")),
+             else build_empty_traces_table(mo)),
             
             (mo.md(f"""
-            💡 **Tip:** Click on the trace link to view the full execution details in Weave, including inputs, outputs, and timing information, or view all traces in [your project]({_traces_url_4})
+            💡 **Tip:** View all traces in [your project]({_traces_url_4})
             """) if traces_table_4 is not None else mo.md("")),
             
-            mo.accordion({
-                "📖 Understand the Code: Config Versioning with Weave": mo.vstack([
-                    mo.md("""
+            mo.callout(
+                mo.accordion({
+                    "📖 (Optional) Understand the code: Config Versioning with Weave": mo.vstack([
+                        mo.md("""
 **Every config edit creates a version.** When you change the purpose, notes, or model, Weave saves a new version. This lets you track what changed and compare results across iterations.
-                    """),
-                    mo.ui.code_editor(value='''import weave
+                        """),
+                        mo.ui.code_editor(value='''import weave
 
 # Publish config to Weave (happens automatically when you chat)
 config_ref = weave.publish(
@@ -1404,8 +1460,10 @@ config_latest = weave.ref("SupportAgentConfig:latest").get()
 # Compare traces across versions to see what improved
 # Each trace links to the config version that was used
 ''', language="python", disabled=True),
-                ])
-            }),
+                    ])
+                }),
+                kind="neutral"
+            ),
                         
             mo.md(f"""
             ##  
@@ -1900,12 +1958,13 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
             """)
         }),
         
-        mo.accordion({
-            "📖 Understand the Code: Weave Datasets": mo.vstack([
-                mo.md("""
+        mo.callout(
+            mo.accordion({
+                "📖 (Optional) Understand the code: Weave Datasets": mo.vstack([
+                    mo.md("""
 **Datasets are versioned test cases.** Weave stores datasets as objects you can publish, version, and reuse across evaluation runs. Each row is a test case with inputs and expected behavior.
-                """),
-                mo.ui.code_editor(value='''import weave
+                    """),
+                    mo.ui.code_editor(value='''import weave
 
 # Define your test cases
 rows = [
@@ -1930,8 +1989,10 @@ ref = weave.publish(dataset)
 # Dataset is now versioned: support-bot-eval:v0, v1, etc.
 # Fetch later with: weave.ref("support-bot-eval:latest").get()
 ''', language="python", disabled=True),
-            ])
-        }),
+                ])
+            }),
+            kind="neutral"
+        ),
         
         mo.md("""
         ##
@@ -1967,12 +2028,13 @@ ref = weave.publish(dataset)
             selection=None
         ),
         
-        mo.accordion({
-            "📖 Understand the Code: How Scorers Work": mo.vstack([
-                mo.md("""
+        mo.callout(
+            mo.accordion({
+                "📖 (Optional) Understand the code: How Scorers Work": mo.vstack([
+                    mo.md("""
 **Two types of scorers.** Rule-based scorers are fast and deterministic (checking if specific tools were called). LLM-as-judge scorers are flexible and can evaluate semantic quality.
-                """),
-                mo.ui.code_editor(value='''# Rule-based scorer: fast, deterministic
+                    """),
+                    mo.ui.code_editor(value='''# Rule-based scorer: fast, deterministic
 def tool_usage_scorer(output: str, expected_tools: list) -> float:
     """Check if the agent called the expected tools."""
     called_tools = extract_tool_calls(output)
@@ -1995,16 +2057,18 @@ async def accuracy_scorer(input: str, output: str, expected: str) -> float:
     result = await judge.run(prompt)
     return parse_score(result)  # Extract float from judge response
 ''', language="python", disabled=True),
-                mo.md("""
+                    mo.md("""
 **View the actual scorer implementations:**
-                """),
-                mo.ui.tabs({
-                    "scorers.py": mo.ui.code_editor(value=_scorers_code, language="python", disabled=True).style({"max-height": "400px", "overflow": "auto"}),
-                    "accuracy-judge-config.yaml": mo.ui.code_editor(value=_accuracy_judge_config, language="yaml", disabled=True).style({"max-height": "400px", "overflow": "auto"}),
-                    "safety-judge-config.yaml": mo.ui.code_editor(value=_safety_judge_config, language="yaml", disabled=True).style({"max-height": "400px", "overflow": "auto"})
-                }),
-            ])
-        }),
+                    """),
+                    mo.ui.tabs({
+                        "scorers.py": mo.ui.code_editor(value=_scorers_code, language="python", disabled=True).style({"max-height": "400px", "overflow": "auto"}),
+                        "accuracy-judge-config.yaml": mo.ui.code_editor(value=_accuracy_judge_config, language="yaml", disabled=True).style({"max-height": "400px", "overflow": "auto"}),
+                        "safety-judge-config.yaml": mo.ui.code_editor(value=_safety_judge_config, language="yaml", disabled=True).style({"max-height": "400px", "overflow": "auto"})
+                    }),
+                ])
+            }),
+            kind="neutral"
+        ),
 
         mo.md("""
         ##
@@ -2055,12 +2119,13 @@ for test_case in dataset.rows:
         
         eval_output,
         
-        mo.accordion({
-            "📖 Understand the Code: EvaluationLogger API": mo.vstack([
-                mo.md("""
+        mo.callout(
+            mo.accordion({
+                "📖 (Optional) Understand the code: EvaluationLogger API": mo.vstack([
+                    mo.md("""
 **Log predictions and scores systematically.** The `EvaluationLogger` API lets you run your agent on each test case, capture the output, and log scores from multiple scorers. All results are stored in Weave for analysis.
-                """),
-                mo.ui.code_editor(value='''import weave
+                    """),
+                    mo.ui.code_editor(value='''import weave
 from tyler import Agent, Thread, Message
 
 # Load agent and dataset
@@ -2094,8 +2159,10 @@ for test_case in dataset.rows:
 
 # Results appear in Weave UI: Evaluations tab
 ''', language="python", disabled=True),
-            ])
-        }),
+                ])
+            }),
+            kind="neutral"
+        ),
         
         mo.md(f"""
         ##
@@ -2345,12 +2412,13 @@ This will open a browser window to authenticate. Once complete, you're ready to 
         
         modal_deploy_terminal,
         
-        mo.accordion({
-            "📖 Understand the Code: Server Streaming Pattern": mo.vstack([
-                mo.md("""
+        mo.callout(
+            mo.accordion({
+                "📖 (Optional) Understand the code: Server Streaming Pattern": mo.vstack([
+                    mo.md("""
 **OpenAI-compatible streaming.** The server converts incoming messages to a Slide Thread, streams the agent response, and serializes chunks as Server-Sent Events (SSE) for OpenAI API compatibility.
-                """),
-                mo.ui.code_editor(value='''from tyler import Agent, Thread, Message
+                    """),
+                    mo.ui.code_editor(value='''from tyler import Agent, Thread, Message
 from fastapi.responses import StreamingResponse
 
 # Convert OpenAI messages to Slide Thread
@@ -2372,8 +2440,10 @@ async def generate():
 
 return StreamingResponse(generate(), media_type="text/event-stream")
 ''', language="python", disabled=True),
-            ])
-        }),
+                ])
+            }),
+            kind="neutral"
+        ),
         
         mo.md(f"""
         ##
@@ -2405,12 +2475,13 @@ return StreamingResponse(generate(), media_type="text/event-stream")
         Navigate to [Traces]({_traces_url}) → look for `Agent.stream` operations. You should see traces from your Playground conversations!
         """),
         
-        mo.accordion({
-            "📖 Understand the Code: Tagging Production Traces": mo.vstack([
-                mo.md("""
+        mo.callout(
+            mo.accordion({
+                "📖 (Optional) Understand the code: Tagging Production Traces": mo.vstack([
+                    mo.md("""
 **Add metadata to traces.** Use `weave.attributes()` to tag traces with environment, config version, or any custom metadata. This makes it easy to filter and compare traces in the Weave UI.
-                """),
-                mo.ui.code_editor(value='''import weave
+                    """),
+                    mo.ui.code_editor(value='''import weave
 
 # Tag traces with environment and config version
 with weave.attributes({
@@ -2426,8 +2497,10 @@ with weave.attributes({
 # - config_ref = "SupportAgentConfig:v5" → specific version
 # - Compare traces across different config versions
 ''', language="python", disabled=True),
-            ])
-        }),
+                ])
+            }),
+            kind="neutral"
+        ),
         
         mo.md(f"""
         ##
@@ -2505,12 +2578,13 @@ def _(mo, step7_deploy_terminal, Path):
         The server integrates the guardrail so it runs automatically on every request. Results appear in your Weave traces.
         """),
         
-        mo.accordion({
-            "📖 Understand the Code: Guardrail Execution Flow": mo.vstack([
-                mo.md("""
+        mo.callout(
+            mo.accordion({
+                "📖 (Optional) Understand the code: Guardrail Execution Flow": mo.vstack([
+                    mo.md("""
 **Check BEFORE generation.** Input guardrails run before the LLM call. If content is flagged, the request is blocked immediately - no LLM cost, no unsafe output. This maintains streaming UX for safe requests.
-                """),
-                mo.ui.code_editor(value='''from guardrails import InputToxicityGuardrail
+                    """),
+                    mo.ui.code_editor(value='''from guardrails import InputToxicityGuardrail
 
 # Initialize guardrail (once at startup)
 input_guard = InputToxicityGuardrail()
@@ -2535,8 +2609,10 @@ async def chat_completions(request):
 # - Maintains streaming UX (no buffering needed)
 # - Modern LLMs rarely generate toxic content unprompted
 ''', language="python", disabled=True),
-            ])
-        }),
+                ])
+            }),
+            kind="neutral"
+        ),
         
         mo.accordion({
             "💡 (Optional) View Guardrails Code": mo.ui.code_editor(value=_guardrails_code, language="python", disabled=True).style({"max-height": "400px", "overflow": "auto"})
@@ -2625,9 +2701,10 @@ Return ONLY a JSON object:
         Monitors automatically sample your production traffic, score each sample asynchronously (no latency impact), and store results in Weave for analysis.
         """),
         
-        mo.accordion({
-            "📖 Understand the Code: Scores in Weave Traces": mo.vstack([
-                mo.md("""
+        mo.callout(
+            mo.accordion({
+                "📖 (Optional) Understand the code: Scores in Weave Traces": mo.vstack([
+                    mo.md("""
 **Guardrails and monitors add scores to traces.** Both appear in the Weave UI under the "Scorers" section of each trace. Guardrails run synchronously (blocking), monitors run asynchronously (sampling).
 
 The trace structure with guardrails:
@@ -2640,8 +2717,8 @@ Agent.stream
 
 # If flagged=true, LLM call never happens
 ```
-                """),
-                mo.ui.code_editor(value='''# Guardrail scores are logged automatically
+                    """),
+                    mo.ui.code_editor(value='''# Guardrail scores are logged automatically
 # The InputToxicityGuardrail uses OpenAI Moderation API:
 
 result = await guardrail.score(input=user_message)
@@ -2660,8 +2737,10 @@ result = await guardrail.score(input=user_message)
 # Configure via Weave UI: Monitors → New Monitor
 # Results appear in Trace → Scorers section
 ''', language="python", disabled=True),
-            ])
-        }),
+                ])
+            }),
+            kind="neutral"
+        ),
         
         mo.accordion({
             "💡 (Optional) Guardrails vs Monitors Comparison": mo.md("""

@@ -347,6 +347,30 @@ def build_traces_table_ui(mo, table_data: List[Dict[str, Any]]):
     )
 
 
+def build_empty_traces_table(mo):
+    """
+    Build an empty traces table placeholder.
+    
+    Shows the table headers with a message indicating no traces yet.
+    
+    Args:
+        mo: marimo module (must be passed from notebook context)
+        
+    Returns:
+        mo.ui.table with empty state
+    """
+    return mo.ui.table(
+        [
+            {
+                "Link": mo.md("*No traces yet - send a message above*"),
+                "Latency": "-",
+                "Cost": "-"
+            }
+        ],
+        selection=None
+    )
+
+
 def build_traces_section(
     mo,
     traces_table,
