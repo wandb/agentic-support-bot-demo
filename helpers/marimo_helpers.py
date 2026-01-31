@@ -300,12 +300,42 @@ def fetch_traces_data(
             latency_ms = trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
             latency_str = f"{latency_ms / 1000.0:.3f}s" if latency_ms else 'N/A'
             
-            # Get cost
+            # Get cost - check multiple possible locations
+            # Based on Weave source code, costs are stored in summary.weave.costs (plural)
+            # Structure: {"llm_id_1": {"prompt_tokens_total_cost": ..., "completion_tokens_total_cost": ...}, ...}
             costs = trace.get('costs', {})
-            if costs:
-                total_cost = sum(costs.values())
+            
+            # Check summary.weave.costs (this is where Weave adds costs when include_costs=True)
+            # Note: Costs are only added when there's usage data in the trace summary
+            if not costs or (isinstance(costs, dict) and len(costs) == 0):
+                summary_weave = trace.get('summary', {}).get('weave', {})
+                if 'costs' in summary_weave:
+                    costs = summary_weave['costs']
+            
+            # Calculate total cost
+            # Costs structure: {"llm_id": {"prompt_tokens_total_cost": X, "completion_tokens_total_cost": Y}, ...}
+            # We need to sum prompt_tokens_total_cost + completion_tokens_total_cost for each LLM
+            if costs and isinstance(costs, dict) and len(costs) > 0:
+                total_cost = 0.0
+                for llm_id, cost_details in costs.items():
+                    if isinstance(cost_details, dict):
+                        # Sum prompt and completion token costs for this LLM
+                        prompt_cost = cost_details.get('prompt_tokens_total_cost', 0) or 0
+                        completion_cost = cost_details.get('completion_tokens_total_cost', 0) or 0
+                        total_cost += float(prompt_cost) + float(completion_cost)
+                    elif isinstance(cost_details, (int, float)):
+                        # If it's a direct number, add it
+                        total_cost += float(cost_details)
+                
                 cost_str = f"${total_cost:.4f}" if total_cost > 0 else "$0.00"
+            elif costs and isinstance(costs, (int, float)):
+                # If costs is a direct number (unlikely but handle it)
+                cost_str = f"${costs:.4f}" if costs > 0 else "$0.00"
             else:
+                # Costs are not available - this happens when:
+                # 1. The trace has no LLM usage data (no token usage tracked)
+                # 2. Costs haven't been calculated yet
+                # 3. The API didn't return costs even with include_costs=True
                 cost_str = 'N/A'
             
             table_data.append({

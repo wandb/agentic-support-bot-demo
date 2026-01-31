@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "directive>=0.0.9",
     "slide-lye==6.3.0",
-    "weave>=0.52.20",
+    "weave>=0.52.25",
     "python-dotenv>=1.0.0",
     "slide-tyler==6.3.0",
     "fastapi>=0.119.0",
@@ -24,7 +24,7 @@ dependencies = [
     "ruamel-yaml>=0.18.16",
     "slide-narrator==6.3.0",
     "pydantic-ai>=1.42.0",
-    "wandb>=0.24.0",
+    "wandb>=0.23.1",
 ]
 
 [dependency-groups]
