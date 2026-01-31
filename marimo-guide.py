@@ -760,12 +760,7 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, config_editor_2, traces_t
         
         if traces_table_2a is not None:
             # Show traces table when available
-            _traces_section.extend([
-                traces_table_2a,
-                mo.md(f"""
-                💡 **Tip:** View all traces in [your project]({_traces_url})
-                """)
-            ])
+            _traces_section.append(traces_table_2a)
         elif traces_error_2a:
             # Show warning only for actual errors
             _traces_section.append(
@@ -963,13 +958,88 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
             mo.md("""
             ## 
 
-            **Goal:** Give the agent capabilities by adding tools and knowledge sources.
+            **Goal:** Give the agent capabilities by adding tools.
 
-            The agent from Step 2 can chat but can't actually DO anything. Now it has:
+            The agent in Step 2 could chat but couldn't actually DO anything—it could only respond with what it already knew from training.
+
+            In this step, the agent in the chat below has access to tools. When you send a message, the agent can now decide to call tools to fetch real data or take actions before responding.
+
+
+            **What are tools?** Tools are functions that an agent can call to perform actions in the real world. While an LLM can only generate text, tools let it create tickets, query databases, search documentation, send emails, or interact with any external system.
+            """),
+
+            mo.callout(
+                mo.accordion({
+                    "📖 (Optional) Understand the code: How Tools Work": mo.vstack([
+                        mo.md("""
+Tools connect the agent's reasoning to real actions. Here's the flow:
+
+1. User asks a question that requires external data or action
+2. LLM analyzes the request and decides which tool(s) to call
+3. Agent executes the tool with the LLM-provided parameters
+4. Tool result is added to the conversation
+5. LLM uses the result to formulate its response
+
+For example, when a user asks about a ticket:
+                        """),
+                        mo.ui.code_editor(value='''# User: "What's the status of ticket #10234?"
+
+# 1. LLM decides to call get_issue tool
+tool_call = {
+    "name": "get_issue",
+    "arguments": {"issue_id": "10234"}
+}
+
+# 2. Agent executes the tool
+result = get_issue(issue_id="10234")
+# Returns: {"id": "10234", "title": "API timeout", "status": "in_progress", "assignee": "Alice"}
+
+# 3. LLM sees the result and responds:
+# "Ticket #10234 is currently in progress. It's about API timeout issues 
+#  and is assigned to Alice."
+''', language="python", disabled=True),
+                        mo.md("""
+**Defining tools is simple:** Write a Python function with type hints and a docstring. The agent uses the function signature and docstring to understand when and how to call it:
+                        """),
+                        mo.ui.code_editor(value='''# tools.py - Define tools the agent can call
+
+def create_issue(*, title: str, description: str, priority: str = "medium") -> dict:
+    """Create a new support ticket when users report issues.
+    
+    Use this when a user describes a problem that needs tracking.
+    """
+    # ... implementation
+    return {"id": "12345", "title": title, "status": "open"}
+
+def get_issue(*, issue_id: str) -> dict:
+    """Look up an existing support ticket by ID.
+    
+    Use this when a user asks about a specific ticket number.
+    """
+    # ... implementation
+    return {"id": issue_id, "title": "...", "status": "open"}
+
+# Export in Slide format for Agent to discover
+TOOLS = [
+    {"definition": {"type": "function", "function": {"name": "create_issue", ...}}, 
+     "implementation": create_issue},
+    {"definition": {"type": "function", "function": {"name": "get_issue", ...}}, 
+     "implementation": get_issue}
+]
+''', language="python", disabled=True),
+                    ])
+                }),
+                kind="neutral"
+            ),
+
+            mo.md("""
+            ##            
+            
+            The agent in this chat has access to:
             - **Tools** for creating and retrieving support tickets (`create_issue`, `get_issue`)
             - **MCP** for searching W&B documentation in real-time
             
-            Let's test these new capabilities:
+            Try these prompts and watch the agent use its tools:
             
             ```
             How do I initialize Weave in Python?
@@ -991,54 +1061,7 @@ def _(mo, weave_entity, weave_project, chat_widget_3, config_editor_3, agent_3, 
                     """),
                     config_editor_3,
                 ])
-            }),            
-            
-            mo.callout(
-                mo.accordion({
-                    "📖 (Optional) Understand the code: Defining Tools for the Agent": mo.vstack([
-                        mo.md("""
-**Tools give agents capabilities.** Define Python functions and export them in the `TOOLS` format. The agent uses the description to decide when to call each tool.
-                        """),
-                        mo.ui.code_editor(value='''# tools.py - Define tools the agent can call
-
-def create_issue(*, title: str, description: str, priority: str = "medium") -> dict:
-    """Create a new support ticket when users report issues."""
-    # ... implementation
-    return {"id": "12345", "title": title, "status": "open"}
-
-def get_issue(*, issue_id: str) -> dict:
-    """Look up an existing support ticket by ID."""
-    # ... implementation
-    return {"id": issue_id, "title": "...", "status": "open"}
-
-# Export in Slide format for Agent to discover
-TOOLS = [
-    {
-        "definition": {
-            "type": "function",
-            "function": {
-                "name": "create_issue",
-                "description": "Create a support ticket when users report problems"
-            }
-        },
-        "implementation": create_issue
-    },
-    {
-        "definition": {
-            "type": "function",
-            "function": {
-                "name": "get_issue",
-                "description": "Look up an existing ticket by ID"
-            }
-        },
-        "implementation": get_issue
-    }
-]
-''', language="python", disabled=True),
-                    ])
-                }),
-                kind="neutral"
-            ),
+            }),
                         
             # Add traces section
             mo.md("""
@@ -1051,10 +1074,6 @@ TOOLS = [
             (traces_table_3 if traces_table_3 is not None 
              else mo.callout(mo.md(f"⚠️ {traces_error_3}"), kind="warn") if traces_error_3 
              else build_empty_traces_table(mo)),
-            
-            (mo.md(f"""
-            💡 **Tip:** View all traces in [your project]({_traces_url_3})
-            """) if traces_table_3 is not None else mo.md("")),
             
             mo.callout(
                 mo.accordion({
@@ -1434,10 +1453,6 @@ notes: |
             (traces_table_4 if traces_table_4 is not None 
              else mo.callout(mo.md(f"⚠️ {traces_error_4}"), kind="warn") if traces_error_4 
              else build_empty_traces_table(mo)),
-            
-            (mo.md(f"""
-            💡 **Tip:** View all traces in [your project]({_traces_url_4})
-            """) if traces_table_4 is not None else mo.md("")),
             
             mo.callout(
                 mo.accordion({
