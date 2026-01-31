@@ -1352,7 +1352,7 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
             **Goal:** Improve the agent's behavior by giving it a clear purpose and operational guidelines.
 
             The agent from Step 3 has tools but the agent is still stuck in the "generic assistant" mode. Let's fix that by:
-            - **Selecting a model**: Choose from available W&B Inference models
+            - **Selecting a model**: Pick a model that balances capability vs. speed for your needs
             - **Naming your agent**: Give it personality!
             - **Defining a clear purpose**: What is this agent's role?  How should it behave?  How should it respond?
             - **Adding operational notes**: When should it use each tool?
@@ -1361,7 +1361,7 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
             mo.md("""
             ## 
 
-            Select a model from [W&B Inference](https://docs.wandb.ai/inference) - all available open-source models are included.
+            Select a model from [W&B Inference](https://docs.wandb.ai/inference). Different models have different strengths: larger models (70B+) tend to be more capable at complex reasoning and following nuanced instructions, while smaller models are faster and cheaper. Experiment to find the right balance for your use case.
             """),
 
             model_dropdown,
