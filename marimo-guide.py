@@ -252,7 +252,7 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
         mo.md("""
         ## 
         
-        For this step we need to set up the API keys needed to run the agent and connect it to Weave for tracing.
+        Before we get started, we need to set up the API keys needed to run the agent and connect it to Weave for tracing.
 
         """),
         mo.md("### W&B API key"),
@@ -260,8 +260,8 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
         wandb_key_input,
         mo.md("""
         ## """),
-        mo.md("### OpenAI API key"),
-        mo.md("Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys). *Required for guardrails (uses OpenAI's Moderation API)*"),
+        mo.md("### OpenAI API key *(optional)*"),
+        mo.md("Get your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys). *Only needed for Step 7 guardrails (uses OpenAI's Moderation API). You can skip this and add it later.*"),
         openai_key_input,
         mo.md("""
         ## """),
@@ -277,17 +277,19 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
         weave_init_status,
         mo.callout(
             mo.accordion({
-                "📖 (Optional) Understand the code: Weave initialization": mo.vstack([
+                "(Optional) Understand the code: Weave initialization": mo.vstack([
                     mo.md("""
-**One line enables all tracing.** When you call `weave.init()`, Weave automatically instruments Slide agents, tool calls, and LLM requests.
+**Weave** is W&B's toolkit for building and evaluating AI applications. It provides automatic tracing to capture every LLM call, tool execution, and agent decision in your application—giving you full visibility into what your AI is doing and why.
+
+**One line to get started.** Calling `weave.init()` connects your application to Weave and enables tracing. From there, you can use the `@weave.op` decorator to trace any function—we'll cover that in the next steps.
                     """),
                     mo.ui.code_editor(value='''import weave
 
 # Initialize Weave with your project name
 weave.init("your-entity/your-project")
 
-# That's it! All Agent calls are now traced automatically.
-# Every agent.stream() or agent.run() creates a trace in Weave.
+# Now you can use @weave.op to trace functions
+# We'll see this in action in the next steps!
 ''', language="python", disabled=True),
                 ])
             }),
@@ -775,9 +777,10 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, traces_table_2a, traces_e
         step2_content = mo.vstack([
             mo.md("""
             ## 
-            **Goal:** Understand how a minimal agent will respond to user messages.
-            
-            **What is an agent?** An agent is an LLM that can take actions. Unlike a simple chatbot that only generates text, an agent can use tools, access external data, and execute multi-step workflows autonomously.
+
+            Now that we are all set up, we can start creating our agent... but what is an agent?
+
+            An agent is an LLM that can take actions. Unlike a simple chatbot that only generates text, an agent can use tools, access external data, and execute multi-step workflows autonomously.
             """),
 
             mo.callout(
@@ -945,8 +948,6 @@ def _(mo, weave_entity, weave_project, chat_widget_3, traces_table_3, traces_err
         step3_content = mo.vstack([
             mo.md("""
             ## 
-
-            **Goal:** Give the agent capabilities by adding tools.
 
             The agent in Step 2 could chat but couldn't actually DO anything—it could only respond with what it already knew from training.
 
@@ -1320,8 +1321,6 @@ def _(mo, weave_entity, weave_project, chat_widget_4, example_purpose_accordion,
         step4_content = mo.vstack([
             mo.md("""
             ## 
-
-            **Goal:** Improve the agent's behavior by giving it a clear purpose and operational guidelines.
 
             The agent from Step 3 has tools but the agent is still stuck in the "generic assistant" mode. Let's fix that by:
             - **Selecting a model**: Pick a model that balances capability vs. speed for your needs
@@ -1955,11 +1954,11 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
         mo.md("""
         ##  
   
-        **Goal:** Move from "it feels right when we manually interact with it" to "we can objectively measure and be confident in how ready it is for production" by building an evaluation with a comprehensive test dataset.
+        Now that we have spent some time customizing the agent, it might "feel right" when we manually interact with it, but we need to be confident in how ready it is for production before we put it in front of users. We can do this by building an evaluation that functions similarly to the tests we might write for code.
 
-        In order to build an evaluation, you need two things: a **dataset** of test cases and a set of **scorers** to evaluate the agent's responses. In practice, these emerge from error analysis—collecting traces from real user interactions, identifying failure patterns, and creating test cases that cover those patterns.
+        In order to build an evaluation, we need two things: a **dataset** of test cases and a set of **scorers** to evaluate the agent's responses. In practice, these emerge from error analysis—collecting traces from real user interactions, identifying failure patterns, and creating test cases that cover those patterns.
 
-        For this tutorial, we've already built a dataset based on the types of questions and edge cases a support agent should handle. Take a look at the test cases to get a sense of what you're evaluating:
+        For this tutorial, we've already built a dataset based on the types of questions and edge cases a support agent should handle. Take a look at the test cases to get a sense of what we're evaluating:
 
         """),
         
@@ -2394,8 +2393,6 @@ def _(mo, saved_prod_url, deployed_url, bot_key_input, os, modal_deploy_terminal
         mo.md("""
         ##
             
-        **Goal:** Deploy a basic server and test your agent interactively using Weave's built-in Playground.
-
         So far you've been testing your agent directly in this notebook. Now you'll deploy it as an API service so you can test it in Weave Playground - a chat interface that lets you interact with your agent while viewing traces in real-time.
 
         You'll use [Modal](https://modal.com) to deploy your agent. Modal makes it easy to deploy Python apps as serverless APIs with just a few commands.
@@ -2586,8 +2583,6 @@ def _(mo, step7_deploy_terminal, Path):
     step7_content = mo.vstack([
         mo.md("""
         ##  
-
-        **Goal:** Deploy your agent to production with safety controls and quality monitoring.
 
         Now that you have a working agent, it's time to add production-critical safety patterns. You'll add:
         - **Guardrails** - Active safety controls that block unsafe input before generation
@@ -2879,8 +2874,8 @@ def _(
             f"{mo.icon('lucide:wrench')} 3. Add tools": step3_content,
             f"{mo.icon('lucide:refresh-cw')} 4. Iterate": step4_content,
             f"{mo.icon('lucide:database')} 5. Evaluate": step5_content,
-            f"{mo.icon('lucide:play')} 6. Playground": step6_content,
-            f"{mo.icon('lucide:rocket')} 7. Guardrails & monitors": step7_content,
+            f"{mo.icon('lucide:play')} 6. Deploy": step6_content,
+            f"{mo.icon('lucide:rocket')} 7. Monitor": step7_content,
         }),
         scroll_button,
     ])
