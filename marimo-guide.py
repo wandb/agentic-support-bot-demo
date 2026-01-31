@@ -1390,25 +1390,73 @@ def _(mo, weave_entity, weave_project, chat_widget_4, config_editor_4, example_p
             
             mo.callout(
                 mo.accordion({
-                    "📖 (Optional) Understand the code: How Purpose and Notes Become the System Prompt": mo.vstack([
+                    "📖 (Optional) Understand the code: How agent behavior is customized": mo.vstack([
                         mo.md("""
-**Config fields shape agent behavior.** Agent constructs the system prompt from your YAML config. The `purpose` defines the agent's role, and `notes` provide operational guidelines.
+When the agent starts, the text in the `{purpose}` and `{notes}` fields above are inserted into this template to create the system prompt. The system prompt is a hidden message sent to the LLM at the start of every conversation—it's the instructions that shape how the agent behaves, what persona it adopts, and how it should use its tools.
                         """),
-                        mo.ui.code_editor(value='''# Your YAML config:
-name: "buzz"
-model_name: "gpt-4.1"
-purpose: |
-  You are a support bot for Weights & Biases...
-notes: |
-  - Use search_docs for questions about W&B features
-  - Use create_issue when users report problems
+                        mo.ui.code_editor(value='''# Agent system prompt template (from tyler/models/agent.py)
 
-# Agent constructs a system prompt like:
-# "You are buzz. Your purpose: You are a support bot for...
-#  Notes: - Use search_docs for questions about..."
+system_template = """<agent_overview>
+# Agent Identity
+Your name is {name} and you are a {model_name} powered AI agent that can 
+converse, answer questions, and when necessary, use tools to perform tasks.
 
-# This becomes the first message in every conversation,
-# guiding the LLM's behavior throughout the interaction.
+Current date: {current_date}
+
+# Core Purpose
+Your purpose is:
+```
+{purpose}
+```
+
+# Supporting Notes
+Here are some relevant notes to help you accomplish your purpose:
+```
+{notes}
+```
+</agent_overview>
+
+<operational_routine>
+# Operational Routine
+Based on the user's input, follow this routine:
+1. If the user makes a statement or shares information, respond appropriately 
+   with acknowledgment.
+2. If the user's request is vague, incomplete, or missing information needed 
+   to complete the task, use the relevant notes to understand the user's 
+   request. If you don't find an answer in the notes, ask probing questions 
+   to understand the user's request deeper. You can ask a maximum of 3 
+   probing questions.
+3. If the request requires gathering information or performing actions beyond 
+   your knowledge you can use the tools available to you.
+</operational_routine>
+
+<tool_usage_guidelines>
+# Tool Usage Guidelines
+
+## Available Tools
+You have access to the following tools:
+{tools_description}
+
+## Important Instructions for Using Tools
+When you need to use a tool, you MUST FIRST write a brief message to the user 
+summarizing the user's ask and what you're going to do. This message should 
+be casual and conversational, like talking with a friend. After writing this 
+message, then include your tool call.
+
+For example:
+User: "What's the weather like in Chicago today?"
+Assistant: "Let me check the Chicago weather for you."
+[Then you would use the weather tool]
+
+Remember: ALWAYS write a brief, conversational message to the user BEFORE 
+using any tools. Never skip this step.
+</tool_usage_guidelines>
+
+<file_handling_instructions>
+# File Handling Instructions
+Both user messages and tool responses may contain file attachments...
+</file_handling_instructions>
+"""
 ''', language="python", disabled=True),
                     ])
                 }),
@@ -1418,7 +1466,7 @@ notes: |
             mo.md("""
             ## 
             
-            Try the same prompts from Step 3 and see if the agent behaves more like a support bot:
+            Now try the same prompts from Step 3 again to see if the agent behaves more like a support bot now that it has been customized:
             
             ```
             How do I initialize Weave in Python?
