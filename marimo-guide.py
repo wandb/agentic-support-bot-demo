@@ -157,7 +157,7 @@ def _(mo):
     mo.md("""
     ## 
 
-    In this guide, you'll learn how to build, deploy, and monitor a production-ready AI agentic support bot while discovering how Weave helps you throughout the development process.
+    In this guide, you'll learn how to build, deploy, and monitor a production-ready agentic support bot while discovering how Weave helps you throughout the development process.
 
     **What you'll build:** An agentic support bot that can:
     - Answer questions about W&B products by searching W&B documentation
@@ -777,7 +777,7 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, traces_table_2a, traces_e
 
             Now that we are all set up, we can start creating our agent... but what is an agent?
 
-            An agent is an LLM that can take actions. Unlike a simple chatbot that only generates text, an agent can use tools, access external data, and execute multi-step workflows autonomously.
+            An agent is an LLM that can take actions. Unlike a simple chat completion that only generates text, an agent can use tools, access external data, and execute multi-step workflows autonomously.
             """),
 
             mo.md("""
@@ -864,7 +864,7 @@ async for chunk in agent.stream(thread):
                     mo.md("""
 **What are traces?** A trace is a record of a function's execution - its inputs, outputs, timing, and any nested calls. Weave stores traces so you can debug, analyze, and compare agent behavior over time.
 
-**The `@weave.op` decorator** is how you instrument your own functions. Any function decorated with `@weave.op` will automatically log its inputs, outputs, and duration to Weave.
+**The `@weave.op()` decorator** is how you instrument your own functions. Any function decorated with `@weave.op()` will automatically log its inputs, outputs, and duration to Weave.
                     """),
                     mo.ui.code_editor(value='''import weave
 
@@ -872,13 +872,13 @@ async for chunk in agent.stream(thread):
 weave.init("your-entity/your-project")
 
 # Decorate any function to trace it
-@weave.op
+@weave.op()
 def my_custom_tool(query: str) -> dict:
     """This function's inputs/outputs will be logged to Weave."""
     result = do_something(query)
     return {"result": result}
 
-@weave.op
+@weave.op()
 async def my_scorer(input: str, output: str) -> float:
     """Scorers can also be traced for debugging."""
     score = evaluate_quality(input, output)
@@ -944,9 +944,9 @@ def _(mo, weave_entity, weave_project, chat_widget_3, traces_table_3, traces_err
             mo.md("""
             ## 
 
-            The agent in Step 2 could chat but couldn't actually DO anything—it could only respond with what it already knew from training.
+            The agent in Step 2 could chat but couldn't actually DO anything—it could only respond with what it learned from training.
 
-            Now in Step 3, the agent in the chat below has access to tools and can decide to call them to fetch data or take actions before responding. For our use case, we have given the agent tools for creating and retrieving support tickets as well as searching W&B documentation.
+            Now in this step, the agent in the chat below has access to tools and can decide to call them to fetch data or take actions before responding. For our use case, we have given the agent tools for creating and retrieving support tickets as well as searching W&B documentation.
 
             **What are tools?** Tools are functions that an agent can call to perform actions. While an LLM can only generate text, tools let it create tickets, query databases, search documentation, send emails, or interact with any external system.
             """),
@@ -1322,9 +1322,7 @@ def _(mo, weave_entity, weave_project, chat_widget_4, example_purpose_accordion,
             mo.md("""
             ## 
 
-            Select a model from [W&B Inference](https://docs.wandb.ai/inference). 
-            
-            Different models have different strengths: larger models (70B+) tend to be more capable at complex reasoning and following nuanced instructions, while smaller models are faster and cheaper. Experiment to find the right balance for your use case.
+            Select a model from [W&B Inference](https://docs.wandb.ai/inference/models). Different models have different strengths: larger models (70B+) tend to be more capable at complex reasoning and following nuanced instructions, while smaller models are faster and cheaper. Experiment to find the right balance for your use case.
             """),
 
             model_dropdown,
@@ -1462,7 +1460,7 @@ Both user messages and tool responses may contain file attachments...
             """),
 
             mo.accordion({
-                "📖 (Optional) Understand the code: Config versioning with Weave": mo.vstack([
+                "📖 (Optional) Understand the code: Agent config versioning with Weave": mo.vstack([
                     mo.md("""
 **Every config edit creates a version.** When you change the purpose, notes, or model, Weave saves a new version. This lets you track what changed and compare results across iterations.
                     """),
@@ -1496,8 +1494,10 @@ config_latest = weave.ref("SupportAgentConfig:latest").get()
             
             3. **How can you iterate further?**  
                Try refining the purpose or adding more specific guidance in notes.
-            
-            **💡 Iteration tip:** Check [Weave Traces]({_traces_url_4}) to see how your changes affect tool usage and responses.
+            """),
+
+            mo.md("""
+            Continue iterating on the agent by refining the purpose, model, or notes. Try asking different qeustions to see how it behaves and adjusting the settings to guide the agent's behavior until the agent's responses and actions start to feel right to you.
             """),
             
             mo.callout(
@@ -1749,7 +1749,7 @@ def _(mo):
 
 
 @app.cell  
-async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, sys, os, json, subprocess):
+async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, sys, os, json, subprocess, weave_entity, weave_project, weave_evals_url):
     # ============================================================================
     # STEP 5: RUN EVALUATION LOGIC (with inline progress bar at top of page)
     # ============================================================================
@@ -1867,6 +1867,9 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, s
                         _summary = _result_data.get("summary", {})
                         _total = _result_data.get("total_cases", 0)
                         
+                        # Get evaluation URL from result data, fallback to generic evals page
+                        _evals_link = _result_data.get("eval_url") or weave_evals_url(weave_entity, weave_project)
+                        
                         eval_output = mo.vstack([
                             mo.callout(
                                 mo.md(f"""
@@ -1878,6 +1881,8 @@ Evaluated **{_config_ref}** on {_total} test cases ({_sample_label}).
 - Tool Usage: {_summary.get('tool_usage_avg', 0):.2f}
 - Accuracy: {_summary.get('accuracy_avg', 0):.2f}
 - Safety: {_summary.get('safety_avg', 0):.2f}
+
+[View evaluation in Weave →]({_evals_link})
                                 """),
                                 kind="success"
                             ),
@@ -1946,11 +1951,9 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
         mo.md("""
         ##  
   
-        Now that we have spent some time customizing the agent, it might "feel right" when we manually interact with it, but we need to be confident in how ready it is for production before we put it in front of users. We can do this by building an evaluation that functions similarly to the tests we might write for code.
+        Now that we have spent some time customizing the agent, it's behavior might "feel right", but we need to be confident that it is ready for production before we put it in front of users. We need an objective way to measure its performance. This is where Weave really starts to shine, as it enables us to build an evaluation.  An evaluation is a set of test cases that are used to evaluate the agent's performance.
 
-        In order to build an evaluation, we need two things: a **dataset** of test cases and a set of **scorers** to evaluate the agent's responses. In practice, these emerge from error analysis—collecting traces from real user interactions, identifying failure patterns, and creating test cases that cover those patterns.
-
-        For this tutorial, we've already built a dataset based on the types of questions and edge cases a support agent should handle. Take a look at the test cases to get a sense of what we're evaluating:
+        An evaluation consists of two things: a **dataset** of test cases and a set of **scorers**. In practice, these emerge from error analysis—collecting traces from real user interactions, identifying failure patterns, and creating test cases that cover those patterns, but for this tutorial, we've already built a dataset based on the types of questions and edge cases a support agent should handle. Take a look at the test cases to get a sense of what we're evaluating:
 
         """),
         
@@ -2195,22 +2198,11 @@ for test_case in dataset.rows:
 
         Congrats, **you now have a baseline!** With quantitative metrics, you can iterate systematically to improve your agent. [View the full evaluation results in Weave]({_evals_url})
 
-        **1. Review metrics:**
-        - Aggregate scores (tool usage %, accuracy, safety)
-        - Test case results and agent responses
-        - Full agent traces for each prediction
+        - **Review metrics:** Aggregate scores, test case results, and full agent traces
+        - **Identify patterns:** Group failures with annotations and pinpoint accuracy gaps
+        - **Compare runs:** Select 2+ evaluations to view side-by-side metrics and track changes
 
-        **2. Identify patterns:**
-        - Group failures by with annotations (possibly add then to your dataset)
-        - Check refusal and tool cases
-        - Pinpoint accuracy gaps by topic
-
-        **3. Compare evaluation runs:**
-        - Select 2+ evaluations → **Compare**
-        - View side-by-side metrics
-        - Track improvements/regressions
-
-        What's next? You can now start to improve the agent's performance by adjusting the following levers:
+        What's next? It's time to iterate based on the evaluation results. You can now start to improve the agent's performance by adjusting the following levers:
 
         **Levers to adjust:**
 
