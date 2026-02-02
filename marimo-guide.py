@@ -1802,9 +1802,50 @@ def _(mo):
 @app.cell  
 async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, sys, os, json, subprocess, weave_entity, weave_project, weave_evals_url):
     # ============================================================================
-    # STEP 5: RUN EVALUATION LOGIC (with inline progress bar at top of page)
+    # STEP 5: RUN EVALUATION LOGIC (with fixed-position progress overlay)
     # ============================================================================
     import asyncio as _asyncio_eval
+    
+    # Helper to create centered modal-style progress overlay
+    def _make_progress_overlay(title: str, current: int, total: int, subtitle: str = "") -> str:
+        pct = int((current / total) * 100) if total > 0 else 0
+        # Truncate subtitle to fit fixed width
+        display_subtitle = (subtitle[:45] + '...') if subtitle and len(subtitle) > 45 else subtitle
+        return f"""
+        <div style="
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 24px 32px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            z-index: 9999;
+            width: 400px;
+            font-family: system-ui, -apple-system, sans-serif;
+            border: 1px solid #e5e7eb;
+        ">
+            <div style="font-weight: 600; margin-bottom: 12px; color: #1f2937; font-size: 16px;">{title}</div>
+            <div style="
+                background: #e5e7eb;
+                border-radius: 4px;
+                height: 8px;
+                margin-bottom: 12px;
+                overflow: hidden;
+            ">
+                <div style="
+                    background: #3b82f6;
+                    height: 100%;
+                    width: {pct}%;
+                    transition: width 0.3s ease;
+                "></div>
+            </div>
+            <div style="font-size: 13px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                {current}/{total} cases{(' - ' + display_subtitle) if display_subtitle else ''}
+            </div>
+        </div>
+        """
     
     # Always initialize the output variable
     eval_output = mo.md("")
@@ -1850,6 +1891,10 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, s
                     # Get path to isolated eval runner script
                     _runner_script = Path(__file__).parent / "helpers" / "isolated_eval_runner.py"
                     
+                    # Show initial progress overlay
+                    _total_cases = _sample_size or 30  # Estimate until we know actual
+                    mo.output.replace(mo.Html(_make_progress_overlay("Running Evaluation", 0, _total_cases, "Initializing...")))
+                    
                     # Run evaluation in subprocess
                     _process = await _asyncio_eval.create_subprocess_exec(
                         sys.executable,
@@ -1870,9 +1915,9 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, s
                     _streaming_log = []
                     _result_data = None
                     _error_msg = None
-                    _total_cases = _sample_size or 30  # Estimate
+                    _current_case = 0
                     
-                    # Read and display ALL output for debugging
+                    # Read output and update progress overlay
                     while True:
                         _line = await _process.stdout.readline()
                         if not _line:
@@ -1886,8 +1931,25 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, s
                             _chunk = json.loads(_line_text)
                             _output_lines.append(_chunk)
                             
-                            # Track specific message types
-                            if _chunk.get("type") == "result":
+                            # Track specific message types and update progress
+                            if _chunk.get("type") == "progress":
+                                _current_case = _chunk.get("current", _current_case)
+                                _total_cases = _chunk.get("total", _total_cases)
+                                _input_preview = _chunk.get("input", "")
+                                mo.output.replace(mo.Html(_make_progress_overlay(
+                                    "Running Evaluation",
+                                    _current_case,
+                                    _total_cases,
+                                    _input_preview
+                                )))
+                            elif _chunk.get("type") == "status":
+                                mo.output.replace(mo.Html(_make_progress_overlay(
+                                    "Running Evaluation",
+                                    _current_case,
+                                    _total_cases,
+                                    _chunk.get("message", "")
+                                )))
+                            elif _chunk.get("type") == "result":
                                 _result_data = _chunk
                             elif _chunk.get("type") == "error":
                                 _error_msg = _chunk.get("message", "Unknown error")
@@ -1952,6 +2014,9 @@ Evaluated **{_config_ref}** on {_total} test cases ({_sample_label}).
                 mo.md(f"❌ **Error running evaluation:** {str(e)}\n\n```\n{_traceback_eval.format_exc()}\n```"),
                 kind="danger"
             )
+        
+        # Clear the progress overlay and show the final result
+        mo.output.replace(eval_output)
     
     return (eval_output,)
 
@@ -2171,6 +2236,9 @@ for test_case in dataset.rows:
                 run_eval_btn
             ], gap=0.5)
         ], justify="start", align="center", gap=2),
+        
+        # Show evaluation results (populated after running eval)
+        eval_output,
         
         mo.md("""
         ###
@@ -2528,9 +2596,7 @@ This will open a browser window to authenticate. Once complete, you're ready to 
         mo.md(f"""
         ##
 
-        Now you can use the agent by sending requests to this API endpoint. 
-        
-        Not only can you connect to this API endpoint directly, but you can also use it in **Weave Playground**. The Playground is a built-in chat interface in your W&B project that lets you test any OpenAI-compatible API. Since your Modal server exposes an OpenAI-compatible endpoint, you can connect it directly!
+        Now you can use the agent by sending requests to this API endpoint. Not only can you connect to this API endpoint directly, but you can also use it in **Weave Playground**. The Playground is a built-in chat interface in your W&B project that lets you test any OpenAI-compatible API. Since your Modal server exposes an OpenAI-compatible endpoint, you can connect it directly!
 
         1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
         2. In the model dropdown: **+ Add AI provider** → **Custom provider**

@@ -935,6 +935,50 @@ async def run_terminal_command(
         ])
 
 
+def _make_spinner_overlay(title: str, subtitle: str = "") -> str:
+    """Create a centered modal-style spinner overlay HTML."""
+    # Truncate subtitle to fit fixed width
+    display_subtitle = (subtitle[:50] + '...') if subtitle and len(subtitle) > 50 else subtitle
+    return f"""
+    <div style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 24px 32px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        z-index: 9999;
+        width: 400px;
+        font-family: system-ui, -apple-system, sans-serif;
+        border: 1px solid #e5e7eb;
+    ">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="
+                width: 24px;
+                height: 24px;
+                border: 3px solid #e5e7eb;
+                border-top-color: #3b82f6;
+                border-radius: 50%;
+                animation: modal-spinner 1s linear infinite;
+                flex-shrink: 0;
+            "></div>
+            <div style="overflow: hidden;">
+                <div style="font-weight: 600; color: #1f2937; font-size: 16px;">{title}</div>
+                <div style="font-size: 13px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{display_subtitle}</div>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes modal-spinner {{
+            from {{ transform: rotate(0deg); }}
+            to {{ transform: rotate(360deg); }}
+        }}
+    </style>
+    """
+
+
 async def run_modal_deploy(
     mo,
     run_button,
@@ -950,7 +994,8 @@ async def run_modal_deploy(
     Execute Modal deploy command and return the terminal UI plus endpoint URL.
     
     Handles config selection, config.json saving, deploy execution, and
-    URL extraction from Modal output.
+    URL extraction from Modal output. Shows a fixed-position spinner overlay
+    during deployment for user feedback.
     
     Args:
         mo: marimo module
@@ -1019,6 +1064,9 @@ async def run_modal_deploy(
         ], gap=1), ""
     
     try:
+        # Show initial spinner overlay
+        mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Starting deployment")))
+        
         process = await asyncio.create_subprocess_exec(
             "uv", "run", "modal", "deploy", str(server_path),
             stdout=asyncio.subprocess.PIPE,
@@ -1026,8 +1074,29 @@ async def run_modal_deploy(
             env=os.environ.copy()
         )
         
-        stdout, _ = await process.communicate()
-        output = stdout.decode() if stdout else ""
+        # Read output line by line and update spinner
+        output_lines = []
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                break
+            line_text = line.decode().strip()
+            if line_text:
+                output_lines.append(line_text)
+                # Update spinner with latest status based on output patterns
+                if "Creating" in line_text:
+                    mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Creating resources...")))
+                elif "Uploading" in line_text or "upload" in line_text.lower():
+                    mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Uploading code...")))
+                elif "Building" in line_text or "build" in line_text.lower():
+                    mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Building container...")))
+                elif "Serving" in line_text or "Starting" in line_text:
+                    mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Starting server...")))
+                elif ".modal.run" in line_text:
+                    mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Finalizing deployment...")))
+        
+        await process.wait()
+        output = "\n".join(output_lines)
         
         # Extract key info from Modal output (URL, success message)
         endpoint_url = ""
