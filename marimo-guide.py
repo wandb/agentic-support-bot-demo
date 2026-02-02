@@ -1554,32 +1554,16 @@ def _(step5_files_ready, Path, sys):
 
 
 @app.cell
-def _(mo):
+def _(os, weave_entity, weave_project, chat_widget_4, fetch_weave_configs):
     # ============================================================================
-    # STEP 5: REFRESH LINK
-    # ============================================================================
-    
-    # Refresh link - clicking increments the value
-    refresh_btn = mo.ui.button(
-        label="🔄 Refresh dropdowns",
-        value=0,
-        on_click=lambda v: v + 1,
-        kind="neutral"
-    )
-    
-    return (refresh_btn,)
-
-
-@app.cell
-def _(os, weave_entity, weave_project, refresh_btn, fetch_weave_configs):
-    # ============================================================================
-    # STEP 5: QUERY CONFIGS (re-runs when refresh_btn is clicked, using helper)
+    # STEP 5: QUERY CONFIGS (auto-refreshes when chat_widget_4 changes)
     # ============================================================================
     
-    # This cell depends on refresh_btn.value, so it re-runs when clicked
-    _refresh_count = refresh_btn.value
+    # Depend on chat_widget_4 to auto-refresh when user sends messages in Step 4
+    # The config is published at the start of each chat interaction
+    _ = chat_widget_4.value if chat_widget_4 else None
     
-    # Fetch configs using helper (re-runs when refresh button is clicked)
+    # Fetch configs using helper (re-runs when chat widget state changes)
     _wandb_token = os.getenv("WANDB_API_KEY", "")
     available_configs_dict = fetch_weave_configs(weave_entity, weave_project, _wandb_token)
     config_names = list(available_configs_dict.keys()) if available_configs_dict else ["No configs found"]
@@ -1975,7 +1959,7 @@ Evaluated **{_config_ref}** on {_total} test cases ({_sample_label}).
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, step5_version_selector, step5_config_details_table, refresh_btn, sample_size_selector, run_eval_btn, eval_output, publish_dataset_output, step5_files_ready, Path, sys, weave_evals_url):
+def _(mo, weave_entity, weave_project, step5_version_selector, step5_config_details_table, sample_size_selector, run_eval_btn, eval_output, publish_dataset_output, step5_files_ready, Path, sys, weave_evals_url):
     # ============================================================================
     # STEP 5: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2152,7 +2136,7 @@ async def accuracy_scorer(input: str, output: str, expected: str) -> float:
         When you were iterating in Step 4, each time you changed the agent's config (like purpose or notes), a new version was saved to Weave. Select which version of your `SupportAgentConfig` you want to evaluate:
         """),
         
-        mo.hstack([step5_version_selector, refresh_btn], justify="start", gap=1),
+        step5_version_selector,
         
         step5_config_details_table,
         
@@ -2445,13 +2429,13 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, wandb_project_input, ope
 
 
 @app.cell
-async def _(mo, modal_deploy_run, step6_config_name, step6_version_selector, refresh_btn, run_modal_deploy):
+async def _(mo, modal_deploy_run, step6_config_name, step6_version_selector, run_modal_deploy):
     # ============================================================================
     # STEP 6: DEPLOY TERMINAL (using helper)
     # ============================================================================
     # Pass empty selector_row_override since version selector is shown in content above
     modal_deploy_terminal, deployed_url = await run_modal_deploy(
-        mo, modal_deploy_run, None, step6_version_selector, refresh_btn,
+        mo, modal_deploy_run, None, step6_version_selector, None,
         step_num=6, success_message="Deployed successfully!",
         config_name_override=step6_config_name,
         selector_row_override=mo.md("")  # Hide duplicate selector row
@@ -2460,7 +2444,7 @@ async def _(mo, modal_deploy_run, step6_config_name, step6_version_selector, ref
 
 
 @app.cell
-def _(mo, saved_prod_url, deployed_url, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url, step6_version_selector, step6_config_details_table, refresh_btn):
+def _(mo, saved_prod_url, deployed_url, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url, step6_version_selector, step6_config_details_table):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2525,7 +2509,7 @@ This will open a browser window to authenticate. Once complete, you're ready to 
         With Modal set up, you can deploy your agent. Select which version of your `SupportAgentConfig` to deploy:
         """),
         
-        mo.hstack([step6_version_selector, refresh_btn], justify="start", gap=1),
+        step6_version_selector,
         
         step6_config_details_table,
         
@@ -2685,13 +2669,13 @@ def _(mo, step7_config_name, step7_version_selector, weave_entity, weave_project
 
 
 @app.cell
-async def _(mo, step7_deploy_run, step7_config_name, step7_version_selector, refresh_btn, run_modal_deploy):
+async def _(mo, step7_deploy_run, step7_config_name, step7_version_selector, run_modal_deploy):
     # ============================================================================
     # STEP 7: DEPLOY TERMINAL (using helper)
     # ============================================================================
     # Pass empty selector_row_override since version selector is shown in content above
     step7_deploy_terminal, step7_deployed_url = await run_modal_deploy(
-        mo, step7_deploy_run, None, step7_version_selector, refresh_btn,
+        mo, step7_deploy_run, None, step7_version_selector, None,
         step_num=7, success_message="Deployed with guardrails!",
         config_name_override=step7_config_name,
         selector_row_override=mo.md("")  # Hide duplicate selector row
@@ -2700,7 +2684,7 @@ async def _(mo, step7_deploy_run, step7_config_name, step7_version_selector, ref
 
 
 @app.cell
-def _(mo, step7_deploy_terminal, Path, step7_version_selector, step7_config_details_table, refresh_btn):
+def _(mo, step7_deploy_terminal, Path, step7_version_selector, step7_config_details_table):
     # ============================================================================
     # STEP 7: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2776,7 +2760,7 @@ async def chat_completions(request):
         Deploy your guardrail-protected agent. Select which version of your `SupportAgentConfig` to deploy:
         """),
         
-        mo.hstack([step7_version_selector, refresh_btn], justify="start", gap=1),
+        step7_version_selector,
         
         step7_config_details_table,
         
