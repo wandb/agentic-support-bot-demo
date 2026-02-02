@@ -2367,11 +2367,17 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, wandb_project_input, ope
                 _stdout, _ = await _process.communicate()
                 _output = _stdout.decode() if _stdout else ""
                 
-                # Show command + output below
-                modal_secrets_terminal = mo.vstack([
-                    _command_display,
-                    mo.md(f"```\n{_output}\n```") if _output else mo.md("")
-                ])
+                # Check exit code and show appropriate result
+                if _process.returncode == 0:
+                    modal_secrets_terminal = mo.vstack([
+                        _command_display,
+                        mo.callout(mo.md("**Secrets created successfully!** Your API keys are now securely stored in Modal."), kind="success")
+                    ])
+                else:
+                    modal_secrets_terminal = mo.vstack([
+                        _command_display,
+                        mo.md(f"```\n{_output}\n```") if _output else mo.md("```\nCommand failed\n```")
+                    ])
             except FileNotFoundError:
                 modal_secrets_terminal = mo.vstack([
                     _command_display,
