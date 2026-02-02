@@ -2296,6 +2296,58 @@ def _(mo, Path, json):
 
 
 @app.cell
+def _(mo, available_configs_dict):
+    # ============================================================================
+    # STEP 6: VERSION SELECTOR (hardcoded to SupportAgentConfig)
+    # ============================================================================
+    
+    # Step 6 always uses SupportAgentConfig
+    step6_config_name = "SupportAgentConfig"
+    step6_versions = available_configs_dict.get(step6_config_name, ["v0"]) if available_configs_dict else ["v0"]
+    
+    step6_version_selector = mo.ui.dropdown(
+        options=step6_versions,
+        value=step6_versions[0] if step6_versions else None,
+        label="Version:"
+    )
+    
+    return (step6_config_name, step6_version_selector)
+
+
+@app.cell
+def _(mo, step6_config_name, step6_version_selector, weave_entity, weave_project, os, fetch_config_details):
+    # ============================================================================
+    # STEP 6: CONFIG DETAILS TABLE
+    # ============================================================================
+    
+    # Fetch config details for selected version
+    _version = step6_version_selector.value
+    _token = os.getenv("WANDB_API_KEY", "")
+    
+    _config_details = fetch_config_details(
+        weave_entity, weave_project,
+        step6_config_name, _version, _token
+    )
+    
+    # Build table data
+    if _config_details:
+        _purpose_val = _config_details.get("purpose", "")
+        _notes_val = _config_details.get("notes", "")
+        
+        _config_table_data = [
+            {"Field": "Name", "Value": _config_details.get("name", "") or "(not set)"},
+            {"Field": "Model", "Value": _config_details.get("model", "") or "(not set)"},
+            {"Field": "Purpose", "Value": (_purpose_val[:100] + "..." if len(_purpose_val) > 100 else _purpose_val) or "(not set)"},
+            {"Field": "Notes", "Value": (_notes_val[:100] + "..." if len(_notes_val) > 100 else _notes_val) or "(not set)"},
+        ]
+        step6_config_details_table = mo.ui.table(_config_table_data, selection=None)
+    else:
+        step6_config_details_table = mo.md("*Select a version to see config details*")
+    
+    return (step6_config_details_table,)
+
+
+@app.cell
 async def _(mo, modal_setup_run, run_terminal_command):
     # ============================================================================
     # STEP 6: MODAL SETUP TERMINAL (using helper)
@@ -2393,19 +2445,22 @@ async def _(mo, modal_secrets_run, os, wandb_key_input, wandb_project_input, ope
 
 
 @app.cell
-async def _(mo, modal_deploy_run, config_selector, version_selector, refresh_btn, run_modal_deploy):
+async def _(mo, modal_deploy_run, step6_config_name, step6_version_selector, refresh_btn, run_modal_deploy):
     # ============================================================================
     # STEP 6: DEPLOY TERMINAL (using helper)
     # ============================================================================
+    # Pass empty selector_row_override since version selector is shown in content above
     modal_deploy_terminal, deployed_url = await run_modal_deploy(
-        mo, modal_deploy_run, config_selector, version_selector, refresh_btn,
-        step_num=6, success_message="Deployed successfully!"
+        mo, modal_deploy_run, None, step6_version_selector, refresh_btn,
+        step_num=6, success_message="Deployed successfully!",
+        config_name_override=step6_config_name,
+        selector_row_override=mo.md("")  # Hide duplicate selector row
     )
     return (modal_deploy_terminal, deployed_url)
 
 
 @app.cell
-def _(mo, saved_prod_url, deployed_url, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url):
+def _(mo, saved_prod_url, deployed_url, bot_key_input, os, modal_deploy_terminal, modal_setup_terminal, modal_secrets_terminal, weave_entity, weave_project, weave_playground_url, weave_traces_url, step6_version_selector, step6_config_details_table, refresh_btn):
     # ============================================================================
     # STEP 6: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2467,7 +2522,15 @@ This will open a browser window to authenticate. Once complete, you're ready to 
         mo.md(f"""
         ##
 
-        With Modal set up, you can deploy your agent by selecting which config version to deploy and clicking Deploy. This will:
+        With Modal set up, you can deploy your agent. Select which version of your `SupportAgentConfig` to deploy:
+        """),
+        
+        mo.hstack([step6_version_selector, refresh_btn], justify="start", gap=1),
+        
+        step6_config_details_table,
+        
+        mo.md("""
+        Deploying will:
         - Build a production container image
         - Deploy to persistent infrastructure
         - Provide a stable HTTPS URL that stays active 24/7
@@ -2478,36 +2541,6 @@ This will open a browser window to authenticate. Once complete, you're ready to 
         mo.md("""
         ###
         """),
-
-        mo.accordion({
-            "📖 (Optional) Understand the code: Server streaming pattern": mo.vstack([
-                mo.md("""
-**OpenAI-compatible streaming.** The server converts incoming messages to a Slide Thread, streams the agent response, and serializes chunks as Server-Sent Events (SSE) for OpenAI API compatibility.
-                """),
-                mo.ui.code_editor(value='''from tyler import Agent, Thread, Message
-from fastapi.responses import StreamingResponse
-
-# Convert OpenAI messages to Slide Thread
-def convert_to_slide_thread(messages: list) -> Thread:
-    thread = Thread()
-    for msg in messages:
-        thread.add_message(Message(role=msg.role, content=msg.content))
-    return thread
-
-# Stream response as SSE
-async def generate():
-    thread = convert_to_slide_thread(request.messages)
-    
-    async for chunk in agent.stream(thread, mode="openai"):
-        # Serialize chunk to SSE format
-        yield f"data: {json.dumps(serialize_chunk(chunk))}\\n\\n"
-    
-    yield "data: [DONE]\\n\\n"
-
-return StreamingResponse(generate(), media_type="text/event-stream")
-''', language="python", disabled=True),
-            ])
-        }),
         
         mo.md(f"""
         ##
@@ -2600,19 +2633,74 @@ def _(mo):
 
 
 @app.cell
-async def _(mo, step7_deploy_run, config_selector, version_selector, refresh_btn, run_modal_deploy):
+def _(mo, available_configs_dict):
+    # ============================================================================
+    # STEP 7: VERSION SELECTOR (hardcoded to SupportAgentConfig)
+    # ============================================================================
+    
+    # Step 7 always uses SupportAgentConfig
+    step7_config_name = "SupportAgentConfig"
+    step7_versions = available_configs_dict.get(step7_config_name, ["v0"]) if available_configs_dict else ["v0"]
+    
+    step7_version_selector = mo.ui.dropdown(
+        options=step7_versions,
+        value=step7_versions[0] if step7_versions else None,
+        label="Version:"
+    )
+    
+    return (step7_config_name, step7_version_selector)
+
+
+@app.cell
+def _(mo, step7_config_name, step7_version_selector, weave_entity, weave_project, os, fetch_config_details):
+    # ============================================================================
+    # STEP 7: CONFIG DETAILS TABLE
+    # ============================================================================
+    
+    # Fetch config details for selected version
+    _version = step7_version_selector.value
+    _token = os.getenv("WANDB_API_KEY", "")
+    
+    _config_details = fetch_config_details(
+        weave_entity, weave_project,
+        step7_config_name, _version, _token
+    )
+    
+    # Build table data
+    if _config_details:
+        _purpose_val = _config_details.get("purpose", "")
+        _notes_val = _config_details.get("notes", "")
+        
+        _config_table_data = [
+            {"Field": "Name", "Value": _config_details.get("name", "") or "(not set)"},
+            {"Field": "Model", "Value": _config_details.get("model", "") or "(not set)"},
+            {"Field": "Purpose", "Value": (_purpose_val[:100] + "..." if len(_purpose_val) > 100 else _purpose_val) or "(not set)"},
+            {"Field": "Notes", "Value": (_notes_val[:100] + "..." if len(_notes_val) > 100 else _notes_val) or "(not set)"},
+        ]
+        step7_config_details_table = mo.ui.table(_config_table_data, selection=None)
+    else:
+        step7_config_details_table = mo.md("*Select a version to see config details*")
+    
+    return (step7_config_details_table,)
+
+
+@app.cell
+async def _(mo, step7_deploy_run, step7_config_name, step7_version_selector, refresh_btn, run_modal_deploy):
     # ============================================================================
     # STEP 7: DEPLOY TERMINAL (using helper)
     # ============================================================================
+    # Pass empty selector_row_override since version selector is shown in content above
     step7_deploy_terminal, step7_deployed_url = await run_modal_deploy(
-        mo, step7_deploy_run, config_selector, version_selector, refresh_btn,
-        step_num=7, success_message="Deployed with guardrails!"
+        mo, step7_deploy_run, None, step7_version_selector, refresh_btn,
+        step_num=7, success_message="Deployed with guardrails!",
+        config_name_override=step7_config_name,
+        selector_row_override=mo.md("")  # Hide duplicate selector row
     )
     return (step7_deploy_terminal, step7_deployed_url)
 
 
 @app.cell
-def _(mo, step7_deploy_terminal, Path):
+def _(mo, step7_deploy_terminal, Path, step7_version_selector, step7_config_details_table, refresh_btn):
     # ============================================================================
     # STEP 7: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -2685,8 +2773,12 @@ async def chat_completions(request):
         mo.md("""
         ##
 
-        Deploy your guardrail-protected agent to production:
+        Deploy your guardrail-protected agent. Select which version of your `SupportAgentConfig` to deploy:
         """),
+        
+        mo.hstack([step7_version_selector, refresh_btn], justify="start", gap=1),
+        
+        step7_config_details_table,
         
         step7_deploy_terminal,
         

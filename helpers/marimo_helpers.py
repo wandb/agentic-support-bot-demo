@@ -942,7 +942,9 @@ async def run_modal_deploy(
     version_selector,
     refresh_btn,
     step_num: int,
-    success_message: str = "Deployed successfully!"
+    success_message: str = "Deployed successfully!",
+    config_name_override: Optional[str] = None,
+    selector_row_override: Optional[Any] = None
 ) -> Tuple[Any, str]:
     """
     Execute Modal deploy command and return the terminal UI plus endpoint URL.
@@ -953,11 +955,13 @@ async def run_modal_deploy(
     Args:
         mo: marimo module
         run_button: Run button UI element
-        config_selector: Config dropdown selector
+        config_selector: Config dropdown selector (can be None if config_name_override provided)
         version_selector: Version dropdown selector
         refresh_btn: Refresh button
         step_num: Step number (6 or 7)
         success_message: Custom success message (e.g., "Deployed with guardrails!")
+        config_name_override: Optional config name to use instead of config_selector.value
+        selector_row_override: Optional custom selector UI row to display
     
     Returns:
         Tuple of (terminal_ui, endpoint_url) - endpoint_url is empty string if not deployed
@@ -967,17 +971,20 @@ async def run_modal_deploy(
     
     command = f"uv run modal deploy workspace/step-{step_num}/server.py"
     
-    # Get selected config for display
-    config_name = config_selector.value
+    # Get selected config for display - use override if provided
+    config_name = config_name_override if config_name_override else (config_selector.value if config_selector else None)
     version = version_selector.value
     config_ref = f"{config_name}:{version}" if config_name and version else "No config selected"
     
-    # Config selector row (separate from command)
-    config_selector_row = mo.hstack([
-        config_selector,
-        version_selector,
-        refresh_btn
-    ], justify="start", gap=1)
+    # Config selector row - use override if provided, otherwise build default
+    if selector_row_override is not None:
+        config_selector_row = selector_row_override
+    else:
+        config_selector_row = mo.hstack([
+            config_selector,
+            version_selector,
+            refresh_btn
+        ], justify="start", gap=1)
     
     # Command + deploy button row
     command_row = mo.hstack([
