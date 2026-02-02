@@ -660,6 +660,85 @@ def fetch_weave_configs(
         return {}
 
 
+def fetch_config_details(
+    weave_entity: str,
+    weave_project: str,
+    config_name: str,
+    version: str,
+    wandb_token: str
+) -> Optional[Dict[str, str]]:
+    """
+    Fetch config details (model, name, purpose, notes) from Weave.
+    
+    Args:
+        weave_entity: Weave entity name
+        weave_project: Weave project name
+        config_name: Name of the config (e.g., "SupportAgentConfig")
+        version: Version string (e.g., "v0", "v1")
+        wandb_token: W&B API token
+        
+    Returns:
+        Dict with model, name, purpose, notes fields, or None on failure
+    """
+    import requests
+    import yaml
+    
+    if not wandb_token or not config_name or not version:
+        return None
+    
+    try:
+        # Extract version index from "v0", "v1", etc.
+        version_index = int(version.replace("v", ""))
+        
+        project_id = f"{weave_entity}/{weave_project}"
+        headers = {"Content-Type": "application/json"}
+        
+        # Query for the specific config version
+        payload = {
+            "project_id": project_id,
+            "filter": {
+                "object_ids": [config_name],
+                "latest_only": False
+            },
+            "limit": 100
+        }
+        
+        response = requests.post(
+            WEAVE_OBJS_API,
+            headers=headers,
+            json=payload,
+            auth=("api", wandb_token),
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            return None
+        
+        data = response.json()
+        
+        # Find the object with matching version_index
+        for obj in data.get("objs", []):
+            if obj.get("version_index") == version_index:
+                # Get the YAML content from the object
+                val = obj.get("val", {})
+                yaml_content = val.get("yaml", "")
+                
+                if yaml_content:
+                    # Parse YAML to extract fields
+                    config = yaml.safe_load(yaml_content)
+                    return {
+                        "name": config.get("name", ""),
+                        "model": config.get("model_name", ""),
+                        "purpose": config.get("purpose", ""),
+                        "notes": config.get("notes", "")
+                    }
+        
+        return None
+        
+    except Exception:
+        return None
+
+
 # =============================================================================
 # MODEL FETCHING (for evaluations) - DEPRECATED, use fetch_weave_configs
 # =============================================================================

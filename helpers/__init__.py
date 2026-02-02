@@ -28,6 +28,7 @@ from .marimo_helpers import (
     AgentConfig,
     publish_agent_config,
     fetch_weave_configs,
+    fetch_config_details,
     # Model Fetching (deprecated - use fetch_weave_configs)
     fetch_weave_models,
 )
@@ -58,6 +59,7 @@ __all__ = [
     "AgentConfig",
     "publish_agent_config",
     "fetch_weave_configs",
+    "fetch_config_details",
     # Model Fetching (deprecated - use fetch_weave_configs)
     "fetch_weave_models",
 ]

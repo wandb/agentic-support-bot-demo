@@ -54,6 +54,7 @@ def _():
         # Agent Config Storage (Weave Objects)
         publish_agent_config,
         fetch_weave_configs,
+        fetch_config_details,
         # W&B Inference
         fetch_wandb_inference_models,
         # Terminal Helpers
@@ -77,7 +78,7 @@ def _():
     return (Path, datetime, glob, json, load_dotenv, mo, os, random, re, shutil, subprocess, sys, timezone, yaml, session_start_time,
             DEFAULT_CHAT_PROMPTS, TOOL_CHAT_PROMPTS, weave_traces_url, weave_evals_url, weave_playground_url,
             save_env_var, auto_copy_step_files, fetch_traces_data, build_traces_table_ui, build_empty_traces_table, build_traces_section,
-            fetch_and_build_traces_ui, create_step_chat_widget, publish_agent_config, fetch_weave_configs,
+            fetch_and_build_traces_ui, create_step_chat_widget, publish_agent_config, fetch_weave_configs, fetch_config_details,
             run_terminal_command, run_modal_deploy)
 
 
@@ -1623,17 +1624,83 @@ def _(mo, config_selector, available_configs_dict):
 
 
 @app.cell
-def _(config_selector, version_selector):
+def _(mo, available_configs_dict):
+    # ============================================================================
+    # STEP 5: VERSION SELECTOR (hardcoded to SupportAgentConfig)
+    # ============================================================================
+    
+    # Step 5 always uses SupportAgentConfig
+    step5_config_name = "SupportAgentConfig"
+    step5_versions = available_configs_dict.get(step5_config_name, ["v0"]) if available_configs_dict else ["v0"]
+    
+    step5_version_selector = mo.ui.dropdown(
+        options=step5_versions,
+        value=step5_versions[0] if step5_versions else None,
+        label="Version:"
+    )
+    
+    return (step5_config_name, step5_version_selector)
+
+
+@app.cell
+def _(mo, step5_config_name, step5_version_selector, weave_entity, weave_project, os, fetch_config_details):
+    # ============================================================================
+    # STEP 5: CONFIG DETAILS TABLE
+    # ============================================================================
+    
+    # Fetch config details for selected version
+    _version = step5_version_selector.value
+    _token = os.getenv("WANDB_API_KEY", "")
+    
+    _config_details = fetch_config_details(
+        weave_entity, weave_project,
+        step5_config_name, _version, _token
+    )
+    
+    # Build table data
+    if _config_details:
+        _purpose_val = _config_details.get("purpose", "")
+        _notes_val = _config_details.get("notes", "")
+        
+        _config_table_data = [
+            {"Field": "Name", "Value": _config_details.get("name", "") or "(not set)"},
+            {"Field": "Model", "Value": _config_details.get("model", "") or "(not set)"},
+            {"Field": "Purpose", "Value": (_purpose_val[:100] + "..." if len(_purpose_val) > 100 else _purpose_val) or "(not set)"},
+            {"Field": "Notes", "Value": (_notes_val[:100] + "..." if len(_notes_val) > 100 else _notes_val) or "(not set)"},
+        ]
+        step5_config_details_table = mo.ui.table(_config_table_data, selection=None)
+    else:
+        step5_config_details_table = mo.md("*Select a version to see config details*")
+    
+    return (step5_config_details_table,)
+
+
+@app.cell
+def _(step5_config_name, step5_version_selector):
     # ============================================================================
     # STEP 5: COMBINE CONFIG + VERSION INTO REF
     # ============================================================================
     
     # Combine into full ref for evaluation
-    _config = config_selector.value
-    _version = version_selector.value
+    _config = step5_config_name
+    _version = step5_version_selector.value
     selected_config_ref = f"{_config}:{_version}" if _config and _version else None
     
     return (selected_config_ref,)
+
+
+@app.cell
+def _(config_selector, version_selector):
+    # ============================================================================
+    # STEP 6/7: COMBINE CONFIG + VERSION INTO REF (for deployment)
+    # ============================================================================
+    
+    # Combine into full ref for deployment
+    _config = config_selector.value
+    _version = version_selector.value
+    deploy_config_ref = f"{_config}:{_version}" if _config and _version else None
+    
+    return (deploy_config_ref,)
 
 
 @app.cell
@@ -1908,7 +1975,7 @@ Evaluated **{_config_ref}** on {_total} test cases ({_sample_label}).
 
 
 @app.cell
-def _(mo, weave_entity, weave_project, config_selector, version_selector, refresh_btn, sample_size_selector, run_eval_btn, eval_output, publish_dataset_output, step5_files_ready, Path, sys, weave_evals_url):
+def _(mo, weave_entity, weave_project, step5_version_selector, step5_config_details_table, refresh_btn, sample_size_selector, run_eval_btn, eval_output, publish_dataset_output, step5_files_ready, Path, sys, weave_evals_url):
     # ============================================================================
     # STEP 5: CONTENT (Pre-computed as value, not function)
     # ============================================================================
@@ -1962,27 +2029,6 @@ def _(mo, weave_entity, weave_project, config_selector, version_selector, refres
         mo.md("""
         ###
         """),
-
-        mo.accordion({
-            "📋 (Optional) Dataset structure details": mo.md("""
-            Each test case includes:
-            ```python
-            {
-                "input": "How do I initialize Weave in Python?",
-                "expected_output_description": "Call weave.init() with your project name...",
-                "expected_tools": [],  # Tools that should be called
-                "tags": ["weave", "initialization", "factual"]
-            }
-            ```
-            
-            **Dataset coverage:**
-            - **13 W&B/Weave questions**: Initialization, debugging, troubleshooting, features
-            - **8 Tool usage scenarios**: Support ticket creation and retrieval
-            - **9 Refusal scenarios**: Off-topic questions, inappropriate requests, adversarial attempts
-
-            Note: `expected_output_description` describes what a good answer should contain (not an exact match). LLM-based scorers use this to evaluate quality.
-            """)
-        }),
 
         mo.md("""
         ###
@@ -2103,14 +2149,12 @@ async def accuracy_scorer(input: str, output: str, expected: str) -> float:
 
         When you run this evaluation, it will go through each row in the dataset and use the scorers to evaluate the agent's response.
 
-        When you were iterating in previous steps, each time you changed the agent's config (like purpose or notes), a new config version was saved to Weave. To run the evaluation, you need to select which config and version you want to evaluate:
+        When you were iterating in Step 4, each time you changed the agent's config (like purpose or notes), a new version was saved to Weave. Select which version of your `SupportAgentConfig` you want to evaluate:
         """),
         
-        mo.hstack([config_selector, version_selector], justify="start", gap=1),
+        mo.hstack([step5_version_selector, refresh_btn], justify="start", gap=1),
         
-        mo.md(f"""
-        *Don't see your config? {refresh_btn} to get the latest.*
-        """),
+        step5_config_details_table,
         
         mo.md("""
         ##
