@@ -253,7 +253,7 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
         mo.md("""
         ## 
         
-        Before we get started, we need to set up the API keys needed to run the agent and connect it to Weave for tracing.
+        Before you get started, you need to set up the API keys needed to run the agent and connect it to Weave for tracing.
 
         """),
         mo.md("### W&B API key"),
@@ -281,7 +281,7 @@ def _(mo, wandb_key_input, wandb_project_input, openai_key_input, bot_key_input,
                 mo.md("""
 **Weave** is W&B's toolkit for building and evaluating AI applications. It provides automatic tracing to capture every LLM call, tool execution, and agent decision in your application—giving you full visibility into what your AI is doing and why.
 
-**One line to get started.** Calling `weave.init()` connects your application to Weave and enables tracing. From there, you can use the `@weave.op` decorator to trace any function—we'll cover that in the next steps.
+**One line to get started.** Calling `weave.init()` connects your application to Weave and enables tracing. From there, you can use the `@weave.op` decorator to trace any function—you'll learn about that in the next steps.
                 """),
                 mo.ui.code_editor(value='''import weave
 
@@ -776,7 +776,7 @@ def _(mo, weave_entity, weave_project, chat_widget_2a, traces_table_2a, traces_e
             mo.md("""
             ## 
 
-            Now that we are all set up, we can start creating our agent... but what is an agent?
+            Now that you're all set up, you can start creating your agent... but what is an agent?
 
             An agent is an LLM that can take actions. Unlike a simple chat completion that only generates text, an agent can use tools, access external data, and execute multi-step workflows autonomously.
             """),
@@ -819,7 +819,7 @@ Here's what a minimal agent looks like in ~20 lines of Python:
                     mo.md("""
 That's the essence! But production agents need more: streaming, error handling, retries, configuration, tracing, and more. That's where frameworks help.
 
-**For this tutorial, we'll use the Agent from the [Slide framework](https://slide.mintlify.app)**, an open-source agent framework. Slide handles the loop, config loading, tool execution, MCP connections, and streaming—so you can focus on defining behavior, not plumbing:
+**For this tutorial, you'll use the Agent from the [Slide framework](https://slide.mintlify.app)**, an open-source agent framework. Slide handles the loop, config loading, tool execution, MCP connections, and streaming—so you can focus on defining behavior, not plumbing:
                     """),
                     mo.ui.code_editor(value='''from tyler import Agent, Thread, Message
 
@@ -838,7 +838,7 @@ async for chunk in agent.stream(thread):
 
             mo.md("""
             ##
-            In this step, we'll chat with a basic agent that that doesn't have any tools yet—just so we can see how it behaves. Let's start by asking the agent a couple questions we'll want it to be able to answer:
+            In this step, you'll chat with a basic agent that doesn't have any tools yet—just so you can see how it behaves. Let's start by asking the agent a couple questions you'll want it to be able to answer:
             
             ```
             How do I initialize Weave in my Python code?
@@ -947,7 +947,7 @@ def _(mo, weave_entity, weave_project, chat_widget_3, traces_table_3, traces_err
 
             The agent in Step 2 could chat but couldn't actually DO anything—it could only respond with what it learned from training.
 
-            Now in this step, the agent in the chat below has access to tools and can decide to call them to fetch data or take actions before responding. For our use case, we have given the agent tools for creating and retrieving support tickets as well as searching W&B documentation.
+            Now in this step, the agent in the chat below has access to tools and can decide to call them to fetch data or take actions before responding. For this use case, the agent has tools for creating and retrieving support tickets as well as searching W&B documentation.
 
             **What are tools?** Tools are functions that an agent can call to perform actions. While an LLM can only generate text, tools let it create tickets, query databases, search documentation, send emails, or interact with any external system.
             """),
@@ -2002,9 +2002,9 @@ def _(mo, weave_entity, weave_project, step5_version_selector, step5_config_deta
         mo.md("""
         ##  
   
-        Now that we have spent some time customizing the agent, it's behavior might "feel right", but we need to be confident that it is ready for production before we put it in front of users. We need an objective way to measure its performance. This is where Weave really starts to shine, as it enables us to build an evaluation.  An evaluation is a set of test cases that are used to evaluate the agent's performance.
+        Now that you've spent some time customizing the agent, its behavior might "feel right", but you need to be confident that it is ready for production before you put it in front of users. You need an objective way to measure its performance. This is where Weave really starts to shine, as it enables you to build an evaluation.  An evaluation is a set of test cases that are used to evaluate the agent's performance.
 
-        An evaluation consists of two things: a **dataset** of test cases and a set of **scorers**. In practice, these emerge from error analysis—collecting traces from real user interactions, identifying failure patterns, and creating test cases that cover those patterns, but for this tutorial, we've already built a dataset based on the types of questions and edge cases a support agent should handle. Take a look at the test cases to get a sense of what we're evaluating:
+        An evaluation consists of two things: a **dataset** of test cases and a set of **scorers**. In practice, these emerge from error analysis—collecting traces from real user interactions, identifying failure patterns, and creating test cases that cover those patterns, but for this tutorial, we've already built a dataset based on the types of questions and edge cases a support agent should handle. Take a look at the test cases to get a sense of what you're evaluating:
 
         """),
         
@@ -2506,19 +2506,18 @@ This will open a browser window to authenticate. Once complete, you're ready to 
         mo.md(f"""
         ##
 
-        With Modal set up, you can deploy your agent. Select which version of your `SupportAgentConfig` to deploy:
+        With Modal set up, you can deploy your agent. Deploying will:
+        - Build a production container image
+        - Deploy to persistent infrastructure
+        - Provide a stable HTTPS URL that stays active 24/7
+
+
+        Select which version of your `SupportAgentConfig` to deploy:
         """),
         
         step6_version_selector,
         
         step6_config_details_table,
-        
-        mo.md("""
-        Deploying will:
-        - Build a production container image
-        - Deploy to persistent infrastructure
-        - Provide a stable HTTPS URL that stays active 24/7
-        """),
         
         modal_deploy_terminal,
 
@@ -2531,7 +2530,7 @@ This will open a browser window to authenticate. Once complete, you're ready to 
 
         Now you can use the agent by sending requests to this API endpoint. 
         
-        Not only can we connect to this API endpoint directly, but we can also use it in **Weave Playground**. The Playground is a built-in chat interface in your W&B project that lets you test any OpenAI-compatible API. Since your Modal server exposes an OpenAI-compatible endpoint, you can connect it directly!
+        Not only can you connect to this API endpoint directly, but you can also use it in **Weave Playground**. The Playground is a built-in chat interface in your W&B project that lets you test any OpenAI-compatible API. Since your Modal server exposes an OpenAI-compatible endpoint, you can connect it directly!
 
         1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
         2. In the model dropdown: **+ Add AI provider** → **Custom provider**
