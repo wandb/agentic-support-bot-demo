@@ -1,5 +1,5 @@
 """
-Tyler agent server deployed on Modal.
+Tyler agent server with optional input guardrails deployed on Modal.
 
 Works in two modes:
 - Development: `modal serve examples/step-6/server.py` (ephemeral, auto-reload)
@@ -8,12 +8,17 @@ Works in two modes:
 The agent is loaded from Weave based on the config reference in config.json.
 The config YAML is fetched from Weave and used to create the Tyler Agent.
 Update config.json to deploy a different config version, then redeploy.
+
+Guardrails:
+- If OPENAI_API_KEY is set, input guardrails are enabled (blocks toxic requests)
+- If OPENAI_API_KEY is not set, guardrails are disabled (agent runs without safety checks)
 """
 
 import asyncio
 import json
 import logging
 import os
+import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -28,6 +33,9 @@ from pydantic import BaseModel
 import weave
 from tyler import Agent, Thread, Message
 
+# Add /workspace to Python path for imports (guardrails, tools)
+sys.path.insert(0, "/workspace")
+
 # Configure logging
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
@@ -35,6 +43,28 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# Conditional Guardrail Initialization
+# ============================================================================
+
+# Initialize input guardrail only if OPENAI_API_KEY is available
+INPUT_TOXICITY_GUARD = None
+GUARDRAILS_ENABLED = False
+
+if os.getenv("OPENAI_API_KEY"):
+    try:
+        from guardrails import InputToxicityGuardrail
+        INPUT_TOXICITY_GUARD = InputToxicityGuardrail()
+        GUARDRAILS_ENABLED = True
+        logger.info("🛡️  Guardrails ENABLED (OPENAI_API_KEY found)")
+        logger.info(f"   Input guardrail: {INPUT_TOXICITY_GUARD.__class__.__name__}")
+    except ImportError as e:
+        logger.warning(f"⚠️  Guardrails import failed: {e}")
+        logger.warning("   Guardrails disabled - continuing without safety checks")
+else:
+    logger.warning("⚠️  Guardrails DISABLED (no OPENAI_API_KEY)")
+    logger.warning("   To enable guardrails, add OPENAI_API_KEY to Modal secrets")
 
 # ============================================================================
 # Modal Configuration
@@ -86,6 +116,7 @@ class HealthResponse(BaseModel):
     agent_name: Optional[str] = None
     config_ref: Optional[str] = None
     model: Optional[str] = None
+    guardrails_enabled: bool = False
 
 
 # ============================================================================
@@ -292,6 +323,30 @@ def serialize_chunk_to_sse(chunk) -> str:
     return f"data: {json.dumps(chunk_dict)}\n\n"
 
 
+def create_blocked_message_stream(message: str, model: str, finish_reason: str = "content_filter") -> str:
+    """
+    Create a streaming SSE response for blocked/filtered messages.
+    
+    Used when guardrails block a request - maintains streaming consistency.
+    Returns a complete chunk with the blocked message in SSE format.
+    """
+    chunk_dict = {
+        "id": f"chatcmpl-{uuid.uuid4()}",
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [{
+            "index": 0,
+            "delta": {
+                "role": "assistant",
+                "content": message
+            },
+            "finish_reason": finish_reason
+        }]
+    }
+    return f"data: {json.dumps(chunk_dict)}\n\n"
+
+
 # ============================================================================
 # Authentication
 # ============================================================================
@@ -349,6 +404,10 @@ async def lifespan(app: FastAPI):
         ENV = get_environment()
         logger.info("="*60)
         logger.info("Tyler Playground API Server (Modal)")
+        if GUARDRAILS_ENABLED:
+            logger.info("🛡️  Guardrails: ENABLED")
+        else:
+            logger.info("⚠️  Guardrails: DISABLED")
         logger.info("="*60)
         
         # Load agent from Weave config
@@ -391,7 +450,7 @@ async def lifespan(app: FastAPI):
 
 web_app = FastAPI(
     title="Tyler Playground API",
-    description="OpenAI-compatible API for Tyler support bot agent (deployed on Modal)",
+    description="OpenAI-compatible API for Tyler support bot agent with optional guardrails (deployed on Modal)",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -417,7 +476,8 @@ async def health_check():
         environment=ENV or "unknown",
         agent_name=AGENT.name if AGENT else None,
         config_ref=CONFIG_REF,
-        model=AGENT.model_name if AGENT else None
+        model=AGENT.model_name if AGENT else None,
+        guardrails_enabled=GUARDRAILS_ENABLED
     )
 
 
@@ -427,6 +487,10 @@ async def root():
     return {
         "message": "Tyler Playground API (Modal)",
         "environment": ENV or "unknown",
+        "guardrails": {
+            "enabled": GUARDRAILS_ENABLED,
+            "input": INPUT_TOXICITY_GUARD.__class__.__name__ if INPUT_TOXICITY_GUARD else None
+        },
         "agent": {
             "name": AGENT.name if AGENT else None,
             "config_ref": CONFIG_REF,
@@ -444,13 +508,63 @@ async def chat_completions(
     request: ChatCompletionRequest,
     authorization: Optional[str] = Header(None)
 ):
-    """OpenAI-compatible chat completions endpoint."""
+    """
+    OpenAI-compatible chat completions endpoint with optional input guardrail.
+    
+    If OPENAI_API_KEY is set, input guardrails check user prompts BEFORE generation.
+    Toxic requests are blocked immediately without calling the LLM.
+    """
     verify_api_key(authorization)
     
     if not request.messages:
         raise HTTPException(status_code=400, detail="messages array cannot be empty")
     
     logger.info(f"POST /v1/chat/completions (messages={len(request.messages)}, config={CONFIG_REF})")
+    
+    # ========================================================================
+    # INPUT GUARDRAIL (if enabled) - Check user's prompt BEFORE generation
+    # ========================================================================
+    
+    if INPUT_TOXICITY_GUARD:
+        # Extract user's input (last user message)
+        user_input = None
+        for msg in reversed(request.messages):
+            if msg.role == "user":
+                user_input = msg.content
+                break
+        
+        if user_input:
+            # Check for toxic user input using OpenAI Moderation API
+            input_check = await INPUT_TOXICITY_GUARD.score(input=user_input)
+            if input_check["flagged"]:
+                blocked_message = f"I apologize, but I cannot process your request as it was flagged for: {input_check['reason']}"
+                logger.warning(f"🛡️  INPUT guardrail blocked: {input_check['reason']}")
+                
+                # Stream blocked message (maintains streaming consistency)
+                async def generate_blocked() -> AsyncGenerator[str, None]:
+                    """Stream the blocked message in SSE format."""
+                    yield create_blocked_message_stream(
+                        message=blocked_message,
+                        model=AGENT.model_name if AGENT else "unknown",
+                        finish_reason="content_filter"
+                    )
+                    yield "data: [DONE]\n\n"
+                
+                return StreamingResponse(
+                    generate_blocked(),
+                    media_type="text/event-stream",
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive",
+                        "X-Accel-Buffering": "no"
+                    }
+                )
+        
+        logger.info("✓ INPUT guardrail passed")
+    
+    # ========================================================================
+    # STREAM RESPONSE
+    # ========================================================================
     
     try:
         thread = convert_to_tyler_thread(request.messages)

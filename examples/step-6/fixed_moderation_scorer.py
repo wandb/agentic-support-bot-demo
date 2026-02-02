@@ -67,4 +67,3 @@ class FixedOpenAIModerationScorer(LLMScorer):
         }
 
         return {"passed": passed, "categories": categories}
-

@@ -492,68 +492,60 @@ def test_coverage_summary():
 
 class TestServerWithGuardrails:
     """
-    Integration tests for server with guardrails (Step 7).
+    Integration tests for server with optional guardrails (Step 6).
     
-    These tests verify that the guardrails-enabled server (examples/step-7/server.py)
-    correctly blocks unsafe content and logs guardrail results to Weave.
+    These tests verify that the server (examples/step-6/server.py)
+    correctly handles guardrails when OPENAI_API_KEY is set.
     """
     
     @pytest.fixture
     def guardrails_client(self):
-        """Create test client for guardrails-enabled server."""
-        # Add step-7 to path (prepend to override step-6 import)
-        step7_dir = Path(__file__).parent.parent / "examples" / "step-7"
-        sys.path.insert(0, str(step7_dir))
+        """Create test client for server with guardrails."""
+        # Add step-6 to path
+        step6_dir = Path(__file__).parent.parent / "examples" / "step-6"
+        sys.path.insert(0, str(step6_dir))
         
         try:
-            # Import fresh server module from step-7
+            # Import fresh server module from step-6
             import importlib.util
             spec = importlib.util.spec_from_file_location(
                 "guardrails_server",
-                step7_dir / "server.py"
+                step6_dir / "server.py"
             )
             guardrails_server_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(guardrails_server_module)
             
             # Set required config
-            guardrails_server_module.AGENT_CONFIG = {"model_name": "buzz"}
             guardrails_server_module.ENV = "test"
             
             return TestClient(guardrails_server_module.web_app)
         finally:
             # Remove from path after loading
-            sys.path.remove(str(step7_dir))
+            sys.path.remove(str(step6_dir))
     
-    def test_guardrails_initialized(self, guardrails_client):
+    def test_guardrails_status_in_root_endpoint(self, guardrails_client):
         """
         GIVEN Step 6 server
-        WHEN server starts
-        THEN input guardrail should be initialized
+        WHEN root endpoint called
+        THEN should show guardrails status (enabled or disabled based on OPENAI_API_KEY)
         
-        Maps to Spec: "Guardrails integrated in server.py"
-        
-        Note: Only INPUT guardrail is used to maintain streaming UX.
-        OUTPUT guardrails would break streaming.
+        Maps to Spec: "Guardrails integrated in server.py (optional)"
         """
-        # Check root endpoint lists guardrails
+        # Check root endpoint lists guardrails status
         response = guardrails_client.get("/")
         assert response.status_code == 200
         
         data = response.json()
         assert "guardrails" in data
+        assert "enabled" in data["guardrails"]
+        # Input guardrail info should be present
         assert "input" in data["guardrails"]
-        # No output guardrail - would break streaming
-        assert "output" not in data["guardrails"] or data["guardrails"]["output"] == "None (maintains streaming)"
-        
-        # Check that input guardrail is listed
-        input_guards = str(data["guardrails"]["input"])
-        assert "InputToxicityGuardrail" in input_guards
     
-    def test_health_endpoint_with_guardrails(self, guardrails_client):
+    def test_health_endpoint_shows_guardrails_status(self, guardrails_client):
         """
-        GIVEN Step 6 server with guardrails
+        GIVEN Step 6 server
         WHEN health endpoint called
-        THEN should return OK status
+        THEN should return OK status and guardrails_enabled field
         """
         response = guardrails_client.get("/health")
         assert response.status_code == 200
@@ -561,42 +553,47 @@ class TestServerWithGuardrails:
         data = response.json()
         assert data["status"] == "ok"
         assert data["environment"] == "test"
+        assert "guardrails_enabled" in data
     
     def test_guardrail_structure_verified(self):
         """
-        GIVEN Step 7 server with input guardrail
+        GIVEN Step 6 server with optional input guardrail
         WHEN guardrails imported
         THEN should have correct structure
         
         This smoke test verifies the integration pattern.
         Full end-to-end guardrail blocking tested in unit tests (test_guardrails.py).
         
-        Note: Only INPUT guardrail used to maintain streaming UX.
+        Note: Guardrails are only initialized if OPENAI_API_KEY is set.
         """
-        # Add step-7 to path
-        step7_dir = Path(__file__).parent.parent / "examples" / "step-7"
-        sys.path.insert(0, str(step7_dir))
+        # Add step-6 to path
+        step6_dir = Path(__file__).parent.parent / "examples" / "step-6"
+        sys.path.insert(0, str(step6_dir))
         
         try:
             # Import guardrails
             from guardrails import InputToxicityGuardrail
             
-            # Import server from step-7
+            # Import server from step-6
             import importlib.util
             spec = importlib.util.spec_from_file_location(
                 "guardrails_server_check",
-                step7_dir / "server.py"
+                step6_dir / "server.py"
             )
             guardrails_server = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(guardrails_server)
             
-            # Verify input guardrail initialized in server
+            # Server should have INPUT_TOXICITY_GUARD attribute
+            # It will be None if OPENAI_API_KEY is not set, or an instance if it is
             assert hasattr(guardrails_server, 'INPUT_TOXICITY_GUARD')
-            assert isinstance(guardrails_server.INPUT_TOXICITY_GUARD, InputToxicityGuardrail)
+            assert hasattr(guardrails_server, 'GUARDRAILS_ENABLED')
             
-            # No output guardrail - maintains streaming
-            # (OUTPUT_TOXICITY_GUARD should not exist or be None)
+            # If guardrails enabled, verify type
+            if guardrails_server.GUARDRAILS_ENABLED:
+                assert isinstance(guardrails_server.INPUT_TOXICITY_GUARD, InputToxicityGuardrail)
+            else:
+                assert guardrails_server.INPUT_TOXICITY_GUARD is None
         finally:
             # Remove from path
-            sys.path.remove(str(step7_dir))
+            sys.path.remove(str(step6_dir))
 
