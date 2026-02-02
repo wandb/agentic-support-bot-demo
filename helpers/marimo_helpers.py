@@ -1121,6 +1121,9 @@ async def run_modal_deploy(
             if 'App deployed' in line or 'deployed!' in line.lower() or '✓' in line:
                 success = True
         
+        # Clear the spinner overlay before showing results
+        mo.output.clear()
+        
         # Build concise output - show success callout with URL
         if endpoint_url or success:
             # Auto-save URL to state file for persistence across notebook restarts
@@ -1157,12 +1160,14 @@ async def run_modal_deploy(
                 mo.md(f"```\n{truncated}\n```")
             ], gap=1), ""
     except FileNotFoundError:
+        mo.output.clear()
         return mo.vstack([
             config_selector_row,
             command_row,
             mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
         ], gap=1), ""
     except Exception as e:
+        mo.output.clear()
         return mo.vstack([
             config_selector_row,
             command_row,

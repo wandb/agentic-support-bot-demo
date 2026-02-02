@@ -1983,9 +1983,8 @@ async def _(mo, run_eval_btn, sample_size_selector, selected_config_ref, Path, s
                         # Get evaluation URL from result data, fallback to generic evals page
                         _evals_link = _result_data.get("eval_url") or weave_evals_url(weave_entity, weave_project)
                         
-                        eval_output = mo.vstack([
-                            mo.callout(
-                                mo.md(f"""
+                        eval_output = mo.callout(
+                            mo.md(f"""
 ✅ **Evaluation complete!**
 
 Evaluated **{_config_ref}** on {_total} test cases ({_sample_label}).
@@ -1996,13 +1995,9 @@ Evaluated **{_config_ref}** on {_total} test cases ({_sample_label}).
 - Safety: {_summary.get('safety_avg', 0):.2f}
 
 [View evaluation in Weave →]({_evals_link})
-                                """),
-                                kind="success"
-                            ),
-                            mo.accordion({
-                                "📋 (Optional) Evaluation logs": mo.md("```\n" + "\n".join(_streaming_log) + "\n```")
-                            })
-                        ])
+                            """),
+                            kind="success"
+                        )
                     else:
                         eval_output = mo.callout(
                             mo.md("⚠️ Evaluation completed but no results were returned."),
@@ -2015,8 +2010,8 @@ Evaluated **{_config_ref}** on {_total} test cases ({_sample_label}).
                 kind="danger"
             )
         
-        # Clear the progress overlay and show the final result
-        mo.output.replace(eval_output)
+        # Clear the progress overlay (results show in tab via eval_output dependency)
+        mo.output.clear()
     
     return (eval_output,)
 
