@@ -2739,9 +2739,9 @@ def _(mo, step7_deploy_terminal, Path, step7_version_selector, step7_config_deta
         - **Guardrails** - Active safety controls that block unsafe input before generation
         - **Monitors** - Passive quality tracking that samples and scores production traffic
 
+        Note: For guardrails, you will need an OpenAI API key. If you don't have one, you can skip this step and add it later.
+
         Guardrails ensure safety in real-time, while monitors help you track quality trends and identify areas for improvement.
-        
-        ##
 
         The guardrails use the **OpenAI Moderation API** to check user input BEFORE generation:
         - Blocks toxic user requests immediately (saves cost and time!)
