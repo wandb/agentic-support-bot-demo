@@ -2161,7 +2161,6 @@ async def accuracy_scorer(input: str, output: str, expected: str) -> float:
 
         Now choose how many samples (the number of test cases from the dataset) to evaluate and run the evaluation.
         
-        This uses the Weave `EvaluationLogger` API:
         """),
         
         mo.hstack([
@@ -2189,14 +2188,12 @@ for test_case in dataset.rows:
             ], gap=0.5)
         ], justify="start", align="center", gap=2),
         
-        eval_output,
-
         mo.md("""
         ###
         """),
 
         mo.accordion({
-            "📖 (Optional) Understand the code: EvaluationLogger API": mo.vstack([
+            "📖 (Optional) Understand the code: Weave's EvaluationLogger API": mo.vstack([
                 mo.md("""
 **Log predictions and scores systematically.** The `EvaluationLogger` API lets you run your agent on each test case, capture the output, and log scores from multiple scorers. All results are stored in Weave for analysis.
                 """),
@@ -2240,19 +2237,19 @@ for test_case in dataset.rows:
         mo.md(f"""
         ##
 
-        Congrats, **you now have a baseline!** With quantitative metrics, you can iterate systematically to improve your agent. [View the full evaluation results in Weave]({_evals_url})
+        Congrats, **you now have a baseline!** With evaluation metrics, you can iterate systematically to improve your agent.
 
         - **Review metrics:** Aggregate scores, test case results, and full agent traces
         - **Identify patterns:** Group failures with annotations and pinpoint accuracy gaps
         - **Compare runs:** Select 2+ evaluations to view side-by-side metrics and track changes
 
-        What's next? It's time to iterate based on the evaluation results. You can now start to improve the agent's performance by adjusting the following levers:
+        What's next? It's time to iterate based on the evaluation results. You can improve the agent's performance by adjusting the following levers:
 
         **Levers to adjust:**
 
         1. **Purpose and Notes** (agent config) - Add examples, refine tone guidance
         2. **Tool Descriptions** (`tools.py`) - Clarify when to use each tool, add examples
-        3. **Model Selection** (agent config) - Try `gpt-4.1` or other models available in W&B Inference, adjust `temperature`, experiment with `reasoning` levels
+        3. **Model Selection** (agent config) - Try other models available in W&B Inference
         4. **MCP Search Strategy** - Review traces where docs search failed
 
         **Iteration workflow:**
