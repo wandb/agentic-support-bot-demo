@@ -2591,7 +2591,7 @@ This will open a browser window to authenticate. Once complete, you're ready to 
         mo.md(f"""
         ##
 
-        Now you can use the agent by sending requests to this API endpoint. Not only can you connect to this API endpoint directly, but you can also use it in **Weave Playground**. The Playground is a built-in chat interface in your W&B project that lets you test any OpenAI-compatible API. Since your Modal server exposes an OpenAI-compatible endpoint, you can connect it directly!
+        You can now send requests to your API endpoint directly, or test it in **Weave Playground**—a built-in chat interface in your W&B project that works with any OpenAI-compatible API.
 
         1. Go to your W&B project → navigate to **Playground**: [Open Playground]({_playground_url})
         2. In the model dropdown: **+ Add AI provider** → **Custom provider**
@@ -2610,6 +2610,9 @@ This will open a browser window to authenticate. Once complete, you're ready to 
         ```
         I'm getting API timeout errors. Can you help?
         ```
+        ```
+        What's the status of ticket #10234?
+        ```
 
         **🔍 Check traces in Weave:**
 
@@ -2619,30 +2622,6 @@ This will open a browser window to authenticate. Once complete, you're ready to 
         mo.md("""
         ###
         """),
-
-        mo.accordion({
-            "📖 (Optional) Understand the code: Tagging production traces": mo.vstack([
-                mo.md("""
-**Add metadata to traces.** Use `weave.attributes()` to tag traces with environment, config version, or any custom metadata. This makes it easy to filter and compare traces in the Weave UI.
-                """),
-                mo.ui.code_editor(value='''import weave
-
-# Tag traces with environment and config version
-with weave.attributes({
-    "env": "production",
-    "config_ref": "SupportAgentConfig:v5",
-    "deployment_id": "modal-abc123"
-}):
-    async for chunk in agent.stream(thread):
-        yield chunk
-
-# Now in Weave UI, you can filter traces:
-# - env = "production" → only production traffic
-# - config_ref = "SupportAgentConfig:v5" → specific version
-# - Compare traces across different config versions
-''', language="python", disabled=True),
-            ])
-        }),
         
         mo.md(f"""
         ##
@@ -2650,10 +2629,10 @@ with weave.attributes({
         With your agent deployed, create a [Saved View](https://docs.wandb.ai/weave/guides/tools/saved-views) in Weave to monitor production traffic:
 
         1. Go to your W&B project → **Traces** tab
-        2. Add filters: operation = `Agent.stream`
+        2. Add filters: operation = `Agent.stream` and attributes.env = `main`
         3. Save the view as "Production Dashboard"
 
-        This gives you a dedicated view of production agent calls. You can create similar views for errors, slow requests, or any other criteria that help you monitor your agent's performance.
+        This gives you a dedicated view of agent calls in production. You can create similar views for errors, slow requests, or any other criteria that help you monitor your agent's performance.
         """),
         mo.callout(
             mo.md("✅ **Ready for the next step!** Once you've deployed to production and tested via Playground, continue to the **Monitor** step to add guardrails and monitoring."),
