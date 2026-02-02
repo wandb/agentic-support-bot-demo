@@ -62,6 +62,9 @@ if os.getenv("OPENAI_API_KEY"):
     except ImportError as e:
         logger.warning(f"⚠️  Guardrails import failed: {e}")
         logger.warning("   Guardrails disabled - continuing without safety checks")
+    except Exception as e:
+        logger.warning(f"⚠️  Guardrails initialization failed: {e}")
+        logger.warning("   Guardrails disabled - continuing without safety checks")
 else:
     logger.warning("⚠️  Guardrails DISABLED (no OPENAI_API_KEY)")
     logger.warning("   To enable guardrails, add OPENAI_API_KEY to Modal secrets")
