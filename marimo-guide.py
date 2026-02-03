@@ -10,7 +10,7 @@ Launch with: marimo edit marimo-guide.py
 import marimo
 
 __generated_with = "0.18.1"
-app = marimo.App(width="medium", app_title="Agentic Chatbot with Weave")
+app = marimo.App(width="medium", app_title="Agentic Chatbot with Weave", css_file="custom.css")
 
 
 @app.cell
