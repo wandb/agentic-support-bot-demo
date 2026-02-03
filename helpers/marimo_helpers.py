@@ -300,12 +300,42 @@ def fetch_traces_data(
             latency_ms = trace.get('summary', {}).get('weave', {}).get('latency_ms', 0)
             latency_str = f"{latency_ms / 1000.0:.3f}s" if latency_ms else 'N/A'
             
-            # Get cost
+            # Get cost - check multiple possible locations
+            # Based on Weave source code, costs are stored in summary.weave.costs (plural)
+            # Structure: {"llm_id_1": {"prompt_tokens_total_cost": ..., "completion_tokens_total_cost": ...}, ...}
             costs = trace.get('costs', {})
-            if costs:
-                total_cost = sum(costs.values())
+            
+            # Check summary.weave.costs (this is where Weave adds costs when include_costs=True)
+            # Note: Costs are only added when there's usage data in the trace summary
+            if not costs or (isinstance(costs, dict) and len(costs) == 0):
+                summary_weave = trace.get('summary', {}).get('weave', {})
+                if 'costs' in summary_weave:
+                    costs = summary_weave['costs']
+            
+            # Calculate total cost
+            # Costs structure: {"llm_id": {"prompt_tokens_total_cost": X, "completion_tokens_total_cost": Y}, ...}
+            # We need to sum prompt_tokens_total_cost + completion_tokens_total_cost for each LLM
+            if costs and isinstance(costs, dict) and len(costs) > 0:
+                total_cost = 0.0
+                for llm_id, cost_details in costs.items():
+                    if isinstance(cost_details, dict):
+                        # Sum prompt and completion token costs for this LLM
+                        prompt_cost = cost_details.get('prompt_tokens_total_cost', 0) or 0
+                        completion_cost = cost_details.get('completion_tokens_total_cost', 0) or 0
+                        total_cost += float(prompt_cost) + float(completion_cost)
+                    elif isinstance(cost_details, (int, float)):
+                        # If it's a direct number, add it
+                        total_cost += float(cost_details)
+                
                 cost_str = f"${total_cost:.4f}" if total_cost > 0 else "$0.00"
+            elif costs and isinstance(costs, (int, float)):
+                # If costs is a direct number (unlikely but handle it)
+                cost_str = f"${costs:.4f}" if costs > 0 else "$0.00"
             else:
+                # Costs are not available - this happens when:
+                # 1. The trace has no LLM usage data (no token usage tracked)
+                # 2. Costs haven't been calculated yet
+                # 3. The API didn't return costs even with include_costs=True
                 cost_str = 'N/A'
             
             table_data.append({
@@ -342,6 +372,30 @@ def build_traces_table_ui(mo, table_data: List[Dict[str, Any]]):
                 "Cost": row["Cost"]
             }
             for row in table_data
+        ],
+        selection=None
+    )
+
+
+def build_empty_traces_table(mo):
+    """
+    Build an empty traces table placeholder.
+    
+    Shows the table headers with a message indicating no traces yet.
+    
+    Args:
+        mo: marimo module (must be passed from notebook context)
+        
+    Returns:
+        mo.ui.table with empty state
+    """
+    return mo.ui.table(
+        [
+            {
+                "Link": mo.md("*No traces yet - send a message above*"),
+                "Latency": "-",
+                "Cost": "-"
+            }
         ],
         selection=None
     )
@@ -606,6 +660,85 @@ def fetch_weave_configs(
         return {}
 
 
+def fetch_config_details(
+    weave_entity: str,
+    weave_project: str,
+    config_name: str,
+    version: str,
+    wandb_token: str
+) -> Optional[Dict[str, str]]:
+    """
+    Fetch config details (model, name, purpose, notes) from Weave.
+    
+    Args:
+        weave_entity: Weave entity name
+        weave_project: Weave project name
+        config_name: Name of the config (e.g., "SupportAgentConfig")
+        version: Version string (e.g., "v0", "v1")
+        wandb_token: W&B API token
+        
+    Returns:
+        Dict with model, name, purpose, notes fields, or None on failure
+    """
+    import requests
+    import yaml
+    
+    if not wandb_token or not config_name or not version:
+        return None
+    
+    try:
+        # Extract version index from "v0", "v1", etc.
+        version_index = int(version.replace("v", ""))
+        
+        project_id = f"{weave_entity}/{weave_project}"
+        headers = {"Content-Type": "application/json"}
+        
+        # Query for the specific config version
+        payload = {
+            "project_id": project_id,
+            "filter": {
+                "object_ids": [config_name],
+                "latest_only": False
+            },
+            "limit": 100
+        }
+        
+        response = requests.post(
+            WEAVE_OBJS_API,
+            headers=headers,
+            json=payload,
+            auth=("api", wandb_token),
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            return None
+        
+        data = response.json()
+        
+        # Find the object with matching version_index
+        for obj in data.get("objs", []):
+            if obj.get("version_index") == version_index:
+                # Get the YAML content from the object
+                val = obj.get("val", {})
+                yaml_content = val.get("yaml", "")
+                
+                if yaml_content:
+                    # Parse YAML to extract fields
+                    config = yaml.safe_load(yaml_content)
+                    return {
+                        "name": config.get("name", ""),
+                        "model": config.get("model_name", ""),
+                        "purpose": config.get("purpose", ""),
+                        "notes": config.get("notes", "")
+                    }
+        
+        return None
+        
+    except Exception:
+        return None
+
+
 # =============================================================================
 # MODEL FETCHING (for evaluations) - DEPRECATED, use fetch_weave_configs
 # =============================================================================
@@ -802,6 +935,50 @@ async def run_terminal_command(
         ])
 
 
+def _make_spinner_overlay(title: str, subtitle: str = "") -> str:
+    """Create a centered modal-style spinner overlay HTML."""
+    # Truncate subtitle to fit fixed width
+    display_subtitle = (subtitle[:50] + '...') if subtitle and len(subtitle) > 50 else subtitle
+    return f"""
+    <div style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 24px 32px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        z-index: 9999;
+        width: 400px;
+        font-family: system-ui, -apple-system, sans-serif;
+        border: 1px solid #e5e7eb;
+    ">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="
+                width: 24px;
+                height: 24px;
+                border: 3px solid #e5e7eb;
+                border-top-color: #3b82f6;
+                border-radius: 50%;
+                animation: modal-spinner 1s linear infinite;
+                flex-shrink: 0;
+            "></div>
+            <div style="overflow: hidden;">
+                <div style="font-weight: 600; color: #1f2937; font-size: 16px;">{title}</div>
+                <div style="font-size: 13px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{display_subtitle}</div>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes modal-spinner {{
+            from {{ transform: rotate(0deg); }}
+            to {{ transform: rotate(360deg); }}
+        }}
+    </style>
+    """
+
+
 async def run_modal_deploy(
     mo,
     run_button,
@@ -809,22 +986,27 @@ async def run_modal_deploy(
     version_selector,
     refresh_btn,
     step_num: int,
-    success_message: str = "Deployed successfully!"
+    success_message: str = "Deployed successfully!",
+    config_name_override: Optional[str] = None,
+    selector_row_override: Optional[Any] = None
 ) -> Tuple[Any, str]:
     """
     Execute Modal deploy command and return the terminal UI plus endpoint URL.
     
     Handles config selection, config.json saving, deploy execution, and
-    URL extraction from Modal output.
+    URL extraction from Modal output. Shows a fixed-position spinner overlay
+    during deployment for user feedback.
     
     Args:
         mo: marimo module
         run_button: Run button UI element
-        config_selector: Config dropdown selector
+        config_selector: Config dropdown selector (can be None if config_name_override provided)
         version_selector: Version dropdown selector
         refresh_btn: Refresh button
         step_num: Step number (6 or 7)
         success_message: Custom success message (e.g., "Deployed with guardrails!")
+        config_name_override: Optional config name to use instead of config_selector.value
+        selector_row_override: Optional custom selector UI row to display
     
     Returns:
         Tuple of (terminal_ui, endpoint_url) - endpoint_url is empty string if not deployed
@@ -834,17 +1016,20 @@ async def run_modal_deploy(
     
     command = f"uv run modal deploy workspace/step-{step_num}/server.py"
     
-    # Get selected config for display
-    config_name = config_selector.value
+    # Get selected config for display - use override if provided
+    config_name = config_name_override if config_name_override else (config_selector.value if config_selector else None)
     version = version_selector.value
     config_ref = f"{config_name}:{version}" if config_name and version else "No config selected"
     
-    # Config selector row (separate from command)
-    config_selector_row = mo.hstack([
-        config_selector,
-        version_selector,
-        refresh_btn
-    ], justify="start", gap=1)
+    # Config selector row - use override if provided, otherwise build default
+    if selector_row_override is not None:
+        config_selector_row = selector_row_override
+    else:
+        config_selector_row = mo.hstack([
+            config_selector,
+            version_selector,
+            refresh_btn
+        ], justify="start", gap=1)
     
     # Command + deploy button row
     command_row = mo.hstack([
@@ -879,6 +1064,9 @@ async def run_modal_deploy(
         ], gap=1), ""
     
     try:
+        # Show initial spinner overlay
+        mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Starting deployment")))
+        
         process = await asyncio.create_subprocess_exec(
             "uv", "run", "modal", "deploy", str(server_path),
             stdout=asyncio.subprocess.PIPE,
@@ -886,8 +1074,29 @@ async def run_modal_deploy(
             env=os.environ.copy()
         )
         
-        stdout, _ = await process.communicate()
-        output = stdout.decode() if stdout else ""
+        # Read output line by line and update spinner
+        output_lines = []
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                break
+            line_text = line.decode().strip()
+            if line_text:
+                output_lines.append(line_text)
+                # Update spinner with latest status based on output patterns
+                if "Creating" in line_text:
+                    mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Creating resources...")))
+                elif "Uploading" in line_text or "upload" in line_text.lower():
+                    mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Uploading code...")))
+                elif "Building" in line_text or "build" in line_text.lower():
+                    mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Building container...")))
+                elif "Serving" in line_text or "Starting" in line_text:
+                    mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Starting server...")))
+                elif ".modal.run" in line_text:
+                    mo.output.replace(mo.Html(_make_spinner_overlay("Deploying to Modal...", "Finalizing deployment...")))
+        
+        await process.wait()
+        output = "\n".join(output_lines)
         
         # Extract key info from Modal output (URL, success message)
         endpoint_url = ""
@@ -911,6 +1120,9 @@ async def run_modal_deploy(
                     view_url = match.group(0)
             if 'App deployed' in line or 'deployed!' in line.lower() or '✓' in line:
                 success = True
+        
+        # Clear the spinner overlay before showing results
+        mo.output.clear()
         
         # Build concise output - show success callout with URL
         if endpoint_url or success:
@@ -948,12 +1160,14 @@ async def run_modal_deploy(
                 mo.md(f"```\n{truncated}\n```")
             ], gap=1), ""
     except FileNotFoundError:
+        mo.output.clear()
         return mo.vstack([
             config_selector_row,
             command_row,
             mo.md("```\nError: Modal CLI not found. Run 'uv run modal setup' first.\n```")
         ], gap=1), ""
     except Exception as e:
+        mo.output.clear()
         return mo.vstack([
             config_selector_row,
             command_row,

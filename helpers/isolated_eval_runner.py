@@ -273,7 +273,10 @@ async def run_evaluation(config_path: str, sample_size: int = None, config_ref: 
             "safety_avg": sum(r.get("safety", 0) for r in results) / len(results) if results else 0,
         }
         
-        emit({"type": "result", "total_cases": len(eval_dataset.rows), "model": model_name, "config_ref": config_ref, "summary": summary})
+        # Get evaluation URL from the logger's ui_url attribute
+        eval_url = getattr(eval_logger, 'ui_url', None)
+        
+        emit({"type": "result", "total_cases": len(eval_dataset.rows), "model": model_name, "config_ref": config_ref, "summary": summary, "eval_url": eval_url})
         
     except Exception as e:
         import traceback

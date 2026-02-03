@@ -249,8 +249,18 @@ class TestFetchTracesData:
         mock_response.text = json.dumps({
             "id": "trace-123",
             "started_at": "2024-01-01T12:00:00Z",
-            "summary": {"weave": {"status": "success", "latency_ms": 1500}},
-            "costs": {}
+            "summary": {
+                "weave": {
+                    "status": "success",
+                    "latency_ms": 1500,
+                    "costs": {
+                        "gpt-4": {
+                            "prompt_tokens_total_cost": 0.01,
+                            "completion_tokens_total_cost": 0.02
+                        }
+                    }
+                }
+            }
         })
         mock_post.return_value = mock_response
         
@@ -262,6 +272,7 @@ class TestFetchTracesData:
         assert len(table_data) == 1
         assert table_data[0]["Trace ID"] == "trace-123"
         assert table_data[0]["Latency"] == "1.500s"
+        assert table_data[0]["Cost"] == "$0.0300"  # 0.01 + 0.02
 
 
 # =============================================================================
