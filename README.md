@@ -60,15 +60,7 @@ uv sync
 uv run marimo run marimo-guide.py
 ```
 
-The guide will open in your browser and walk you through the entire tutorial:
-
-- ✅ Environment validation and setup
-- ✅ One-click file copying for each step
-- ✅ Contextual links to Weave UI
-- ✅ Interactive chat with your agent
-- ✅ Evaluation and deployment workflows
-
-**Note:** You'll need a terminal open for some commands (like `tyler chat` and `modal serve`), but the guide provides copy buttons and clear instructions.
+The guide will open in your browser and walk you through the entire tutorial.
 
 ---
 
