@@ -5,7 +5,7 @@
 name: "agent"  # Give your agent a friendly name!
 
 # Model configuration
-model_name: "openai/deepseek-ai/DeepSeek-R1-0528"  # Which LLM to use
+model_name: "openai/deepseek-ai/DeepSeek-V4-Pro"  # Which LLM to use via W&B Inference
 
 # Agent behavior
 purpose: "You are a helpful AI assistant."  # Generic purpose (you'll improve this!)
