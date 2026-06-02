@@ -29,7 +29,7 @@ Build a support bot for Weights & Biases that can:
   - Used to deploy your agent server (both development and production)
   - Free tier includes generous compute credits
 - **Weights & Biases account** ([sign up free](https://wandb.ai/authorize))
-  - Your W&B API key is used for both Weave observability AND the LLM API (we use W&B Inference with DeepSeek)
+  - Your W&B API key is used for both Weave observability AND the LLM API (we use W&B Inference)
 
 ---
 

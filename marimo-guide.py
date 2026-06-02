@@ -30,6 +30,11 @@ def _():
     import random
     from datetime import datetime, timezone
 
+    # Keep all relative notebook paths anchored to the repository root. Some
+    # agent/tool loading code temporarily works with step-specific directories.
+    _project_root = Path(__file__).resolve().parent
+    os.chdir(_project_root)
+
     # Import helpers for DRY code
     from helpers.marimo_helpers import (
         # Constants
@@ -456,8 +461,11 @@ def _(yaml, os, Path, config_editor_2):
             if not _config_path.exists():
                 return None, None, f"⚠️ Config file not found: {_config_path}. Click 'Copy Step 2A Files' button above."
             
-            # Convert to absolute path
-            _config_path = _config_path.absolute()
+            # Resolve from the notebook/repo root, not the current process cwd.
+            # The cwd can change transiently while Marimo cells are running.
+            if not _config_path.is_absolute():
+                _config_path = Path(__file__).resolve().parent / _config_path
+            _config_path = _config_path.resolve()
             _config_dir = str(_config_path.parent)
             
             # Load config YAML
@@ -471,23 +479,19 @@ def _(yaml, os, Path, config_editor_2):
             from tyler import Agent
             import sys
             
-            # Save current state
-            _original_cwd = os.getcwd()
             _original_syspath = sys.path.copy()
             
-            # Add config directory to Python path so tools.py can be imported
-            # AND change working directory so relative paths work
+            # Add config directory to Python path so tools.py can be imported.
+            # Do not chdir here; Marimo cells share a process-wide cwd.
             if _config_dir not in sys.path:
                 sys.path.insert(0, _config_dir)
-            os.chdir(_config_dir)
             
             try:
                 # Load agent - Tyler's load_config will resolve paths relative to config file
                 agent = Agent.from_config(str(_config_path))
             finally:
-                # Always restore original state
+                # Always restore original import state
                 sys.path = _original_syspath
-                os.chdir(_original_cwd)
             
             # Build status message
             model_name = config.get("model_name", "unknown")
@@ -1120,7 +1124,7 @@ def _(mo, os, fetch_wandb_inference_models):
             "meta-llama/Llama-3.1-8B-Instruct",
             "Qwen/Qwen2.5-72B-Instruct",
             "Qwen/QwQ-32B",
-            "deepseek-ai/DeepSeek-R1-0528",
+            "deepseek-ai/DeepSeek-V4-Pro",
             "google/gemma-2-27b-it",
         ]
     
